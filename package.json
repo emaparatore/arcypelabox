@@ -5,9 +5,10 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "tsc -p tsconfig.node.json --watch",
     "build": "tsc && vite build && tsc -p tsconfig.node.json",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:dev": "concurrently \"vite\" \"npm run dev:electron\" \"wait-on http://localhost:5173 dist-electron/main.js && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },

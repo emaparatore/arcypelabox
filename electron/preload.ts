@@ -10,7 +10,17 @@ contextBridge.exposeInMainWorld("sandobox", {
   getSandboxInfo: (id: string) => ipcRenderer.invoke("sandobox:info", id),
   execInSandbox: (id: string, command: string) =>
     ipcRenderer.invoke("sandobox:exec", id, command),
-  listImages: () => ipcRenderer.invoke("sandobox:images"),
+  listPendingPermissions: (port: number) => ipcRenderer.invoke("sandobox:opencode:permissions", port),
+  replyPermission: (port: number, requestId: string, reply: "once" | "always" | "reject") =>
+    ipcRenderer.invoke("sandobox:opencode:permission:reply", port, requestId, reply),
+  getOpenCodeSessions: (port: number) => ipcRenderer.invoke("sandobox:opencode:sessions", port),
+  abortOpenCodeSession: (port: number, sessionId: string) =>
+    ipcRenderer.invoke("sandobox:opencode:session:abort", port, sessionId),
+  getOpenCodeSessionDebug: (port: number, sessionId: string) =>
+    ipcRenderer.invoke("sandobox:opencode:session:debug", port, sessionId),
+  listPendingQuestions: (port: number) => ipcRenderer.invoke("sandobox:opencode:questions", port),
+  replyQuestion: (port: number, requestId: string, answers: string[][]) =>
+    ipcRenderer.invoke("sandobox:opencode:question:reply", port, requestId, answers),
   opencode: {
     checkHealth: (port: number) => ipcRenderer.invoke("sandobox:opencode:health", port),
     sendPrompt: (port: number, text: string) =>

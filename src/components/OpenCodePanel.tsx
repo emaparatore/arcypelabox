@@ -8,8 +8,29 @@ interface Props {
 
 export function OpenCodePanel({ sandboxId, port }: Props) {
   const [input, setInput] = useState("")
+  const [permissionError, setPermissionError] = useState<string | null>(null)
+  const [questionAnswers, setQuestionAnswers] = useState<Record<string, string[]>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { messages, connected, loading, connect, disconnect, sendPrompt } = useOpenCode(port)
+  const {
+    messages,
+    connected,
+    loading,
+    pendingPermissions,
+    pendingQuestions,
+    sessions,
+    sessionDebug,
+    diagnostic,
+    connect,
+    disconnect,
+    sendPrompt,
+    refreshPermissions,
+    refreshQuestions,
+    refreshSessions,
+    refreshSessionDebug,
+    replyQuestion,
+    replyPermission,
+    abortSession,
+  } = useOpenCode(port)
 
   useEffect(() => {
     connect()
@@ -19,6 +40,19 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    if (!connected) return
+
+    const interval = setInterval(() => {
+      refreshPermissions()
+      refreshQuestions()
+      refreshSessions()
+      refreshSessionDebug()
+    }, 1500)
+
+    return () => clearInterval(interval)
+  }, [connected, refreshPermissions, refreshQuestions, refreshSessionDebug, refreshSessions])
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -31,6 +65,53 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  const handlePermissionReply = async (
+    requestId: string,
+    reply: "once" | "always" | "reject",
+  ) => {
+    setPermissionError(null)
+    try {
+      await replyPermission(requestId, reply)
+    } catch (err) {
+      setPermissionError((err as Error).message)
+    }
+  }
+
+  const handleAbortSession = async (sessionId: string) => {
+    setPermissionError(null)
+    try {
+      await abortSession(sessionId)
+    } catch (err) {
+      setPermissionError((err as Error).message)
+    }
+  }
+
+  const toggleQuestionAnswer = (requestId: string, optionLabel: string, multiple: boolean) => {
+    setQuestionAnswers((prev) => {
+      const current = prev[requestId] ?? []
+      if (!multiple) return { ...prev, [requestId]: [optionLabel] }
+
+      return current.includes(optionLabel)
+        ? { ...prev, [requestId]: current.filter((entry) => entry !== optionLabel) }
+        : { ...prev, [requestId]: [...current, optionLabel] }
+    })
+  }
+
+  const handleQuestionReply = async (requestId: string, multiple: boolean) => {
+    setPermissionError(null)
+    try {
+      const selected = questionAnswers[requestId] ?? []
+      await replyQuestion(requestId, [multiple ? selected : selected.slice(0, 1)])
+      setQuestionAnswers((prev) => {
+        const next = { ...prev }
+        delete next[requestId]
+        return next
+      })
+    } catch (err) {
+      setPermissionError((err as Error).message)
     }
   }
 
@@ -52,6 +133,148 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
           )}
         </div>
       </div>
+
+      {(diagnostic || sessions.length > 0) && (
+        <div className="opencode-diagnostics">
+          {diagnostic && <div className="opencode-diagnostic-error">{diagnostic}</div>}
+          {sessions.length > 0 && (
+            <div className="session-status-list">
+              {sessions.map((session) => (
+                <div key={session.id} className={`session-status-card ${session.status}`}>
+                  <div className="session-status-title">{session.title}</div>
+                  <div className="session-status-meta">
+                    {session.status}
+                    {session.statusMessage ? ` - ${session.statusMessage}` : ""}
+                  </div>
+                  {session.status === "busy" && (
+                    <button
+                      className="btn btn-sm session-abort-btn"
+                      onClick={() => handleAbortSession(session.id)}
+                    >
+                      Abort Session
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {sessionDebug && (
+            <div className="session-debug-card">
+              <div className="session-debug-title">Current Operation</div>
+              <div className="session-debug-line">
+                Session: <code>{sessionDebug.sessionId}</code>
+                {sessionDebug.lastMessageRole ? ` | Last message: ${sessionDebug.lastMessageRole}` : ""}
+              </div>
+              {sessionDebug.toolName && (
+                <div className="session-debug-line">
+                  Tool: <code>{sessionDebug.toolName}</code>
+                  {sessionDebug.toolStatus ? ` (${sessionDebug.toolStatus})` : ""}
+                </div>
+              )}
+              {sessionDebug.toolInput && (
+                <pre className="session-debug-pre">{sessionDebug.toolInput}</pre>
+              )}
+              {sessionDebug.assistantText && (
+                <pre className="session-debug-pre">{sessionDebug.assistantText}</pre>
+              )}
+              {sessionDebug.error && (
+                <div className="opencode-diagnostic-error">{sessionDebug.error}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {pendingPermissions.length > 0 && (
+        <div className="permission-banner">
+          <div className="permission-banner-header">
+            <strong>OpenCode is waiting for permission</strong>
+            <button className="btn btn-sm" onClick={() => refreshPermissions()}>
+              Refresh
+            </button>
+          </div>
+          {pendingPermissions.map((request) => (
+            <div key={request.id} className="permission-card">
+              <div>
+                <div className="permission-name">{request.permission}</div>
+                {request.patterns.length > 0 && (
+                  <div className="permission-patterns">{request.patterns.join(", ")}</div>
+                )}
+              </div>
+              <div className="permission-actions">
+                <button
+                  className="btn btn-sm"
+                  onClick={() => handlePermissionReply(request.id, "once")}
+                >
+                  Allow Once
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handlePermissionReply(request.id, "always")}
+                >
+                  Always Allow
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => handlePermissionReply(request.id, "reject")}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+          {permissionError && <div className="permission-error">{permissionError}</div>}
+        </div>
+      )}
+
+      {pendingQuestions.length > 0 && (
+        <div className="permission-banner">
+          <div className="permission-banner-header">
+            <strong>OpenCode needs an answer to continue</strong>
+            <button className="btn btn-sm" onClick={() => refreshQuestions()}>
+              Refresh
+            </button>
+          </div>
+          {pendingQuestions.map((request) => {
+            const item = request.questions[0]
+            const selected = questionAnswers[request.id] ?? []
+
+            return (
+              <div key={request.id} className="question-card">
+                <div className="permission-name">{item?.header || "Question"}</div>
+                <div className="question-text">{item?.question}</div>
+                <div className="question-options">
+                  {item?.options.map((option) => {
+                    const active = selected.includes(option.label)
+                    return (
+                      <button
+                        key={option.label}
+                        className={`option-card ${active ? "selected" : ""}`}
+                        onClick={() =>
+                          toggleQuestionAnswer(request.id, option.label, Boolean(item.multiple))
+                        }
+                        type="button"
+                      >
+                        <strong>{option.label}</strong>
+                        <span>{option.description}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="permission-actions">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={selected.length === 0}
+                    onClick={() => handleQuestionReply(request.id, Boolean(item?.multiple))}
+                  >
+                    Submit Answer
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <div className="opencode-panel-messages">
         {messages.length === 0 && (

@@ -1,13 +1,24 @@
 import Docker from "dockerode"
+import { randomUUID } from "node:crypto"
+import { execFile } from "node:child_process"
+import { writeFile, mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import { promisify } from "node:util"
 
 const docker = new Docker()
+const execFileAsync = promisify(execFile)
 
 export interface SandboxConfig {
   name: string
   image: string
   opencodePort: number
+  generatedDockerfile: string
   projectMount?: string
   permissions: Record<string, string>
+  runtimes: Array<"node" | "python" | "dotnet">
+  tools: Array<"git" | "curl" | "wget" | "vim" | "build-essential" | "sqlite" | "pnpm" | "bun">
+  services: Array<"postgres" | "redis">
   providerApiKey?: string
   providerId?: string
   modelId?: string
@@ -44,15 +55,23 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
 }
 
 export async function createSandbox(config: SandboxConfig): Promise<string> {
+  const image = await buildImage(config.image, config.generatedDockerfile)
   const opencodeConfig = buildOpenCodeConfig(config)
+  const group = createGroupName(config.name)
+  const networkName = `${group}-net`
+
+  await ensureNetwork(networkName)
+  await ensureServiceContainers(config, group, networkName)
 
   const container = await docker.createContainer({
     name: config.name,
-    Image: config.image,
+    Image: image,
     Labels: {
       "sandobox.manager": "true",
+      "sandobox.group": group,
       "sandobox.opencode.port": config.opencodePort.toString(),
       "sandobox.project.mount": config.projectMount ?? "",
+      "sandobox.services": config.services.join(","),
     },
     ExposedPorts: {
       [`${config.opencodePort}/tcp`]: {},
@@ -63,55 +82,79 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
       },
       ...(config.projectMount
         ? {
-            Binds: [`${config.projectMount}:/workspace/project`],
+            Binds: [`${config.projectMount}:/workspace`],
           }
         : {}),
     },
     Env: [
       `OPENCODE_CONFIG=${opencodeConfig}`,
+      "SANDBOX_WORKSPACE=/workspace",
+      ...(config.services.includes("postgres")
+        ? [
+            "POSTGRES_HOST=postgres",
+            "POSTGRES_PORT=5432",
+            "POSTGRES_USER=sandbox",
+            "POSTGRES_PASSWORD=sandbox",
+            "POSTGRES_DB=sandbox",
+          ]
+        : []),
+      ...(config.services.includes("redis") ? ["REDIS_HOST=redis", "REDIS_PORT=6379"] : []),
       ...(config.providerApiKey ? [`OPENCODE_PROVIDER_API_KEY=${config.providerApiKey}`] : []),
     ],
-    Cmd: ["sh", "-c", `echo '${opencodeConfig}' > /root/.config/opencode/config.json && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`],
+    Cmd: [
+      "sh",
+      "-c",
+      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/config.json && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`,
+    ],
+  })
+
+  await docker.getNetwork(networkName).connect({
+    Container: container.id,
+    EndpointConfig: {
+      Aliases: ["sandbox"],
+    },
   })
 
   await container.start()
   return container.id
 }
 
-function buildOpenCodeConfig(config: SandboxConfig): string {
-  const permissionEntries = Object.entries(config.permissions).map(([key, value]) => {
-    const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
-    return `"${key}": ${JSON.stringify(action)}`
-  })
-
-  const opencodeConfig: Record<string, unknown> = {
-    permission: JSON.parse(`{${permissionEntries.join(",")}}`),
-  }
-
-  if (config.providerId) {
-    opencodeConfig.provider = config.providerId
-  }
-
-  if (config.modelId) {
-    opencodeConfig.model = config.modelId
-  }
-
-  return JSON.stringify(opencodeConfig)
-}
-
 export async function startSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
-  await container.start()
+  const info = await container.inspect()
+  const group = info.Config.Labels?.["sandobox.group"]
+  await startGroupContainers(group ?? id)
 }
 
 export async function stopSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
-  await container.stop()
+  const info = await container.inspect()
+  const group = info.Config.Labels?.["sandobox.group"]
+  await stopGroupContainers(group ?? id)
 }
 
 export async function removeSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
-  await container.remove({ force: true })
+  const info = await container.inspect()
+  const group = info.Config.Labels?.["sandobox.group"] ?? id
+  const networkName = `${group}-net`
+
+  const groupContainers = await findGroupContainers(group)
+  await Promise.all(
+    groupContainers.map(async (entry) => {
+      try {
+        await docker.getContainer(entry.Id).remove({ force: true })
+      } catch {
+        return
+      }
+    })
+  )
+
+  try {
+    await docker.getNetwork(networkName).remove()
+  } catch {
+    return
+  }
 }
 
 export async function getSandboxLogs(id: string): Promise<ContainerLog[]> {
@@ -161,9 +204,134 @@ export async function execInSandbox(id: string, command: string): Promise<string
   })
 }
 
-export async function listImages(): Promise<string[]> {
-  const images = await docker.listImages()
-  return images.map((i) => (i.RepoTags ?? []).filter(Boolean)).flat()
+async function buildImage(tag: string, dockerfile: string): Promise<string> {
+  const buildDir = await mkdtemp(path.join(tmpdir(), "sandobox-build-"))
+
+  try {
+    await writeFile(path.join(buildDir, "Dockerfile"), dockerfile, "utf8")
+
+    try {
+      await execFileAsync("docker", ["build", "-t", tag, buildDir], { windowsHide: true })
+    } catch (error) {
+      const stderr = error && typeof error === "object" && "stderr" in error ? error.stderr : ""
+      const stdout = error && typeof error === "object" && "stdout" in error ? error.stdout : ""
+      throw new Error(String(stderr || stdout || error))
+    }
+
+    return tag
+  } finally {
+    await rm(buildDir, { recursive: true, force: true })
+  }
+}
+
+function buildOpenCodeConfig(config: SandboxConfig): string {
+  const permissionEntries = Object.entries(config.permissions).map(([key, value]) => {
+    const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
+    return `"${key}": ${JSON.stringify(action)}`
+  })
+
+  const opencodeConfig: Record<string, unknown> = {
+    permission: JSON.parse(`{${permissionEntries.join(",")}}`),
+  }
+
+  if (config.providerId) opencodeConfig.provider = config.providerId
+  if (config.modelId) opencodeConfig.model = config.modelId
+
+  return JSON.stringify(opencodeConfig)
+}
+
+function createGroupName(name: string) {
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+  return `sandobox-${normalized || randomUUID().slice(0, 8)}`
+}
+
+async function ensureNetwork(name: string) {
+  try {
+    await docker.getNetwork(name).inspect()
+  } catch {
+    await docker.createNetwork({ Name: name, Labels: { "sandobox.network": "true" } })
+  }
+}
+
+async function ensureServiceContainers(config: SandboxConfig, group: string, networkName: string) {
+  for (const service of config.services) {
+    const name = `${config.name}-${service}`
+    try {
+      const existing = docker.getContainer(name)
+      await existing.inspect()
+      await existing.start().catch(() => undefined)
+      continue
+    } catch {
+      // create below
+    }
+
+    if (service === "postgres") {
+      const container = await docker.createContainer({
+        name,
+        Image: "postgres:16-alpine",
+        Labels: {
+          "sandobox.service": "true",
+          "sandobox.group": group,
+          "sandobox.service.name": "postgres",
+        },
+        Env: [
+          "POSTGRES_USER=sandbox",
+          "POSTGRES_PASSWORD=sandbox",
+          "POSTGRES_DB=sandbox",
+        ],
+      })
+      await docker.getNetwork(networkName).connect({
+        Container: container.id,
+        EndpointConfig: {
+          Aliases: ["postgres"],
+        },
+      })
+      await container.start()
+      continue
+    }
+
+    if (service === "redis") {
+      const container = await docker.createContainer({
+        name,
+        Image: "redis:7-alpine",
+        Labels: {
+          "sandobox.service": "true",
+          "sandobox.group": group,
+          "sandobox.service.name": "redis",
+        },
+      })
+      await docker.getNetwork(networkName).connect({
+        Container: container.id,
+        EndpointConfig: {
+          Aliases: ["redis"],
+        },
+      })
+      await container.start()
+    }
+  }
+}
+
+async function findGroupContainers(group: string) {
+  const containers = await docker.listContainers({ all: true })
+  return containers.filter((entry) => entry.Labels?.["sandobox.group"] === group)
+}
+
+async function startGroupContainers(group: string) {
+  const containers = await findGroupContainers(group)
+  for (const entry of containers) {
+    if (entry.State !== "running") {
+      await docker.getContainer(entry.Id).start()
+    }
+  }
+}
+
+async function stopGroupContainers(group: string) {
+  const containers = await findGroupContainers(group)
+  for (const entry of containers) {
+    if (entry.State === "running") {
+      await docker.getContainer(entry.Id).stop()
+    }
+  }
 }
 
 function parseDockerLogs(raw: string): ContainerLog[] {

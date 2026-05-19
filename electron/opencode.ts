@@ -250,7 +250,8 @@ async function getAvailableSessionId(client: any): Promise<string> {
     const created = await client.session.create({
       body: { title: "Sandbox Chat" },
     })
-    return created.data.id
+    if (created.error) throw new Error(`Failed to create session: ${JSON.stringify(created.error)}`)
+    return created.data?.id ?? (created as any).id
   }
 
   const statuses = await getSessionStates(client)
@@ -263,7 +264,8 @@ async function getAvailableSessionId(client: any): Promise<string> {
   const created = await client.session.create({
     body: { title: "Sandbox Chat" },
   })
-  return created.data.id
+  if (created.error) throw new Error(`Failed to create session: ${JSON.stringify(created.error)}`)
+  return created.data?.id ?? (created as any).id
 }
 
 async function getSessionStates(client: any): Promise<OpenCodeSessionInfo[]> {

@@ -108,7 +108,7 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     Cmd: [
       "sh",
       "-c",
-      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/config.json && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`,
+      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`,
     ],
   })
 
@@ -239,8 +239,23 @@ function buildOpenCodeConfig(config: SandboxConfig): string {
     permission: JSON.parse(`{${permissionEntries.join(",")}}`),
   }
 
-  if (config.providerId) opencodeConfig.provider = config.providerId
-  if (config.modelId) opencodeConfig.model = config.modelId
+  if (config.providerId) {
+    const providerOptions: Record<string, unknown> = {}
+    if (config.providerApiKey) {
+      providerOptions.apiKey = config.providerApiKey
+    }
+    opencodeConfig.provider = {
+      [config.providerId]: {
+        options: providerOptions,
+      },
+    }
+  }
+
+  if (config.providerId && config.modelId) {
+    opencodeConfig.model = `${config.providerId}/${config.modelId}`
+  } else if (config.modelId) {
+    opencodeConfig.model = config.modelId
+  }
 
   return JSON.stringify(opencodeConfig)
 }

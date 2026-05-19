@@ -1,21 +1,563 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/requirements.schema.json",
+  "title": "Feature Requirements Document",
   "document": {
     "id": "FEAT-01",
-    "title": "Funzionalità base",
-    "status": "pending",
+    "title": "Funzionalità base — Architettura e struttura dell'applicazione",
+    "status": "draft",
     "version": "1.0",
     "language": "it",
     "planId": null,
-    "notes": null
+    "notes": "Questo documento definisce l'architettura di base e la struttura dell'applicazione Sandobox Manager. È il punto di partenza per tutte le funzionalità successive."
   },
-  "overview": "Vogliamo creare una applicazione che si occupa di creare, configurare e gestire delle sandbox in cui sia possibile far girare dei coding agent in autonomia che lavorano su un progetto specifico montato nella sandbox. Senza paura di dare permessi massimi all'agente perchè la macchina è protetta dalla sandbox e il progetto versionato con git. Vogliamo definire l'architettura di base dell'applicazione e il suo funzionamento",
-  "functionalRequirements": [],
-  "nonFunctionalRequirements": [],
-  "userStories": [],
-  "storyDependencies": [],
-  "implementationOrder": [],
-  "outOfScope": [],
-  "openQuestions": [],
-  "rawMarkdown": null,
-  "notes": "Come  si può interagire con le sandbox:\n\n1) Un'utente si collega all'sdk di opencode (server) installato nella sandbox con il solito server cli per interagire come al solito con open code ma con ambiente isolato.\n2)Un utente o una applicazione possono chiamare il server di opencode per fargli svolgere dei compiti specifici.\n3) Un utente o una applicazione possono interagire con la sandbox con la solita bash per eseguire operazioni all'interno della sandbox e utilizzarne i tool."
+  "overview": "Sandobox Manager è un'applicazione desktop Electron che consente di creare, configurare e gestire sandbox Docker isolate contenenti un server OpenCode. Ogni sandbox rappresenta un ambiente di sviluppo completo e isolato in cui un coding agent AI (OpenCode) può operare in autonomia su un progetto montato, con la sicurezza che la macchina host è protetta dall'isolamento della sandbox e il progetto è versionato con Git.\n\nL'applicazione si rivolge a sviluppatori che vogliono delegare task complessi a un agente AI senza compromettere la sicurezza del proprio ambiente di lavoro. Le sandbox possono includere runtime (Node.js, Python, .NET), strumenti di sviluppo (Git, curl, vim, ecc.) e servizi di supporto (PostgreSQL, Redis) come sidecar container.\n\nL'architettura segue tre modalità di interazione principali:\n1) Un utente si collega tramite SDK di OpenCode al server OpenCode installato nella sandbox per interagire con l'agente in una chat.\n2) Un utente o un'applicazione possono inviare task programmaticamente al server OpenCode.\n3) Un utente può eseguire comandi bash direttamente nella sandbox per operazioni manuali.\n\nIl progetto è strutturato come app Electron single-package (non monorepo) con separazione netta tra processo main (electron/) e renderer React (src/), comunicanti tramite contextBridge IPC.",
+  "currentState": [
+    {
+      "area": "Finestra Electron e bootstrap",
+      "status": "completato",
+      "notes": "BrowserWindow a 1280×820 con titleBarStyle hiddenInset (macOS). Context isolation attiva, nodeIntegration disabilitata. Preload bridge con contextBridge. Supporto dev mode (Vite HMR) e production mode (file statici)."
+    },
+    {
+      "area": "Preload bridge (IPC)",
+      "status": "completato",
+      "notes": "window.sandobox esposto via contextBridge con 20+ metodi per gestione sandbox e integrazione OpenCode. Tutti i canali IPC seguono il pattern sandobox:<action>."
+    },
+    {
+      "area": "Lifecycle Docker (immagini, container, sidecar)",
+      "status": "completato",
+      "notes": "Build immagine Docker da Dockerfile generato dinamicamente. Creazione container principale con label sandobox.manager=true, port binding, volume mount, variabili d'ambiente. Sidecar PostgreSQL/Redis su rete condivisa con alias sandbox. Lifecycle di gruppo (start/stop/remove opera su tutto il gruppo)."
+    },
+    {
+      "area": "Integrazione OpenCode (SDK e HTTP)",
+      "status": "completato",
+      "notes": "Dual approach: fetch HTTP diretto per health check, permessi e question; @opencode-ai/sdk per sessioni, prompt e shell. Timeout 30s sui prompt con diagnostica session. Polling stato OpenCode ogni 1.5s."
+    },
+    {
+      "area": "Wizard creazione sandbox (4 step)",
+      "status": "completato",
+      "notes": "Step 0: nome, immagine, porta, mount progetto. Step 1: runtime, tool, servizi. Step 2: provider AI, modello, API key, permessi OpenCode (13 chiavi). Step 3: review configurazione JSON e Dockerfile generato. Il mount progetto è richiesto obbligatoriamente."
+    },
+    {
+      "area": "Lista sandbox sidebar",
+      "status": "completato",
+      "notes": "Auto-refresh ogni 5s. Cards con nome, status badge, porta, immagine. Stati loading, error, empty."
+    },
+    {
+      "area": "Dettaglio sandbox (3 tab)",
+      "status": "completato",
+      "notes": "Tab Info: metadati, azioni Start/Stop/Delete, banner running con URL OpenCode. Tab Logs: ultime 100 righe con timestamp. Tab OpenCode Panel: chat integrata con gestione permessi, domande, sessioni e diagnostica."
+    },
+    {
+      "area": "Pannello chat OpenCode",
+      "status": "completato",
+      "notes": "Header con indicatore connessione. Messaggi user/assistant. Gestione richieste permesso (Allow Once, Always Allow, Reject). Gestione domande a scelta multipla. Cards sessione con debug (tool name, status, input, errori). Polling 1.5s per aggiornamenti."
+    },
+    {
+      "area": "Tipi TypeScript condivisi",
+      "status": "completato",
+      "notes": "Interfacce in src/types.ts: SandboxInfo, SandboxConfig, SandboxMessage, PermissionRequestInfo, OpenCodeSessionInfo, OpenCodeSessionDebugInfo, OpenCodeQuestionRequest. Costanti per runtime, tool, servizi e permessi."
+    },
+    {
+      "area": "Configurazione build e packaging",
+      "status": "completato",
+      "notes": "Vite per renderer, tsc per electron. electron-builder configurato per output in release/. Script npm: dev, electron:dev, build, typecheck, electron:build."
+    },
+    {
+      "area": "Persistenza stato e impostazioni",
+      "status": "non_implementato",
+      "notes": "Nessun database locale o file di configurazione persistente. Le sandbox vengono scoperte via Docker label a ogni refresh. Le impostazioni (provider preferito, tema, ecc.) non sono salvate tra sessioni."
+    },
+    {
+      "area": "Test automatizzati",
+      "status": "non_implementato",
+      "notes": "Nessun test o lint script configurato nel progetto."
+    },
+    {
+      "area": "Gestione errori Docker Desktop",
+      "status": "completato",
+      "notes": "Named-pipe ENOENT mappato a messaggio user-friendly per avviare Docker Desktop."
+    }
+  ],
+  "notes": "L'applicazione è funzionante in tutte le sue parti core. Le aree di miglioramento includono persistenza delle impostazioni, test automatizzati e ottimizzazione del polling OpenCode. Il wizard di creazione richiede obbligatoriamente un project mount.",
+  "architecturalDecisions": [
+    {
+      "id": "ADR-001",
+      "title": "Single-package Electron invece di monorepo",
+      "decision": "L'intera applicazione risiede in un unico package npm con due tsconfig separati: uno per il renderer (src/) e uno per Electron (electron/).",
+      "rationale": "La complessità del progetto non giustifica un monorepo. Due tsconfig separati permettono di mantenere tipi diversi per i due ambienti (DOM vs Node) senza inutile overhead organizzativo."
+    },
+    {
+      "id": "ADR-002",
+      "title": "Context isolation e preload bridge come unico canale renderer→main",
+      "decision": "Tutta la comunicazione renderer→main passa esclusivamente attraverso contextBridge + ipcRenderer.invoke/ipcMain.handle. nodeIntegration è disabilitato.",
+      "rationale": "Best practice di sicurezza Electron. Impedisce al codice renderer di accedere direttamente a API Node.js. Il preload funge da contratto API esplicito e tipizzato tra i due processi."
+    },
+    {
+      "id": "ADR-003",
+      "title": "Dockerode per gestione container, execFile per build immagine",
+      "decision": "Si usa dockerode per tutte le operazioni su container (list, create, start, stop, remove, inspect, logs, exec) ma child_process.execFile per docker build.",
+      "rationale": "dockerode non espone un'interfaccia comoda per il build con tar stream. execFile con argomenti semplici è più affidabile e leggibile per questa operazione specifica. Per il resto, dockerode fornisce un'API type-safe e coerente."
+    },
+    {
+      "id": "ADR-004",
+      "title": "Dual approach HTTP + SDK per OpenCode",
+      "decision": "Endpoint REST semplici (health, permissions, questions) chiamati via fetch HTTP diretto. Operazioni complesse (sessioni, prompt, shell) gestite tramite @opencode-ai/sdk.",
+      "rationale": "L'SDK ufficiale fornisce astrazioni utili per la gestione delle sessioni, ma gli endpoint REST sono più semplici da chiamare direttamente senza bisogno di inizializzare un client SDK completo. Il timeout di 30s sui prompt è gestito con Promise.race."
+    },
+    {
+      "id": "ADR-005",
+      "title": "Lifecycle di gruppo per sandbox + sidecar",
+      "decision": "I container sandbox, postgres e redis condividono un label sandobox.group generato dal nome. Le operazioni di start, stop e remove operano sull'intero gruppo, non sul singolo container.",
+      "rationale": "I sidecar sono dipendenze della sandbox. Fermare o eliminare la sandbox senza fermare i sidecar lascerebbe container orfani e risorse sprecate. Il label di gruppo permette discovery e operazioni atomiche."
+    },
+    {
+      "id": "ADR-006",
+      "title": "Dockerfile generato dinamicamente dal frontend",
+      "decision": "Il Dockerfile non è un file statico ma viene composto a runtime in SandboxCreate.tsx in base a runtime, tool e servizi selezionati dall'utente.",
+      "rationale": "Massima flessibilità: l'utente sceglie esattamente ciò che serve per il suo progetto. Evita di mantenere molteplici Dockerfile statici o template predefiniti. La generazione è trasparente all'utente (mostrata nello step di review)."
+    },
+    {
+      "id": "ADR-007",
+      "title": "Auto-scoperta sandbox via Docker label (nessun database locale)",
+      "decision": "Le sandbox vengono scoperte a ogni refresh filtrando i container Docker per label sandobox.manager=true. Non esiste un database o file di stato locale.",
+      "rationale": "Docker è single source of truth per lo stato delle sandbox. Evita sincronizzazione e inconsistenza tra stato Docker e stato locale. Semplifica l'implementazione e la gestione degli errori."
+    },
+    {
+      "id": "ADR-008",
+      "title": "Polling frequente (1.5s) per stato OpenCode",
+      "decision": "Il pannello OpenCode esegue polling ogni 1.5s per health check, permessi, domande, sessioni e debug.",
+      "rationale": "Necessario per reattività dell'interfaccia a eventi asincroni dell'agente (richieste permesso, domande, completamento task). Trade-off consapevole tra traffico di rete e reattività UI."
+    },
+    {
+      "id": "ADR-009",
+      "title": "Provider AI configurato al momento della creazione della sandbox",
+      "decision": "Provider ID, Model ID e API key sono impostati nella creazione della sandbox e passati come variabili d'ambiente al container. Non sono modificabili a runtime.",
+      "rationale": "La configurazione del provider è parte dell'immagine della sandbox. Cambiare provider richiederebbe ricreare la configurazione OpenCode all'interno del container. Semplifica la gestione e rende la sandbox self-contained."
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-001",
+      "title": "Creazione sandbox con configurazione personalizzata",
+      "description": "L'utente deve poter creare una sandbox specificando nome, immagine di base, porta OpenCode, runtime (Node.js, Python, .NET), tool di sviluppo (Git, curl, vim, ecc.), servizi di supporto (PostgreSQL, Redis), configurazione provider AI e permessi OpenCode."
+    },
+    {
+      "id": "FR-002",
+      "title": "Mount di un progetto host nella sandbox",
+      "description": "L'utente deve poter specificare un percorso locale del progetto da montare come volume bind nella sandbox, accessibile in /workspace. Il mount è richiesto obbligatoriamente per procedere con la creazione."
+    },
+    {
+      "id": "FR-003",
+      "title": "Generazione dinamica del Dockerfile",
+      "description": "Il sistema deve generare automaticamente un Dockerfile basato sulle scelte dell'utente (runtime, tool, servizi) e mostrarlo all'utente nello step di review prima della creazione."
+    },
+    {
+      "id": "FR-004",
+      "title": "Gestione sidecar PostgreSQL e Redis",
+      "description": "Se l'utente seleziona PostgreSQL e/o Redis, il sistema deve creare container sidecar collegati alla stessa rete Docker della sandbox, con variabili d'ambiente per la connessione automatica."
+    },
+    {
+      "id": "FR-005",
+      "title": "Lista sandbox con stato in tempo reale",
+      "description": "La sidebar deve mostrare tutte le sandbox esistenti con nome, stato (running/exited/creating), porta OpenCode e immagine. La lista deve aggiornarsi automaticamente ogni 5 secondi."
+    },
+    {
+      "id": "FR-006",
+      "title": "Lifecycle sandbox: avvio, arresto, eliminazione",
+      "description": "L'utente deve poter avviare, arrestare ed eliminare una sandbox. Le operazioni devono agire su tutto il gruppo (sandbox + sidecar). L'eliminazione deve rimuovere anche la rete Docker condivisa."
+    },
+    {
+      "id": "FR-007",
+      "title": "Visualizzazione log container",
+      "description": "L'utente deve poter visualizzare gli ultimi 100 log del container principale con timestamp, con possibilità di refresh manuale."
+    },
+    {
+      "id": "FR-008",
+      "title": "Esecuzione comandi shell nella sandbox",
+      "description": "L'utente deve poter eseguire comandi bash arbitrari all'interno della sandbox e visualizzare l'output."
+    },
+    {
+      "id": "FR-009",
+      "title": "Chat interattiva con agente OpenCode",
+      "description": "L'utente deve poter inviare prompt testuali all'agente OpenCode nella sandbox e ricevere risposte in una interfaccia chat. Il sistema deve gestire un timeout di 30 secondi con diagnostica."
+    },
+    {
+      "id": "FR-010",
+      "title": "Gestione richieste di permesso OpenCode",
+      "description": "L'utente deve poter rispondere alle richieste di permesso dell'agente OpenCode con Allow Once, Always Allow o Reject."
+    },
+    {
+      "id": "FR-011",
+      "title": "Gestione domande interattive OpenCode",
+      "description": "L'utente deve poter rispondere alle domande poste dall'agente OpenCode, incluse domande a scelta multipla e selezioni multiple."
+    },
+    {
+      "id": "FR-012",
+      "title": "Monitoraggio sessioni OpenCode",
+      "description": "L'utente deve poter visualizzare lo stato delle sessioni OpenCode attive (idle/busy/retry), abortire sessioni in stallo e vedere informazioni di debug (tool in uso, input, testo parziale, errori)."
+    },
+    {
+      "id": "FR-013",
+      "title": "Diagnostica sandbox",
+      "description": "Il sistema deve fornire informazioni dettagliate su ogni sandbox: ID, nome, immagine, porta, stato, path del progetto montato e data di creazione."
+    },
+    {
+      "id": "FR-014",
+      "title": "Segnalazione errore Docker Desktop non attivo",
+      "description": "Se Docker Desktop non è in esecuzione, il sistema deve mostrare un messaggio user-friendly che invita ad avviarlo, invece di un errore criptico."
+    }
+  ],
+  "nonFunctionalRequirements": [
+    {
+      "id": "NFR-001",
+      "title": "Separazione processi Electron",
+      "description": "Il renderer non deve mai avere accesso diretto a API Node.js o Docker. Tutta la comunicazione deve passare attraverso contextBridge IPC tipizzato."
+    },
+    {
+      "id": "NFR-002",
+      "title": "Isolamento sandbox Docker",
+      "description": "Ogni sandbox deve essere completamente isolata tramite container Docker. Il progetto host è accessibile solo tramite bind mount in /workspace con permessi di sola lettura/scrittura controllati da Docker."
+    },
+    {
+      "id": "NFR-003",
+      "title": "Auto-refresh stato senza ricaricamento pagina",
+      "description": "La lista sandbox e il pannello OpenCode devono aggiornarsi automaticamente via polling senza richiedere refresh manuale dell'intera applicazione."
+    },
+    {
+      "id": "NFR-004",
+      "title": "Gestione errori robusta",
+      "description": "Tutti gli errori delle operazioni Docker e OpenCode devono essere catturati, mappati a messaggi user-friendly e non devono causare crash dell'applicazione."
+    },
+    {
+      "id": "NFR-005",
+      "title": "Tema visivo coerente",
+      "description": "L'interfaccia deve utilizzare un tema scuro coerente ispirato a terminali e IDE, con CSS personalizzato e senza dipendenze da librerie UI esterne."
+    },
+    {
+      "id": "NFR-006",
+      "title": "Tipo sicuro (TypeScript strict)",
+      "description": "L'intera codebase deve essere tipizzata con TypeScript. I tipi condivisi tra renderer e main process devono essere definiti in src/types.ts e rispecchiati nel preload."
+    },
+    {
+      "id": "NFR-007",
+      "title": "Build production efficiente",
+      "description": "Il bundle production deve essere generato con Vite per il renderer e tsc per Electron, con output separati in dist/ e dist-electron/. Il packaging deve usare electron-builder."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Creazione guidata sandbox",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "un wizard che mi guidi nella creazione di una sandbox con configurazione personalizzata (runtime, tool, servizi, provider AI)",
+      "soThat": "posso creare rapidamente un ambiente isolato per il mio agente AI senza dover scrivere Dockerfile a mano",
+      "acceptanceCriteria": [
+        {
+          "text": "Il wizard mostra 4 step progressivi: Base → Technology → Workspace → Review",
+          "checked": true
+        },
+        {
+          "text": "Ogni step permette di tornare indietro senza perdere le selezioni",
+          "checked": true
+        },
+        {
+          "text": "Lo step Review mostra il Dockerfile generato e la configurazione JSON prima di creare",
+          "checked": true
+        },
+        {
+          "text": "La creazione fallisce con messaggio chiaro se Docker Desktop non è in esecuzione",
+          "checked": true
+        }
+      ],
+      "notes": "Il mount del progetto è attualmente richiesto obbligatoriamente. Potrebbe essere reso opzionale in futuro."
+    },
+    {
+      "id": "US-002",
+      "title": "Gestione sandbox da elenco",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "vedere tutte le mie sandbox in una sidebar con stato aggiornato in tempo reale",
+      "soThat": "posso monitorare rapidamente quali sandbox sono attive e accedervi con un click",
+      "acceptanceCriteria": [
+        {
+          "text": "La sidebar mostra tutte le sandbox con nome, stato, porta e immagine",
+          "checked": true
+        },
+        {
+          "text": "La lista si aggiorna automaticamente ogni 5 secondi",
+          "checked": true
+        },
+        {
+          "text": "Ogni sandbox mostra un badge colorato che indica lo stato (running/exited)",
+          "checked": true
+        },
+        {
+          "text": "Cliccando su una sandbox si apre la vista dettaglio",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Avvio, arresto ed eliminazione sandbox",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "avviare, arrestare ed eliminare le mie sandbox con un solo click",
+      "soThat": "posso gestire il ciclo di vita delle risorse senza usare la riga di comando Docker",
+      "acceptanceCriteria": [
+        {
+          "text": "I pulsanti Start/Stop/Delete sono disponibili nella vista dettaglio",
+          "checked": true
+        },
+        {
+          "text": "Start/Stop agiscono su tutto il gruppo (sandbox + sidecar)",
+          "checked": true
+        },
+        {
+          "text": "Delete rimuove container e rete del gruppo",
+          "checked": true
+        },
+        {
+          "text": "Un feedback visivo conferma il completamento dell'operazione",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Chat con agente AI nella sandbox",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "una chat integrata per inviare prompt all'agente OpenCode nella mia sandbox e vedere le risposte",
+      "soThat": "posso interagire con l'agente come farei in qualsiasi IDE",
+      "acceptanceCriteria": [
+        {
+          "text": "La chat mostra i messaggi in formato user/assistant con timestamp",
+          "checked": true
+        },
+        {
+          "text": "L'invio di un prompt genera una risposta dall'agente",
+          "checked": true
+        },
+        {
+          "text": "Un timeout di 30 secondi mostra un messaggio di diagnostica invece di lasciare l'utente in attesa",
+          "checked": true
+        },
+        {
+          "text": "Lo stato di connessione è visibile nell'header del pannello",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Gestione permessi agente in tempo reale",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "vedere e rispondere alle richieste di permesso dell'agente in tempo reale mentre lavora",
+      "soThat": "posso concedere o negare accesso a file e operazioni in modo granulare",
+      "acceptanceCriteria": [
+        {
+          "text": "Le richieste di permesso pendenti appaiono nel pannello OpenCode",
+          "checked": true
+        },
+        {
+          "text": "Posso rispondere con Allow Once, Always Allow o Reject",
+          "checked": true
+        },
+        {
+          "text": "La risposta viene inviata e la richiesta scompare dalla UI",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Risposta a domande dell'agente",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "rispondere alle domande che l'agente mi pone durante l'esecuzione di un task",
+      "soThat": "posso fornire chiarimenti e indicazioni quando l'agente ne ha bisogno",
+      "acceptanceCriteria": [
+        {
+          "text": "Le domande pendenti appaiono nel pannello OpenCode con le opzioni di risposta",
+          "checked": true
+        },
+        {
+          "text": "Le domande a scelta multipla mostrano toggle selezionabili",
+          "checked": true
+        },
+        {
+          "text": "Dopo l'invio della risposta la domanda scompare dalla UI",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Monitoraggio sessioni e debug",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "vedere lo stato delle sessioni attive e informazioni di debug su ciò che l'agente sta facendo",
+      "soThat": "posso capire se l'agente sta lavorando, è in stallo o ha incontrato un errore",
+      "acceptanceCriteria": [
+        {
+          "text": "Le sessioni sono elencate con stato (idle/busy/retry/unknown)",
+          "checked": true
+        },
+        {
+          "text": "Per sessioni busy vengono mostrati tool name, status, input e testo parziale",
+          "checked": true
+        },
+        {
+          "text": "Posso abortire una sessione in stallo",
+          "checked": true
+        },
+        {
+          "text": "Le informazioni di debug si aggiornano automaticamente",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Esecuzione comandi shell diretti",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "eseguire comandi bash direttamente nella sandbox",
+      "soThat": "posso installare pacchetti, ispezionare file o eseguire operazioni manuali senza passare dall'agente",
+      "acceptanceCriteria": [
+        {
+          "text": "Un comando shell può essere inviato alla sandbox e l'output è visibile",
+          "checked": true
+        },
+        {
+          "text": "L'esecuzione funziona sia via IPC diretta che tramite SDK OpenCode",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Sidecar PostgreSQL e Redis",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "che la sandbox includa automaticamente PostgreSQL e/o Redis come container sidecar",
+      "soThat": "il mio agente AI ha a disposizione i servizi di cui ha bisogno senza configurazione manuale",
+      "acceptanceCriteria": [
+        {
+          "text": "Se PostgreSQL è selezionato, un container postgres:16-alpine viene creato e connesso alla rete",
+          "checked": true
+        },
+        {
+          "text": "Se Redis è selezionato, un container redis:7-alpine viene creato e connesso alla rete",
+          "checked": true
+        },
+        {
+          "text": "Le variabili d'ambiente per la connessione sono iniettate nella sandbox principale",
+          "checked": true
+        },
+        {
+          "text": "Start/Stop/Delete del gruppo includono i sidecar",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Visualizzazione log container",
+      "status": "completed",
+      "asA": "sviluppatore",
+      "iWant": "vedere i log del container della mia sandbox",
+      "soThat": "posso diagnosticare problemi di avvio o configurazione",
+      "acceptanceCriteria": [
+        {
+          "text": "La vista Logs mostra le ultime 100 righe del container con timestamp",
+          "checked": true
+        },
+        {
+          "text": "Un pulsante refresh permette di ricaricare i log manualmente",
+          "checked": true
+        }
+      ]
+    }
+  ],
+  "storyDependencies": [
+    "US-001 → US-002 (la sandbox deve esistere per essere elencata)",
+    "US-001 → US-009 (sidecar creati durante la creazione sandbox)",
+    "US-002 → US-003 (serve la lista per selezionare e gestire una sandbox)",
+    "US-002 → US-010 (serve la lista per selezionare e vedere i log)",
+    "US-003 → US-004 (la sandbox deve essere in esecuzione per la chat)",
+    "US-004 → US-005 (i permessi arrivano durante la chat)",
+    "US-004 → US-006 (le domande arrivano durante la chat)",
+    "US-004 → US-007 (le sessioni sono attive durante la chat)",
+    "US-004 → US-008 (shell eseguibile su sandbox in esecuzione)"
+  ],
+  "implementationOrder": [
+    "US-001 Creazione guidata sandbox",
+    "US-002 Gestione sandbox da elenco",
+    "US-003 Avvio, arresto ed eliminazione sandbox",
+    "US-009 Sidecar PostgreSQL e Redis",
+    "US-010 Visualizzazione log container",
+    "US-004 Chat con agente AI nella sandbox",
+    "US-005 Gestione permessi agente in tempo reale",
+    "US-006 Risposta a domande dell'agente",
+    "US-007 Monitoraggio sessioni e debug",
+    "US-008 Esecuzione comandi shell diretti"
+  ],
+  "outOfScope": [
+    "Autenticazione e supporto multi-utente",
+    "Marketplace o repository di sandbox preconfigurate",
+    "Gestione multi-provider AI concorrente nella stessa sessione",
+    "Persistenza cronologia chat tra sessioni",
+    "Template di sandbox riutilizzabili condivisibili",
+    "Container runtime alternativo (Podman, containerd)",
+    "Deploy su cloud o orchestrator (Kubernetes, Docker Swarm)",
+    "Montaggio di volumi aggiuntivi oltre al progetto principale",
+    "Limiti di risorse (CPU, memoria) configurabili per sandbox",
+    "Notifiche desktop per eventi sandbox",
+    "Snapshot e restore dello stato della sandbox",
+    "Accesso via browser web (app puramente desktop Electron)"
+  ],
+  "openQuestions": [
+    {
+      "id": "OQ-001",
+      "question": "Il mount del progetto dovrebbe essere obbligatorio o opzionale?",
+      "answer": "Attualmente obbligatorio. Potrebbe diventare opzionale per sandbox 'vuote' usate solo per esperimenti o test.",
+      "status": "resolved"
+    },
+    {
+      "id": "OQ-002",
+      "question": "È opportuno ridurre la frequenza di polling (1.5s) per evitare traffico eccessivo?",
+      "answer": "Da valutare con test di carico. 1.5s è reattivo ma può generare molto traffico IPC/rete con molte sandbox attive.",
+      "status": "open"
+    },
+    {
+      "id": "OQ-003",
+      "question": "Serve un sistema di persistenza delle configurazioni (provider preferito, tema, permessi default)?",
+      "answer": "Utile per migliorare UX ma non necessario per il rilascio iniziale. Potrebbe essere implementato con un semplice file JSON locale.",
+      "status": "open"
+    },
+    {
+      "id": "OQ-004",
+      "question": "Come gestire il conflict di porte OpenCode quando più sandbox sono in esecuzione?",
+      "answer": "Attualmente l'utente specifica la porta manualmente. Potremmo implementare auto-assegnazione con rilevamento porte libere.",
+      "status": "open"
+    },
+    {
+      "id": "OQ-005",
+      "question": "È necessario supportare più provider AI contemporaneamente nella stessa sandbox?",
+      "answer": "Non per il MVP. Ogni sandbox ha un solo provider/configurazione. Il supporto multi-provider sarebbe una feature separata.",
+      "status": "resolved"
+    },
+    {
+      "id": "OQ-006",
+      "question": "Bisogna limitare le risorse (CPU/memoria) delle sandbox?",
+      "answer": "Non implementato. Docker supporta --cpus e --memory, potrebbe essere aggiunto in futuro come opzione avanzata.",
+      "status": "open"
+    }
+  ],
+  "rawMarkdown": null
 }

@@ -10,6 +10,7 @@ const docker = new Docker()
 const execFileAsync = promisify(execFile)
 
 export interface SandboxConfig {
+  sandboxId?: string
   name: string
   image: string
   opencodePort: number
@@ -26,6 +27,7 @@ export interface SandboxConfig {
 
 export interface SandboxInfo {
   id: string
+  sandboxId: string
   name: string
   image: string
   opencodePort: number
@@ -45,6 +47,7 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
     .filter((c) => c.Labels?.["sandobox.manager"] === "true")
     .map((c) => ({
       id: c.Id,
+      sandboxId: c.Labels?.["sandobox.id"] ?? c.Id,
       name: (c.Names?.[0] ?? "").replace(/^\//, ""),
       image: c.Image,
       opencodePort: parseInt(c.Labels?.["sandobox.opencode.port"] ?? "0"),
@@ -68,6 +71,7 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     Image: image,
     Labels: {
       "sandobox.manager": "true",
+      "sandobox.id": config.sandboxId ?? "",
       "sandobox.group": group,
       "sandobox.opencode.port": config.opencodePort.toString(),
       "sandobox.project.mount": config.projectMount ?? "",
@@ -174,6 +178,7 @@ export async function getSandboxInfo(id: string): Promise<SandboxInfo | null> {
     const info = await container.inspect()
     return {
       id: info.Id,
+      sandboxId: info.Config.Labels?.["sandobox.id"] ?? info.Id,
       name: info.Name.replace(/^\//, ""),
       image: info.Config.Image,
       opencodePort: parseInt(info.Config.Labels?.["sandobox.opencode.port"] ?? "0"),

@@ -4,13 +4,14 @@ import { OpenCodePanel } from "./OpenCodePanel"
 
 interface Props {
   sandbox: SandboxInfo
+  sandboxId: string
   onRefresh: () => void
   onDeleted: () => void
 }
 
 type Tab = "info" | "logs" | "opencode"
 
-export function SandboxDetail({ sandbox, onRefresh, onDeleted }: Props) {
+export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted }: Props) {
   const [tab, setTab] = useState<Tab>("info")
   const [logs, setLogs] = useState<ContainerLog[]>([])
   const [loading, setLoading] = useState(false)
@@ -188,7 +189,7 @@ export function SandboxDetail({ sandbox, onRefresh, onDeleted }: Props) {
       )}
 
       {tab === "opencode" && isRunning && (
-        <OpenCodePanel sandboxId={sandbox.id} port={sandbox.opencodePort} />
+        <OpenCodePanel sandboxId={sandboxId} containerId={sandbox.id} port={sandbox.opencodePort} />
       )}
 
       {tab === "opencode" && !isRunning && (

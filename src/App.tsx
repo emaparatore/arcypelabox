@@ -10,6 +10,7 @@ type View = "list" | "create"
 export default function App() {
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null)
   const [view, setView] = useState<View>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -68,8 +69,9 @@ export default function App() {
             selectedId={selectedId}
             loading={loading}
             error={error}
-            onSelect={(id) => {
+            onSelect={(id, sandboxId) => {
               setSelectedId(id)
+              setSelectedSandboxId(sandboxId)
               setView("list")
             }}
             onRefresh={refresh}
@@ -88,9 +90,11 @@ export default function App() {
           ) : selected ? (
             <SandboxDetail
               sandbox={selected}
+              sandboxId={selectedSandboxId ?? selected.id}
               onRefresh={refresh}
               onDeleted={() => {
                 setSelectedId(null)
+                setSelectedSandboxId(null)
                 refresh()
               }}
             />

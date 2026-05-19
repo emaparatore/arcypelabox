@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron"
 import path from "path"
+import { randomUUID } from "node:crypto"
 import {
   listSandboxes,
   createSandbox,
@@ -22,6 +23,21 @@ import {
   sendPrompt,
   runShell,
 } from "./opencode.js"
+import {
+  initDatabase,
+  createSandboxRecord,
+  getSandboxRecord,
+  getSandboxByContainerId,
+  listSandboxRecords,
+  deleteSandboxRecord,
+  deleteSandboxByContainerId,
+  getDecryptedApiKey,
+  getChatMessages,
+  addChatMessage,
+  clearChatMessages,
+  getSetting,
+  setSetting,
+} from "./database.js"
 
 let mainWindow: BrowserWindow | null = null
 
@@ -35,7 +51,16 @@ function getErrorMessage(err: unknown) {
   return message
 }
 
+function validateString(value: unknown, name: string): value is string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${name}: expected non-empty string`)
+  }
+  return true
+}
+
 function createWindow() {
+  const isDev = !app.isPackaged || process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -47,9 +72,11 @@ function createWindow() {
     titleBarStyle: "hiddenInset",
   })
 
-  if (process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL("http://localhost:5173")
-    mainWindow.webContents.openDevTools()
+  if (isDev) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173")
+    mainWindow.webContents.once("did-finish-load", () => {
+      mainWindow?.webContents.openDevTools()
+    })
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"))
   }
@@ -60,6 +87,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  initDatabase()
   createWindow()
 
   ipcMain.handle("sandobox:list", async () => {
@@ -72,7 +100,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:create", async (_event, config) => {
     try {
-      return await createSandbox(config)
+      const sandboxId = config.sandboxId ?? randomUUID()
+      const containerId = await createSandbox({ ...config, sandboxId })
+      try {
+        createSandboxRecord({ ...config, sandboxId }, containerId)
+      } catch (dbErr) {
+        console.error("[create] DB save failed (non-critical):", dbErr)
+      }
+      return { sandboxId, containerId }
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -99,6 +134,7 @@ app.whenReady().then(() => {
   ipcMain.handle("sandobox:remove", async (_event, id) => {
     try {
       await removeSandbox(id)
+      deleteSandboxByContainerId(id)
       return { success: true }
     } catch (err) {
       return { error: getErrorMessage(err) }
@@ -195,6 +231,98 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:shell", async (_event, port, command) => {
     return await runShell(port, command)
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:getById", async (_event, id) => {
+    try {
+      validateString(id, "sandboxId")
+      const record = getSandboxRecord(id)
+      if (!record) return null
+      const apiKey = getDecryptedApiKey(id)
+      return { ...record, providerApiKey: apiKey }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:getByContainerId", async (_event, containerId) => {
+    try {
+      validateString(containerId, "containerId")
+      return getSandboxByContainerId(containerId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:list", async () => {
+    try {
+      return listSandboxRecords()
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:delete", async (_event, id) => {
+    try {
+      validateString(id, "sandboxId")
+      deleteSandboxRecord(id)
+      return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:chat:list", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      return getChatMessages(sandboxId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:chat:add", async (_event, sandboxId, role, content, timestamp) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      validateString(content, "content")
+      if (role !== "user" && role !== "assistant") {
+        throw new Error('Invalid role: expected "user" or "assistant"')
+      }
+      const ts = typeof timestamp === "number" ? timestamp : Date.now()
+      return addChatMessage(sandboxId, role, content, ts)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:chat:clear", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      clearChatMessages(sandboxId)
+      return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:settings:get", async (_event, key) => {
+    try {
+      validateString(key, "key")
+      return getSetting(key) ?? null
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:settings:set", async (_event, key, value) => {
+    try {
+      validateString(key, "key")
+      validateString(value, "value")
+      setSetting(key, value)
+      return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
   })
 
   app.on("activate", () => {

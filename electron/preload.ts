@@ -28,4 +28,18 @@ contextBridge.exposeInMainWorld("sandobox", {
     runShell: (port: number, command: string) =>
       ipcRenderer.invoke("sandobox:opencode:shell", port, command),
   },
+  db: {
+    getSandboxById: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:getById", id),
+    getSandboxByContainerId: (containerId: string) =>
+      ipcRenderer.invoke("sandobox:db:sandbox:getByContainerId", containerId),
+    listSandboxes: () => ipcRenderer.invoke("sandobox:db:sandbox:list"),
+    deleteSandbox: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:delete", id),
+    getChatMessages: (sandboxId: string) => ipcRenderer.invoke("sandobox:db:chat:list", sandboxId),
+    addChatMessage: (sandboxId: string, role: string, content: string, timestamp: number) =>
+      ipcRenderer.invoke("sandobox:db:chat:add", sandboxId, role, content, timestamp),
+    clearChatMessages: (sandboxId: string) => ipcRenderer.invoke("sandobox:db:chat:clear", sandboxId),
+    getSetting: (key: string) => ipcRenderer.invoke("sandobox:db:settings:get", key),
+    setSetting: (key: string, value: string) =>
+      ipcRenderer.invoke("sandobox:db:settings:set", key, value),
+  },
 })

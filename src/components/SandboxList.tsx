@@ -5,7 +5,7 @@ interface Props {
   selectedId: string | null
   loading: boolean
   error: string | null
-  onSelect: (id: string) => void
+  onSelect: (id: string, sandboxId: string) => void
   onRefresh: () => void
 }
 
@@ -35,7 +35,7 @@ export function SandboxList({ sandboxes, selectedId, loading, error, onSelect }:
             <div
               key={s.id}
               className={`sandbox-card ${selectedId === s.id ? "selected" : ""}`}
-              onClick={() => onSelect(s.id)}
+              onClick={() => onSelect(s.id, s.sandboxId)}
             >
               <div className="sandbox-card-header">
                 <span className="sandbox-card-name">{s.name}</span>

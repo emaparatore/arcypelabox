@@ -5,7 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "tsc -p tsconfig.node.json --watch",
+    "dev:electron": "tsc -p tsconfig.node.json && tsc -p tsconfig.node.json --watch",
     "build": "tsc && vite build && tsc -p tsconfig.node.json",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"npm run dev:electron\" \"wait-on http://localhost:5173 dist-electron/main.js && electron .\"",
@@ -14,11 +14,14 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.0.0",
+    "better-sqlite3": "^12.10.0",
     "dockerode": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/dockerode": "^3.3.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

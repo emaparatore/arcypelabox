@@ -3,6 +3,7 @@ import { useOpenCode } from "../hooks/useOpenCode"
 
 interface Props {
   sandboxId: string
+  containerId: string
   port: number
 }
 

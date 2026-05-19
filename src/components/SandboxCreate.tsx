@@ -230,10 +230,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
 
     try {
       const result = await window.sandobox.createSandbox(config)
-      if (typeof result === "string") {
+      if (result && typeof result === "object" && !("error" in result)) {
+        setError(null)
         onCreated()
       } else {
-        setError(result.error ?? "Failed to create sandbox")
+        setError((result as { error?: string })?.error ?? "Failed to create sandbox")
       }
     } catch (err) {
       setError((err as Error).message)

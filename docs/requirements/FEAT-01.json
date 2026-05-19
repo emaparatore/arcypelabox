@@ -1,0 +1,21 @@
+{
+  "document": {
+    "id": "FEAT-01",
+    "title": "Funzionalità base",
+    "status": "pending",
+    "version": "1.0",
+    "language": "it",
+    "planId": null,
+    "notes": null
+  },
+  "overview": "Vogliamo creare una applicazione che si occupa di creare, configurare e gestire delle sandbox in cui sia possibile far girare dei coding agent in autonomia che lavorano su un progetto specifico montato nella sandbox. Senza paura di dare permessi massimi all'agente perchè la macchina è protetta dalla sandbox e il progetto versionato con git. Vogliamo definire l'architettura di base dell'applicazione e il suo funzionamento",
+  "functionalRequirements": [],
+  "nonFunctionalRequirements": [],
+  "userStories": [],
+  "storyDependencies": [],
+  "implementationOrder": [],
+  "outOfScope": [],
+  "openQuestions": [],
+  "rawMarkdown": null,
+  "notes": "Come  si può interagire con le sandbox:\n\n1) Un'utente si collega all'sdk di opencode (server) installato nella sandbox con il solito server cli per interagire come al solito con open code ma con ambiente isolato.\n2)Un utente o una applicazione possono chiamare il server di opencode per fargli svolgere dei compiti specifici.\n3) Un utente o una applicazione possono interagire con la sandbox con la solita bash per eseguire operazioni all'interno della sandbox e utilizzarne i tool."
+}

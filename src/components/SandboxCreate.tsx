@@ -158,19 +158,20 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [providerApiKey, setProviderApiKey] = useState("")
   const [permissions, setPermissions] = useState<Record<string, string>>({
     read: "allow",
-    edit: "ask",
-    list: "allow",
-    write: "ask",
+    edit: "allow",
+    write: "allow",
     glob: "allow",
     grep: "allow",
-    bash: "ask",
-    task: "ask",
+    bash: "allow",
+    task: "allow",
+    skill: "allow",
     question: "allow",
-    todowrite: "ask",
-    webfetch: "ask",
-    websearch: "ask",
+    todowrite: "allow",
+    webfetch: "allow",
+    websearch: "allow",
     lsp: "allow",
-    external_directory: "ask",
+    external_directory: "allow",
+    doom_loop: "deny",
   })
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)

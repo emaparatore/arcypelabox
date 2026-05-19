@@ -98,12 +98,12 @@ export type PermissionAction = (typeof PERMISSION_ACTIONS)[number]
 export const PERMISSION_KEYS = [
   "read",
   "edit",
-  "list",
   "write",
   "glob",
   "grep",
   "bash",
   "task",
+  "skill",
   "question",
   "todowrite",
   "webfetch",

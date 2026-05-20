@@ -129,10 +129,12 @@ export const SANDBOX_TOOLS: SandboxTool[] = [
 export const SANDBOX_SERVICES: SandboxService[] = ["postgres", "redis"]
 
 export const OPENCODE_PROVIDERS = [
+  "opencode-go",
+  "opencode-zen",
+  "openrouter",
   "anthropic",
   "openai",
   "deepseek",
-  "openrouter",
   "google",
   "groq",
   "together",
@@ -149,8 +151,6 @@ export const OPENCODE_PROVIDERS = [
   "github",
   "nebius",
   "xai",
-  "opencode-zen",
-  "opencode-go",
 ] as const
 
 export type OpenCodeProviderId = (typeof OPENCODE_PROVIDERS)[number]

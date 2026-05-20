@@ -75,7 +75,9 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git", "curl", "pnpm"])
   const [services, setServices] = useState<SandboxService[]>([])
-  const [providers, setProviders] = useState<ProviderConfig[]>([])
+  const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
+  const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
+  const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
   const [permissions, setPermissions] = useState<Record<string, string>>({
     read: "allow",
     edit: "allow",
@@ -321,24 +323,95 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
               <p className="wizard-muted">Add one or more AI providers. API keys are injected securely via the OpenCode API after container start — never stored in env vars or image layers.</p>
               {providers.map((p, i) => (
                 <div key={i} className="form-row" style={{ alignItems: "end", marginBottom: 8 }}>
+                  {(() => {
+                    const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
+                      id.toLowerCase().includes(p.id.toLowerCase()),
+                    )
+                    return (
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>Provider</label>
-                    <input
-                      list="provider-suggestions"
-                      value={p.id}
-                      onChange={(e) =>
-                        setProviders((prev) =>
-                          prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
-                        )
-                      }
-                      placeholder="anthropic"
-                    />
-                    <datalist id="provider-suggestions">
-                      {OPENCODE_PROVIDERS.map((id) => (
-                        <option key={id} value={id} />
-                      ))}
-                    </datalist>
+                    <div className="provider-combobox">
+                      <input
+                        className="provider-combobox-input"
+                        value={p.id}
+                        onFocus={() => {
+                          setOpenProviderIndex(i)
+                          setHighlightedProviderOption(0)
+                        }}
+                        onBlur={() => setTimeout(() => setOpenProviderIndex((current) => (current === i ? null : current)), 120)}
+                        onChange={(e) =>
+                          {
+                            setProviders((prev) =>
+                              prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
+                            )
+                            setOpenProviderIndex(i)
+                            setHighlightedProviderOption(0)
+                          }
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault()
+                            setOpenProviderIndex(i)
+                            setHighlightedProviderOption((current) =>
+                              Math.min(current + 1, Math.max(filteredProviders.length - 1, 0)),
+                            )
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault()
+                            setOpenProviderIndex(i)
+                            setHighlightedProviderOption((current) => Math.max(current - 1, 0))
+                          }
+                          if (e.key === "Enter" && openProviderIndex === i && filteredProviders[highlightedProviderOption]) {
+                            e.preventDefault()
+                            const id = filteredProviders[highlightedProviderOption]
+                            setProviders((prev) =>
+                              prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                            )
+                            setOpenProviderIndex(null)
+                          }
+                          if (e.key === "Escape") {
+                            setOpenProviderIndex(null)
+                          }
+                        }}
+                        placeholder="Select provider..."
+                      />
+                      <button
+                        type="button"
+                        className="provider-combobox-toggle"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setOpenProviderIndex((current) => (current === i ? null : i))
+                          setHighlightedProviderOption(0)
+                        }}
+                        aria-label="Toggle provider list"
+                      >
+                        <span className="provider-combobox-caret" />
+                      </button>
+                      {openProviderIndex === i && (
+                        <div className="provider-combobox-menu">
+                          {filteredProviders.map((id, optionIndex) => (
+                            <button
+                              key={id}
+                              type="button"
+                              className={`provider-combobox-option ${optionIndex === highlightedProviderOption || id === p.id ? "selected" : ""}`}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                setProviders((prev) =>
+                                  prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                                )
+                                setOpenProviderIndex(null)
+                              }}
+                              onMouseEnter={() => setHighlightedProviderOption(optionIndex)}
+                            >
+                              {id}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                    )
+                  })()}
                   <div className="form-group" style={{ flex: 2 }}>
                     <label>API Key</label>
                     <input

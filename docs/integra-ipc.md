@@ -28,11 +28,19 @@ console.log(body) // { pong: true }
 const { body: sandboxes } = await client.get("/api/sandboxes")
 console.log(sandboxes)
 
-// Crea una sandbox
+// Crea una sandbox (solo parametri strutturati, niente Dockerfile custom)
 await client.post("/api/sandboxes", {
   name: "prova-da-app-esterna",
   image: "node:20",
-  ...
+  runtimes: ["node"],
+  tools: ["git"],
+  services: [],
+  projectMount: "C:\\progetti\\mio-progetto",
+  opencodePort: 4096,
+  permissions: {},
+  providerApiKey: "...",
+  providerId: "anthropic",
+  modelId: "claude-sonnet-4-20250514",
 })
 
 // Avvia / ferma / rimuovi
@@ -80,7 +88,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 |--------|------|-------------|----------------|
 | `GET` | `/api/ping` | Verifica se Arcypelabox è raggiungibile | — |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox | — |
-| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, ... }` |
+| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, runtimes, tools, services, ... }` |
 | `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount | `{ mountPath }` |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox | `{ id }` |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |
@@ -91,7 +99,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 
 > **Nota:** `id` nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.
 >
-> **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount`; `generatedDockerfile` è opzionale (generato automaticamente da `runtimes`, `tools` e `services` se omesso).
+> **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount`. `generatedDockerfile` **non è più accettato** via named pipe per ragioni di sicurezza; il Dockerfile viene sempre generato automaticamente da `runtimes`, `tools` e `services`.
 
 ## 5. Gestione errori
 
@@ -107,7 +115,9 @@ try {
 }
 ```
 
-Il server risponde sempre con status `200` in caso di successo, `4xx`/`5xx` in caso di errore. Il `body` contiene `{ error: "..." }` per gli errori.
+Il server risponde sempre con status `200` in caso di successo, `4xx`/`5xx` in caso di errore.
+
+Il `body` contiene `{ error: "..." }` per gli errori.
 
 ## 6. Note tecniche
 

@@ -38,15 +38,15 @@
 |-------|--------|
 | **File** | `electron/api.ts:55-79`, `electron/ipc-server.ts:31-112` |
 | **Categoria** | Input validation, Injection |
+| **Stato** | ✅ **Risolto** — vedi fix applicati sotto |
 
-La named pipe `//./pipe/paratoolz-arcypelabox` non richiede **alcuna autenticazione**. Qualsiasi processo locale può connettervisi e inviare un `generatedDockerfile` arbitrario. Il server lo passa direttamente a `createSandbox()` senza sanitizzazione.
+La named pipe `//./pipe/paratoolz-arcypelabox` non richiedeva **alcuna autenticazione**. Qualsiasi processo locale poteva connettervisi e inviare un `generatedDockerfile` arbitrario. Il server lo passava direttamente a `createSandbox()` senza sanitizzazione.
 
 **Impatto:** Creazione di container malevoli (rootkit, reverse shell, backdoor SSH, mount del socket Docker).
 
-**Fix:**
-- Aggiungere autenticazione alla named pipe (token condiviso o HMAC)
-- Validare il `generatedDockerfile` server-side: whitelist di costrutti Dockerfile consentiti
-- Rifiutare `FROM`, `COPY`, `ADD`, `RUN` arbitrari
+**Fix applicati:**
+- ✅ `generatedDockerfile` rimosso dall'API della named pipe: il server genera sempre il Dockerfile dai parametri strutturati (`runtimes`, `tools`, `services`)
+- ✅ Non è stata aggiunta autenticazione al pipe: essendo locale, un attaccante parlerebbe direttamente col socket Docker (che non ha auth) invece che col nostro named pipe — la vera protezione è rimuovere operazioni pericolose dall'API
 
 ---
 
@@ -130,15 +130,13 @@ La porta dell'OpenCode server è esposta su **tutte le interfacce host** (`0.0.0
 |-------|--------|
 | **File** | `electron/ipc-server.ts:31-112`, `electron/main.ts:47` |
 | **Categoria** | Authentication |
+| **Stato** | ⏹️ **Non risolto (accettato)** |
 
 `net.createServer` su named pipe accetta **qualsiasi connessione locale**. Tutte le route (`POST /api/sandboxes`, `POST /api/sandboxes/exec`, `DELETE /api/sandboxes`, ecc.) sono invocabili senza autenticazione.
 
 **Impatto:** Su sistemi multi-utente, chiunque può creare/distruggere container ed eseguire comandi.
 
-**Fix:**
-- Aggiungere token/secret obbligatorio in ogni messaggio IPC
-- Usare ACL Windows / permessi Unix per restringere l'accesso al pipe
-- Richiedere firma HMAC per-session
+**Nota:** Si è scelto di non aggiungere autenticazione perché un attaccante locale parlerebbe direttamente col socket Docker (`//./pipe/docker_engine`) che non ha auth. La vera protezione è rimuovere operazioni pericolose dall'API (vedi C-1).
 
 ---
 
@@ -436,10 +434,10 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 
 ## Azioni prioritarie
 
-| Priorità | Azione | ID rif. |
-|----------|--------|---------|
-| 1 | Autenticare la named pipe (token condiviso) | C-1, H-1 |
-| 2 | Validare `projectMount` con whitelist di path | C-2 |
+| Priorità | Azione | ID rif. | Stato |
+|----------|--------|---------|-------|
+| 1 | Rimuovere `generatedDockerfile` dall'API della named pipe | C-1 | ✅ **Fatto** |
+| 2 | Validare `projectMount` con whitelist di path | C-2 | ❌ Da fare |
 | 3 | Bindare porte Docker su `127.0.0.1` | C-5 |
 | 4 | Rimuovere API key decrypt dal canale renderer | C-4 |
 | 5 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |

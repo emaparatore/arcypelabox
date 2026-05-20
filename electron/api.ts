@@ -58,13 +58,14 @@ export function registerRoutes(server: IpcServerHandle) {
       if (!config?.projectMount) {
         return { status: 400, body: { error: "projectMount is required" } }
       }
-      if (!config?.generatedDockerfile) {
-        config.generatedDockerfile = buildGeneratedDockerfile({
-          runtimes: config.runtimes as string[] | undefined,
-          tools: config.tools as string[] | undefined,
-          services: config.services as string[] | undefined,
-        })
+      if (config?.generatedDockerfile) {
+        return { status: 400, body: { error: "generatedDockerfile is not accepted via named pipe API; use runtimes/tools/services instead" } }
       }
+      config.generatedDockerfile = buildGeneratedDockerfile({
+        runtimes: config.runtimes as string[] | undefined,
+        tools: config.tools as string[] | undefined,
+        services: config.services as string[] | undefined,
+      })
       const sandboxId = (config?.sandboxId as string) ?? randomUUID()
       const containerId = await createSandbox({ ...config, sandboxId } as Parameters<typeof createSandbox>[0])
       try {

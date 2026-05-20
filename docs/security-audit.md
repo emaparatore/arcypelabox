@@ -23,7 +23,7 @@
 | Severità | Totale | Risolti | Accettati | Aperti |
 |----------|--------|---------|-----------|--------|
 | 🔴 Critica | 5 | 4 | 1 | 0 |
-| 🟠 Alta | 7 | 1 | 1 | 5 |
+| 🟠 Alta | 7 | 2 | 1 | 4 |
 | 🟡 Media | 7 | 0 | 0 | 7 |
 | 🔵 Bassa | 4 | 0 | 0 | 4 |
 | **Totale** | **23** | **5** | **2** | **16** |
@@ -163,15 +163,18 @@ La provider API key era passata come `OPENCODE_PROVIDER_API_KEY` e dentro `OPENC
 |-------|--------|
 | **File** | `electron/docker.ts:70,278` |
 | **Categoria** | Input validation |
+| **Stato** | ✅ **Risolto** |
 
-`config.name` è usato direttamente come Docker container name. Solo `createGroupName` lo sanitizza (per label Docker e network), ma il nome container no.
+`config.name` era usato direttamente come Docker container name. Solo `createGroupName` lo sanitizzava (per label Docker e network), ma il nome container no.
 
 **Impatto:** Collisioni di nome, stati incoerenti, potenziale social engineering.
 
-**Fix:**
-- Applicare la stessa regex di `createGroupName` al container name
-- Validare lunghezza massima (64 caratteri)
-- Rifiutare caratteri speciali
+**Fix applicati:**
+- ✅ Creata `sanitizeContainerName()` che applica la stessa regex di `createGroupName` (`/^[a-z0-9][a-z0-9_.-]*$/`)
+- ✅ Validazione lunghezza massima (64 caratteri) con errore esplicito
+- ✅ Rifiuto caratteri speciali e nomi vuoti dopo sanitizzazione
+- ✅ Applicata a `docker createContainer` (nome principale) e container servizio (Postgres/Redis)
+- ✅ Validazione lato client in `SandboxCreate.tsx` per feedback immediato
 
 ---
 
@@ -440,9 +443,10 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 | 3 | Bindare porte Docker su `127.0.0.1` | C-5 | ✅ **Fatto** |
 | 4 | Rimuovere API key dalle env var del container (usa PUT /auth/:id) | H-2 | ✅ **Fatto** |
 | 5 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
-| 6 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
-| 7 | Aggiungere CSP alla Electron window | M-1 |
-| 8 | Aumentare polling interval a 5-10s | H-7 |
-| 9 | Verifica hash SHA256 per download script | H-5 |
-| 10 | Generare password casuali per Postgres/Redis | M-3 |
-| 11 | Aggiungere try-catch a tutti gli handler IPC | M-6 |
+| 6 | Sanitizzare nome container Docker | H-3 | ✅ **Fatto** |
+| 7 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
+| 8 | Aggiungere CSP alla Electron window | M-1 |
+| 9 | Aumentare polling interval a 5-10s | H-7 |
+| 10 | Verifica hash SHA256 per download script | H-5 |
+| 11 | Generare password casuali per Postgres/Redis | M-3 |
+| 12 | Aggiungere try-catch a tutti gli handler IPC | M-6 |

@@ -120,8 +120,19 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   )
 
   const handleSubmit = async () => {
-    if (!name.trim()) {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
       setError("Name is required")
+      return
+    }
+
+    const nameValid = /^[a-z0-9][a-z0-9_.-]*$/.test(trimmedName.toLowerCase())
+    if (!nameValid) {
+      setError("Name must start with a letter or number and contain only letters, numbers, hyphens, underscores, or dots")
+      return
+    }
+    if (trimmedName.length > 64) {
+      setError("Name must be 64 characters or fewer")
       return
     }
 
@@ -139,7 +150,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
     setError(null)
 
     const config: SandboxConfig = {
-      name: name.trim(),
+      name: trimmedName,
       image: image.trim(),
       opencodePort,
       generatedDockerfile,

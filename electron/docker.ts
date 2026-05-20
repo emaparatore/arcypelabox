@@ -194,16 +194,17 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     await validateMountPath(config.projectMount)
   }
 
+  const containerName = sanitizeContainerName(config.name)
   const image = await buildImage(config.image, config.generatedDockerfile)
   const opencodeConfig = buildOpenCodeConfig(config)
   const group = createGroupName(config.name)
   const networkName = `${group}-net`
 
   await ensureNetwork(networkName)
-  await ensureServiceContainers(config, group, networkName)
+  await ensureServiceContainers(containerName, config, group, networkName)
 
   const container = await docker.createContainer({
-    name: config.name,
+    name: containerName,
     Image: image,
     Labels: {
       "sandobox.manager": "true",
@@ -394,6 +395,17 @@ function buildOpenCodeConfig(config: SandboxConfig): string {
   return JSON.stringify(opencodeConfig)
 }
 
+function sanitizeContainerName(name: string): string {
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+  if (!normalized) {
+    throw new Error("Container name must contain at least one alphanumeric character")
+  }
+  if (normalized.length > 64) {
+    throw new Error(`Container name must be 64 characters or fewer (got ${normalized.length})`)
+  }
+  return normalized
+}
+
 function createGroupName(name: string) {
   const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
   return `sandobox-${normalized || randomUUID().slice(0, 8)}`
@@ -407,9 +419,9 @@ async function ensureNetwork(name: string) {
   }
 }
 
-async function ensureServiceContainers(config: SandboxConfig, group: string, networkName: string) {
+async function ensureServiceContainers(containerName: string, config: SandboxConfig, group: string, networkName: string) {
   for (const service of config.services) {
-    const name = `${config.name}-${service}`
+    const name = `${containerName}-${service}`
     try {
       const existing = docker.getContainer(name)
       await existing.inspect()

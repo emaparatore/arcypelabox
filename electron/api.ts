@@ -61,6 +61,9 @@ export function registerRoutes(server: IpcServerHandle) {
       if (config?.generatedDockerfile) {
         return { status: 400, body: { error: "generatedDockerfile is not accepted via named pipe API; use runtimes/tools/services instead" } }
       }
+      if (config?.customCommands) {
+        return { status: 400, body: { error: "customCommands is not accepted via named pipe API; use the Electron UI instead" } }
+      }
       config.generatedDockerfile = buildGeneratedDockerfile({
         runtimes: config.runtimes as string[] | undefined,
         tools: config.tools as string[] | undefined,

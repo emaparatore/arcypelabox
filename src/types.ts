@@ -25,6 +25,7 @@ export interface SandboxConfig {
   tools: SandboxTool[]
   services: SandboxService[]
   providers?: ProviderConfig[]
+  customCommands?: string
 }
 
 export type SandboxRuntime = "node" | "python" | "dotnet" | "go" | "java" | "ruby" | "php" | "rust" | "zig"
@@ -202,7 +203,7 @@ export interface CreateSandboxResult {
 }
 
 export interface SandboxWindowApi {
-  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[] }) => Promise<string>
+  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string }) => Promise<string>
   listSandboxes: () => Promise<SandboxInfo[] | { error: string }>
   createSandbox: (config: SandboxConfig) => Promise<CreateSandboxResult | { error: string }>
   startSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>

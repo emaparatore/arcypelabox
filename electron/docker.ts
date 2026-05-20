@@ -518,7 +518,7 @@ const VALID_RUNTIMES = ["node", "python", "dotnet", "go", "java", "ruby", "php",
 const VALID_TOOLS = ["git", "curl", "vim", "build-essential", "sqlite", "pnpm", "bun", "nvm", "jq", "gh", "unzip", "tree", "make", "zip", "ripgrep", "cmake"]
 const VALID_SERVICES = ["postgres", "redis"]
 
-export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[] }) {
+export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string }) {
   const runtimes = config.runtimes ?? ["node"]
   const tools = config.tools ?? ["git", "curl", "pnpm"]
   const services = config.services ?? []
@@ -651,6 +651,16 @@ export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: 
     "RUN npm install -g opencode-ai",
     "",
     "RUN mkdir -p /root/.config/opencode",
+  )
+
+  if (config.customCommands?.trim()) {
+    lines.push("")
+    for (const line of config.customCommands.trim().split("\n")) {
+      lines.push(line)
+    }
+  }
+
+  lines.push(
     "",
     'CMD ["sh", "-c", "opencode --help && sleep infinity"]',
   )

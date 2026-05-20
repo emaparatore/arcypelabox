@@ -121,10 +121,12 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const [generatedDockerfile, setGeneratedDockerfile] = useState("")
+  const [customCommands, setCustomCommands] = useState("")
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
-    window.sandobox.generateDockerfile({ runtimes, tools, services }).then(setGeneratedDockerfile)
-  }, [runtimes, tools, services])
+    window.sandobox.generateDockerfile({ runtimes, tools, services, customCommands: customCommands || undefined }).then(setGeneratedDockerfile)
+  }, [runtimes, tools, services, customCommands])
 
   const configPreview = useMemo(
     () => ({
@@ -187,6 +189,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       services,
       ...(projectMount.trim() ? { projectMount: projectMount.trim() } : {}),
       ...(providers.length > 0 ? { providers } : {}),
+      ...(customCommands.trim() ? { customCommands: customCommands.trim() } : {}),
     }
 
     try {
@@ -356,6 +359,54 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
           </div>
         )}
 
+        {step === 3 && (
+          <div className="wizard-panel">
+            <div className="wizard-review-grid">
+              <div className="review-card">
+                <h3>Sandbox Plan</h3>
+                <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+              </div>
+              <div className="review-card">
+                <h3>Generated Dockerfile</h3>
+                <pre className="code-preview">{generatedDockerfile}</pre>
+              </div>
+            </div>
+
+            <details
+              className="wizard-section"
+              style={{ cursor: "pointer", marginTop: 16 }}
+              open={showAdvanced}
+              onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
+            >
+              <summary style={{ fontWeight: 600, fontSize: 14, marginBottom: showAdvanced ? 12 : 0 }}>
+                Advanced: Custom Dockerfile commands
+              </summary>
+              <div style={{ fontSize: 12, color: "var(--danger)", marginBottom: 8, padding: "6px 10px", border: "1px solid var(--danger)", borderRadius: 6, background: "rgba(var(--danger-rgb, 255, 80, 80), 0.08)" }}>
+                ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
+                You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
+                or compromise your system.
+              </div>
+              <textarea
+                value={customCommands}
+                onChange={(e) => setCustomCommands(e.target.value)}
+                placeholder={`# Example: install a specific tool version\nRUN curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz\nENV PATH=/usr/local/go/bin:$PATH`}
+                style={{
+                  width: "100%",
+                  minHeight: 80,
+                  fontFamily: "var(--font-mono, monospace)",
+                  fontSize: 12,
+                  padding: 8,
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                  background: "var(--bg-secondary)",
+                  color: "var(--text-primary)",
+                  resize: "vertical",
+                }}
+              />
+            </details>
+          </div>
+        )}
+
         {step === 2 && (
           <div className="wizard-panel">
             <div className="wizard-section">
@@ -503,21 +554,6 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
                     </select>
                   </div>
                 ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="wizard-panel">
-            <div className="wizard-review-grid">
-              <div className="review-card">
-                <h3>Sandbox Plan</h3>
-                <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
-              </div>
-              <div className="review-card">
-                <h3>Generated Dockerfile</h3>
-                <pre className="code-preview">{generatedDockerfile}</pre>
               </div>
             </div>
           </div>

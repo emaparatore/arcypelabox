@@ -25,8 +25,8 @@
 | 🔴 Critica | 5 | 4 | 1 | 0 |
 | 🟠 Alta | 7 | 4 | 1 | 2 |
 | 🟡 Media | 7 | 0 | 0 | 7 |
-| 🔵 Bassa | 4 | 0 | 0 | 4 |
-| **Totale** | **23** | **6** | **2** | **15** |
+| 🔵 Bassa | 5 | 0 | 0 | 5 |
+| **Totale** | **24** | **6** | **2** | **16** |
 
 ---
 
@@ -434,6 +434,26 @@ Dockerode senza timeout configurabile — default infinito.
 Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione container, exec, accessi named pipe).
 
 **Fix:** Aggiungere logging strutturato con timestamp, identità chiamante, dettagli operazione.
+
+---
+
+### L-5 — Custom Dockerfile commands (self-XSS/dockerfile injection)
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:645-651`, `src/components/SandboxCreate.tsx` (review step) |
+| **Categoria** | User-controlled injection |
+
+La UI permette all'utente di inserire comandi Dockerfile raw (`RUN`, `ENV`, `COPY`, ecc.) nella sezione "Advanced: Custom Dockerfile commands" del review step. Questi comandi vengono appesi al Dockerfile e eseguiti in `docker build`.
+
+**Impatto:** Un utente può inserire comandi arbitrari che vengono eseguiti come root durante la build dell'immagine. Potenzialmente può installare malware, aprire backdoor, o esfiltrare dati.
+
+**Mitigazioni:**
+- ⚠️ Disclaimer visivo rosso nella UI che avverte del rischio
+- ⚠️ Bloccato via named pipe API (solo UI Electron)
+- ⚠️ L'utente deve espandere esplicitamente la sezione collassabile
+- ⚠️ Chi ha accesso al terminale può già parlare direttamente con Docker
+- **Stato:** Accettato come rischio consapevole (valvola di sfogo per power user)
 
 ---
 

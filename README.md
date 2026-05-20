@@ -72,8 +72,7 @@ npm run electron:build
 
 ## Important Behavior
 
-- The real sandbox image is generated in the UI (`src/components/SandboxCreate.tsx`) and built from a temp directory by `electron/docker.ts`.
-- `docker/Dockerfile.sandbox` and `docker/docker-compose.yml` are not part of the main app flow.
+- The sandbox image is generated in the UI (`src/components/SandboxCreate.tsx`) and built from a temp directory by `electron/docker.ts`.
 - Sandbox containers are identified with the Docker label `sandobox.manager=true`.
 - Postgres and Redis sidecars are grouped with the main sandbox using `sandobox.group`; lifecycle actions operate on the whole group.
 - The create flow currently requires a project mount path before submission.

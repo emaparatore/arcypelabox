@@ -1,0 +1,450 @@
+# Security Audit — Sandobox Manager
+
+> **Data:** 2026-05-20
+> **Versione app:** 1.0.0
+> **Tipo:** Analisi statica del codice sorgente
+
+---
+
+## Indice
+
+- [Riepilogo](#riepilogo)
+- [Critiche](#critiche)
+- [Alte](#alte)
+- [Medie](#medie)
+- [Basse](#basse)
+- [Docker e Build](#docker-e-build)
+- [Azioni prioritarie](#azioni-prioritarie)
+
+---
+
+## Riepilogo
+
+| Severità | Conteggio |
+|----------|-----------|
+| 🔴 Critica | 5 |
+| 🟠 Alta | 7 |
+| 🟡 Media | 7 |
+| 🔵 Bassa | 4 |
+| **Totale** | **23** |
+
+---
+
+## 🔴 Critiche
+
+### C-1 — Iniezione Dockerfile arbitrario via named pipe
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/api.ts:55-79`, `electron/ipc-server.ts:31-112` |
+| **Categoria** | Input validation, Injection |
+
+La named pipe `//./pipe/paratoolz-arcypelabox` non richiede **alcuna autenticazione**. Qualsiasi processo locale può connettervisi e inviare un `generatedDockerfile` arbitrario. Il server lo passa direttamente a `createSandbox()` senza sanitizzazione.
+
+**Impatto:** Creazione di container malevoli (rootkit, reverse shell, backdoor SSH, mount del socket Docker).
+
+**Fix:**
+- Aggiungere autenticazione alla named pipe (token condiviso o HMAC)
+- Validare il `generatedDockerfile` server-side: whitelist di costrutti Dockerfile consentiti
+- Rifiutare `FROM`, `COPY`, `ADD`, `RUN` arbitrari
+
+---
+
+### C-2 — Container escape via bind mount arbitrario
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:87-91`, `src/components/SandboxCreate.tsx:130-133` |
+| **Categoria** | Path traversal, Privilege escalation |
+
+Il campo `projectMount` è montato direttamente come bind mount in `/workspace` con **zero validazioni**. Solo controllo `non vuoto` in UI.
+
+**Impatto:** Montando `/` → intero filesystem host accessibile. Montando `/var/run/docker.sock` → controllo completo del Docker daemon dal container. Combinato con C-3, è **compromissione totale dell'host**.
+
+**Fix:**
+- Whitelist di directory parent consentite (es. home utente, progetti)
+- Bloccare `/etc`, `/proc`, `/dev`, `/var/run`, `/sys`
+- Validare che il path risolva a una directory consentita (no symlink escape)
+
+---
+
+### C-3 — Esecuzione comandi arbitrari nei container
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:194-210`, `electron/main.ts:160-166`, `electron/api.ts:137-147` |
+| **Categoria** | Command injection |
+
+`execInSandbox` passa il comando utente a `sh -c` dentro il container. Il comando arriva direttamente da IPC (`sandobox:exec`) o dalla named pipe (`POST /api/sandboxes/exec`).
+
+**Impatto:** Chiunque abbia accesso al renderer o alla named pipe può eseguire comandi shell arbitrari nei container. Con bind mount arbitrario (C-2) → full host compromise.
+
+**Fix:**
+- Rate limiting sulle exec
+- Validare/sanitizzare il comando
+- Usare binary specifici invece di `sh -c`
+- Aggiungere conferma UI per comandi pericolosi
+
+---
+
+### C-4 — Provider API key esposta al renderer
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/main.ts:241-242`, `electron/preload.ts:33` |
+| **Categoria** | Secret exposure |
+
+L'handler IPC `sandobox:db:sandbox:getById` decifra e restituisce la provider API key al renderer.
+
+**Impatto:** Un XSS, estensione malevola o dipendenza npm compromessa nel frontend può rubare tutte le chiavi API. Le chiavi sono in memoria e potenzialmente accessibili via debug.
+
+**Fix:**
+- Mai esporre chiavi decifrate al renderer
+- Fare da proxy per tutte le chiamate API che richiedono la chiave
+- Usare un approccio token-based: il main process gestisce le chiavi
+
+---
+
+### C-5 — OpenCode server esposto a rete esterna
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:83-86,111` |
+| **Categoria** | Network exposure |
+
+La porta dell'OpenCode server è esposta su **tutte le interfacce host** (`0.0.0.0`) tramite Docker port binding. Il server stesso bind-a `0.0.0.0`.
+
+**Impatto:** Chiunque sulla LAN può interagire con l'agente AI: inviare prompt arbitrari, leggere/scrivere file, eseguire bash, accedere alla API key dalle env.
+
+**Fix:**
+- Bindare `HostPort` solo a `127.0.0.1`
+- Cambiare `--hostname` dell'OpenCode server in `127.0.0.1`
+
+---
+
+## 🟠 Alte
+
+### H-1 — Named pipe senza autenticazione
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/ipc-server.ts:31-112`, `electron/main.ts:47` |
+| **Categoria** | Authentication |
+
+`net.createServer` su named pipe accetta **qualsiasi connessione locale**. Tutte le route (`POST /api/sandboxes`, `POST /api/sandboxes/exec`, `DELETE /api/sandboxes`, ecc.) sono invocabili senza autenticazione.
+
+**Impatto:** Su sistemi multi-utente, chiunque può creare/distruggere container ed eseguire comandi.
+
+**Fix:**
+- Aggiungere token/secret obbligatorio in ogni messaggio IPC
+- Usare ACL Windows / permessi Unix per restringere l'accesso al pipe
+- Richiedere firma HMAC per-session
+
+---
+
+### H-2 — API key in variabile d'ambiente del container
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:93-106` |
+| **Categoria** | Secret exposure |
+
+La provider API key è passata come `OPENCODE_PROVIDER_API_KEY` e dentro `OPENCODE_CONFIG` (JSON completo) nelle env del container Docker.
+
+**Impatto:** `docker inspect`, shell nel container, `/proc/1/environ`, log Docker → chiunque può leggere la chiave. Rimane anche nei layer dell'immagine.
+
+**Fix:**
+- Usare Docker secrets (Swarm) o mount di un file sicuro
+- Eliminare la variabile d'ambiente dopo aver scritto il file di config dentro il container
+- Usare file con permessi 600 invece di env var
+
+---
+
+### H-3 — Nome container non sanitizzato
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:70,278` |
+| **Categoria** | Input validation |
+
+`config.name` è usato direttamente come Docker container name. Solo `createGroupName` lo sanitizza (per label Docker e network), ma il nome container no.
+
+**Impatto:** Collisioni di nome, stati incoerenti, potenziale social engineering.
+
+**Fix:**
+- Applicare la stessa regex di `createGroupName` al container name
+- Validare lunghezza massima (64 caratteri)
+- Rifiutare caratteri speciali
+
+---
+
+### H-4 — SSRF via parametro port
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/opencode.ts:47,91,166-168,189-213` |
+| **Categoria** | SSRF |
+
+Il parametro `port` (user-controllabile) è usato per costruire URL `http://localhost:${port}`. Nessuna validazione che la porta sia nel range consentito.
+
+**Impatto:** Port scanning di localhost, accesso ad altri servizi locali.
+
+**Fix:**
+- Validare porta nel range 1024-65535
+- Sanitizzare a intero prima dell'uso
+- Usare Docker networking diretto invece di port binding
+
+---
+
+### H-5 — Download script senza verifica integrità
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:418-421,431-433` |
+| **Categoria** | Supply chain |
+
+Gli script per dotnet e bun sono scaricati con `curl | bash` da URL HTTPS, ma **senza verifica SHA256**.
+
+**Impatto:** Se i server di download sono compromessi, l'intera catena di build è compromessa.
+
+**Fix:**
+- Aggiungere verifica hash SHA256 dopo il download
+- Usare repository ufficiali (apt) invece di `curl | bash`
+- Validare che gli elementi di `tools` siano tra valori consentiti
+
+---
+
+### H-6 — OpenCode server esegue come root
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:402`, `docker/Dockerfile.sandbox:1` |
+| **Categoria** | Privilege escalation |
+
+L'immagine parte da `node:20-bookworm-slim` che esegue di default come **root**. L'OpenCode server e tutti i comandi dell'agente AI girano come root.
+
+**Impatto:** Massimizzazione del blast radius — se l'agente AI o un attacco sfrutta una vulnerabilità di container escape, ha accesso root.
+
+**Fix:**
+- Creare utente non-root nel Dockerfile
+- Usare `USER` prima di eseguire l'OpenCode server
+- Applicare `--cap-drop=ALL`
+
+---
+
+### H-7 — Polling eccessivo
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `src/hooks/useOpenCode.ts:46-56`, `src/components/OpenCodePanel.tsx:46-56` |
+| **Categoria** | Denial of Service |
+
+Ogni 1.5 secondi il renderer fa 4 chiamate IPC → HTTP all'OpenCode server. Con più sandbox aperte, il traffico si moltiplica.
+
+**Impatto:** DoS accidentale, CPU elevata, traffico di rete eccessivo.
+
+**Fix:**
+- Aumentare intervallo a 5-10 secondi
+- Usare event-driven (WebSocket) invece di polling
+- Debounce delle richieste
+
+---
+
+## 🟡 Medie
+
+### M-1 — Nessun Content-Security-Policy
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/main.ts:60-70` |
+| **Categoria** | XSS mitigation |
+
+Il `BrowserWindow` è creato senza header CSP.
+
+**Impatto:** Se un XSS viene introdotto (via Vite dev server o dipendenza npm compromessa), l'attaccante ha accesso illimitato a `window.sandobox.*` (controllo container, chiavi API).
+
+**Fix:**
+- Aggiungere CSP via `session.defaultSession.webRequest.onHeadersReceived`
+- Restringere script-src, disabilitare inline script, limitare connect-src
+
+---
+
+### M-2 — Database SQLite in chiaro
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/database.ts:9-14,73-103` |
+| **Categoria** | Data at rest |
+
+Solo la API key è cifrata. Tutte le altre configurazioni (provider ID, model ID, Dockerfile, permessi) sono in chiaro. DB in `%APPDATA%/sandobox-manager/sandobox.db`.
+
+**Impatto:** Qualsiasi processo con accesso al filesystem può leggere le configurazioni complete delle sandbox.
+
+**Fix:**
+- Cifrare campi sensibili aggiuntivi
+- Usare SQLCipher
+- Impostare permessi restrittivi sul file DB
+
+---
+
+### M-3 — Credenziali Postgres hardcoded
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:98-102,297-300` |
+| **Categoria** | Weak credentials |
+
+```ts
+POSTGRES_USER=sandbox
+POSTGRES_PASSWORD=sandbox
+POSTGRES_DB=sandbox
+```
+Redis senza autenticazione.
+
+**Impatto:** Chiunque abbia accesso alla rete del container può accedere al database con credenziali ovvie.
+
+**Fix:**
+- Generare password casuali per sandbox
+- Usare Docker secrets
+- Documentare che sono credenziali interne di sviluppo
+
+---
+
+### M-4 — Sessioni OpenCode mai chiuse
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/opencode.ts:245-269` |
+| **Categoria** | Resource leak |
+
+`getAvailableSessionId` crea nuove sessioni quando nessuna è idle, ma **non le chiude mai**.
+
+**Impatto:** Le sessioni si accumulano consumando memoria e risorse del server OpenCode.
+
+**Fix:**
+- Implementare riciclo sessioni (chiudere dopo timeout)
+- Impostare numero massimo di sessioni
+- Pulire sessioni su sandbox stop/remove
+
+---
+
+### M-5 — Nessuna validazione lunghezza nome
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:70,263-265` |
+| **Categoria** | Input validation |
+
+Nessun limite a lunghezza o caratteri su `config.name`. Docker ha limiti interni ma nomi molto lunghi o con Unicode possono causare errori.
+
+**Impatto:** Resource exhaustion, stati inconsistenti.
+
+**Fix:**
+- Applicare stessa sanitizzazione di `createGroupName`
+- Limite massimo 64 caratteri
+
+---
+
+### M-6 — Unhandled errors in IPC handler
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/main.ts:168-170,232-234,328-330` |
+| **Categoria** | Information leak |
+
+Alcuni handler IPC mancano di try-catch, potenzialmente esponendo stack trace e stato interno.
+
+**Impatto:** Leak di informazioni (percorsi file, errori Docker, stack trace) al renderer.
+
+**Fix:**
+- Wrappare tutti gli handler in try-catch
+- Restituire risposte di errore strutturate
+
+---
+
+### M-7 — Named pipe / socket aperto
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/ipc-server.ts` |
+| **Categoria** | Access control |
+
+Su Unix il socket è in `/tmp/` (world-readable/writable per default). Su Windows il named pipe ha permessi di default.
+
+**Impatto:** Su sistemi multi-utente, altri utenti possono accedere al pipe.
+
+**Fix:**
+- `chmod 600` sul socket Unix
+- Impostare DACL sul named pipe Windows
+- Documentare il modello di sicurezza
+
+---
+
+## 🔵 Basse
+
+### L-1 — Intervalli polling hardcoded
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `src/components/OpenCodePanel.tsx:53` (`useOpenCode.ts`), `src/App.tsx:40` |
+| **Categoria** | Configurability |
+
+Intervalli non configurabili: 1.5s per OpenCode, 5s per sandbox list.
+
+**Fix:** Rendere configurabili o adattivi.
+
+---
+
+### L-2 — Nessun timeout su chiamate Docker API
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts` (throughout) |
+| **Categoria** | Resilience |
+
+Dockerode senza timeout configurabile — default infinito.
+
+**Fix:** Aggiungere timeout default (30s) a tutte le operazioni.
+
+---
+
+### L-3 — `sleep infinity` come CMD
+
+| Campo | Valore |
+|-------|--------|
+| **File** | `electron/docker.ts:443` |
+| **Categoria** | Resource usage |
+
+`CMD ["sh", "-c", "opencode --help && sleep infinity"]` — consuma risorse inutilmente.
+
+**Fix:** Usare healthcheck o signal handler.
+
+---
+
+### L-4 — Nessun audit logging
+
+| Campo | Valore |
+|-------|--------|
+| **File** | Throughout |
+| **Categoria** | Observability |
+
+Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione container, exec, accessi named pipe).
+
+**Fix:** Aggiungere logging strutturato con timestamp, identità chiamante, dettagli operazione.
+
+---
+
+## Azioni prioritarie
+
+| Priorità | Azione | ID rif. |
+|----------|--------|---------|
+| 1 | Autenticare la named pipe (token condiviso) | C-1, H-1 |
+| 2 | Validare `projectMount` con whitelist di path | C-2 |
+| 3 | Bindare porte Docker su `127.0.0.1` | C-5 |
+| 4 | Rimuovere API key decrypt dal canale renderer | C-4 |
+| 5 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
+| 6 | Aggiungere CSP alla Electron window | M-1 |
+| 7 | Aumentare polling interval a 5-10s | H-7 |
+| 8 | Verifica hash SHA256 per download script | H-5 |
+| 9 | Generare password casuali per Postgres/Redis | M-3 |
+| 10 | Aggiungere try-catch a tutti gli handler IPC | M-6 |

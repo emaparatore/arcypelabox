@@ -19,8 +19,7 @@
 
 ## Sandbox Flow
 
-- The app does not build sandboxes from `docker/Dockerfile.sandbox`. Real sandbox images are generated in `src/components/SandboxCreate.tsx`, then written to a temp build dir and built by `electron/docker.ts`.
-- `docker/Dockerfile.sandbox` and `docker/docker-compose.yml` are not used by the main app flow unless you run them manually.
+- Sandbox images are generated in `src/components/SandboxCreate.tsx`, then written to a temp build dir and built by `electron/docker.ts`.
 - Sandbox containers are identified by the Docker label `sandobox.manager=true`.
 - Postgres/Redis sidecars share a generated `sandobox.group` label and network. Start, stop, and delete actions operate on the whole group, not just the main sandbox container.
 - If a sandbox has a project mount, the host path is bind-mounted to `/workspace` inside the container.

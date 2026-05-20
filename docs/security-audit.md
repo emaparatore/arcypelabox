@@ -109,14 +109,13 @@ L'handler IPC `sandobox:db:sandbox:getById` decifrava e restituiva la provider A
 |-------|--------|
 | **File** | `electron/docker.ts:83-86,111` |
 | **Categoria** | Network exposure |
+| **Stato** | ✅ **Risolto** |
 
-La porta dell'OpenCode server è esposta su **tutte le interfacce host** (`0.0.0.0`) tramite Docker port binding. Il server stesso bind-a `0.0.0.0`.
+La porta dell'OpenCode server era esposta su **tutte le interfacce host** (`0.0.0.0`) tramite Docker port binding. Il server stesso bindava a `0.0.0.0`.
 
-**Impatto:** Chiunque sulla LAN può interagire con l'agente AI: inviare prompt arbitrari, leggere/scrivere file, eseguire bash, accedere alla API key dalle env.
-
-**Fix:**
-- Bindare `HostPort` solo a `127.0.0.1`
-- Cambiare `--hostname` dell'OpenCode server in `127.0.0.1`
+**Fix applicati:**
+- ✅ `HostIp: "127.0.0.1"` aggiunto al port binding Docker
+- ✅ `--hostname 127.0.0.1` nel comando di avvio dell'OpenCode server
 
 ---
 
@@ -144,15 +143,17 @@ La porta dell'OpenCode server è esposta su **tutte le interfacce host** (`0.0.0
 |-------|--------|
 | **File** | `electron/docker.ts:93-106` |
 | **Categoria** | Secret exposure |
+| **Stato** | ✅ **Risolto** |
 
-La provider API key è passata come `OPENCODE_PROVIDER_API_KEY` e dentro `OPENCODE_CONFIG` (JSON completo) nelle env del container Docker.
+La provider API key era passata come `OPENCODE_PROVIDER_API_KEY` e dentro `OPENCODE_CONFIG` (JSON completo) nelle env del container Docker.
 
-**Impatto:** `docker inspect`, shell nel container, `/proc/1/environ`, log Docker → chiunque può leggere la chiave. Rimane anche nei layer dell'immagine.
-
-**Fix:**
-- Usare Docker secrets (Swarm) o mount di un file sicuro
-- Eliminare la variabile d'ambiente dopo aver scritto il file di config dentro il container
-- Usare file con permessi 600 invece di env var
+**Fix applicati:**
+- ✅ `OPENCODE_PROVIDER_API_KEY` rimosso dalle env var del container
+- ✅ `providerApiKey` non è più incluso nel JSON di `OPENCODE_CONFIG` — `buildOpenCodeConfig()` non embedda più la chiave
+- ✅ Dopo `container.start()`, il main process chiama `PUT /auth/:providerId` sull'OpenCode server tramite `127.0.0.1:<port>` — OpenCode salva la chiave nel suo auth store (`~/.local/share/opencode/auth.json`)
+- ✅ La chiave non è mai in env var, né in chiaro nel config JSON, né in layer Docker
+- ✅ Se l'auth injection fallisce, non blocca la creazione della sandbox (log di warning)
+- ✅ La chiave rimane cifrata nel DB (`safeStorage`) per ricreazione futuro
 
 ---
 
@@ -436,11 +437,12 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 |----------|--------|---------|-------|
 | 1 | Rimuovere `generatedDockerfile` dall'API della named pipe | C-1 | ✅ **Fatto** |
 | 2 | Validare `projectMount` con whitelist + scan symlink | C-2 | ✅ **Fatto** |
-| 3 | Bindare porte Docker su `127.0.0.1` | C-5 |
-| 4 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
-| 5 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
-| 6 | Aggiungere CSP alla Electron window | M-1 |
-| 7 | Aumentare polling interval a 5-10s | H-7 |
-| 8 | Verifica hash SHA256 per download script | H-5 |
-| 9 | Generare password casuali per Postgres/Redis | M-3 |
-| 10 | Aggiungere try-catch a tutti gli handler IPC | M-6 |
+| 3 | Bindare porte Docker su `127.0.0.1` | C-5 | ✅ **Fatto** |
+| 4 | Rimuovere API key dalle env var del container (usa PUT /auth/:id) | H-2 | ✅ **Fatto** |
+| 5 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
+| 6 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
+| 7 | Aggiungere CSP alla Electron window | M-1 |
+| 8 | Aumentare polling interval a 5-10s | H-7 |
+| 9 | Verifica hash SHA256 per download script | H-5 |
+| 10 | Generare password casuali per Postgres/Redis | M-3 |
+| 11 | Aggiungere try-catch a tutti gli handler IPC | M-6 |

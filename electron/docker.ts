@@ -142,6 +142,46 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
     }))
 }
 
+async function injectApiKey(
+  port: number,
+  providerId: string,
+  apiKey: string,
+  maxAttempts = 15,
+): Promise<void> {
+  const baseUrl = `http://127.0.0.1:${port}`
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const healthRes = await fetch(`${baseUrl}/global/health`, { signal: AbortSignal.timeout(3000) })
+      if (!healthRes.ok) {
+        await new Promise((r) => setTimeout(r, 1000))
+        continue
+      }
+
+      const authRes = await fetch(`${baseUrl}/auth/${encodeURIComponent(providerId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey }),
+        signal: AbortSignal.timeout(5000),
+      })
+
+      if (!authRes.ok) {
+        const text = await authRes.text()
+        console.error(`[docker] Auth injection failed (${authRes.status}): ${text}`)
+        return
+      }
+
+      return
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        console.error(`[docker] Auth injection failed after ${maxAttempts} attempts:`, err)
+        return
+      }
+      await new Promise((r) => setTimeout(r, 1000))
+    }
+  }
+}
+
 export async function createSandbox(config: SandboxConfig): Promise<string> {
   if (config.projectMount) {
     await validateMountPath(config.projectMount)
@@ -171,7 +211,7 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     },
     HostConfig: {
       PortBindings: {
-        [`${config.opencodePort}/tcp`]: [{ HostPort: config.opencodePort.toString() }],
+        [`${config.opencodePort}/tcp`]: [{ HostPort: config.opencodePort.toString(), HostIp: "127.0.0.1" }],
       },
       ...(config.projectMount
         ? {
@@ -192,12 +232,11 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
           ]
         : []),
       ...(config.services.includes("redis") ? ["REDIS_HOST=redis", "REDIS_PORT=6379"] : []),
-      ...(config.providerApiKey ? [`OPENCODE_PROVIDER_API_KEY=${config.providerApiKey}`] : []),
     ],
     Cmd: [
       "sh",
       "-c",
-      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`,
+      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port ${config.opencodePort} --hostname 127.0.0.1`,
     ],
   })
 
@@ -209,6 +248,13 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
   })
 
   await container.start()
+
+  if (config.providerId && config.providerApiKey) {
+    injectApiKey(config.opencodePort, config.providerId, config.providerApiKey).catch((err) =>
+      console.error("[docker] injectApiKey failed:", err),
+    )
+  }
+
   return container.id
 }
 
@@ -329,13 +375,9 @@ function buildOpenCodeConfig(config: SandboxConfig): string {
   }
 
   if (config.providerId) {
-    const providerOptions: Record<string, unknown> = {}
-    if (config.providerApiKey) {
-      providerOptions.apiKey = config.providerApiKey
-    }
     opencodeConfig.provider = {
       [config.providerId]: {
-        options: providerOptions,
+        options: {},
       },
     }
   }

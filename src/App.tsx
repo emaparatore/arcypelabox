@@ -3,6 +3,7 @@ import type { SandboxInfo } from "./types"
 import { SandboxList } from "./components/SandboxList"
 import { SandboxCreate } from "./components/SandboxCreate"
 import { SandboxDetail } from "./components/SandboxDetail"
+import brandLogo from "../imgs/arcypelabox-logo-round.png"
 import "./App.css"
 
 type View = "list" | "create"
@@ -45,7 +46,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Arcypelabox</h1>
+        <div className="app-brand">
+          <img className="app-brand-logo" src={brandLogo} alt="Arcypelabox logo" />
+          <h1 className="app-brand-name">
+            <span className="app-brand-name-primary">arcypela</span>
+            <span className="app-brand-name-accent">box</span>
+          </h1>
+        </div>
         <div className="app-header-actions">
           <button className="btn btn-sm" onClick={refresh}>
             Refresh

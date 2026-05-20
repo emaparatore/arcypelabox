@@ -38,10 +38,17 @@
     "productName": "Arcypelabox",
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "imgs/**/*"
     ],
     "directories": {
       "output": "release"
+    },
+    "win": {
+      "icon": "imgs/arcypelabox-logo-round.ico"
+    },
+    "linux": {
+      "icon": "imgs/arcypelabox-logo-round.png"
     }
   }
 }

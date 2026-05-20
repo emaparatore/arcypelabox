@@ -60,10 +60,12 @@ function validateString(value: unknown, name: string): value is string {
 
 function createWindow() {
   const isDev = !app.isPackaged || process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL
+  const iconPath = path.join(app.getAppPath(), "imgs", "arcypelabox-logo-round.png")
 
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

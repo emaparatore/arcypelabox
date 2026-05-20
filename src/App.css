@@ -14,10 +14,38 @@
   -webkit-app-region: drag;
 }
 
-.app-header h1 {
-  font-size: 16px;
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-brand-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.18));
+}
+
+.app-brand-name {
+  font-size: 28px;
   font-weight: 600;
-  color: var(--accent);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--white);
+}
+
+.app-brand-name-primary {
+  color: var(--white);
+}
+
+.app-brand-name-accent {
+  background: linear-gradient(135deg, var(--accent), var(--brand-glow));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .app-header-actions {
@@ -509,6 +537,10 @@
 }
 
 @media (max-width: 900px) {
+  .app-brand-name {
+    font-size: 22px;
+  }
+
   .wizard-header,
   .wizard-review-grid,
   .form-row {

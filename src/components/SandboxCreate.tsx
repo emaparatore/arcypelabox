@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 import type {
+  ProviderConfig,
   SandboxConfig,
   SandboxRuntime,
   SandboxService,
   SandboxTool,
 } from "../types"
 import {
+  OPENCODE_PROVIDERS,
   PERMISSION_ACTIONS,
   PERMISSION_KEYS,
   SANDBOX_RUNTIMES,
@@ -73,9 +75,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git", "curl", "pnpm"])
   const [services, setServices] = useState<SandboxService[]>([])
-  const [providerId, setProviderId] = useState("")
-  const [modelId, setModelId] = useState("")
-  const [providerApiKey, setProviderApiKey] = useState("")
+  const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [permissions, setPermissions] = useState<Record<string, string>>({
     read: "allow",
     edit: "allow",
@@ -110,10 +110,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       runtimes,
       tools,
       services,
-      providerId: providerId || null,
-      modelId: modelId || null,
+      providers: providers.length > 0
+        ? providers.map((p) => ({ id: p.id, apiKey: "****" }))
+        : null,
     }),
-    [image, modelId, opencodePort, projectMount, providerId, runtimes, services, tools]
+    [image, opencodePort, projectMount, providers, runtimes, services, tools]
   )
 
   const handleSubmit = async () => {
@@ -145,9 +146,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       tools,
       services,
       ...(projectMount.trim() ? { projectMount: projectMount.trim() } : {}),
-      ...(providerId ? { providerId } : {}),
-      ...(modelId ? { modelId } : {}),
-      ...(providerApiKey ? { providerApiKey } : {}),
+      ...(providers.length > 0 ? { providers } : {}),
     }
 
     try {
@@ -317,38 +316,64 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
 
         {step === 2 && (
           <div className="wizard-panel">
-            <div className="form-row">
-              <div className="form-group">
-                <label>Provider ID (optional)</label>
-                <input
-                  value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
-                  placeholder="anthropic"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Model ID (optional)</label>
-                <input
-                  value={modelId}
-                  onChange={(e) => setModelId(e.target.value)}
-                  placeholder="claude-sonnet-4-20250514"
-                />
-              </div>
+            <div className="wizard-section">
+              <h3>LLM Providers</h3>
+              <p className="wizard-muted">Add one or more AI providers. API keys are injected securely via the OpenCode API after container start — never stored in env vars or image layers.</p>
+              {providers.map((p, i) => (
+                <div key={i} className="form-row" style={{ alignItems: "end", marginBottom: 8 }}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Provider</label>
+                    <input
+                      list="provider-suggestions"
+                      value={p.id}
+                      onChange={(e) =>
+                        setProviders((prev) =>
+                          prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
+                        )
+                      }
+                      placeholder="anthropic"
+                    />
+                    <datalist id="provider-suggestions">
+                      {OPENCODE_PROVIDERS.map((id) => (
+                        <option key={id} value={id} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="form-group" style={{ flex: 2 }}>
+                    <label>API Key</label>
+                    <input
+                      type="password"
+                      value={p.apiKey}
+                      onChange={(e) =>
+                        setProviders((prev) =>
+                          prev.map((pp, ii) => (ii === i ? { ...pp, apiKey: e.target.value } : pp)),
+                        )
+                      }
+                      placeholder="sk-..."
+                    />
+                  </div>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
+                    style={{ marginBottom: 1 }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
+                style={{ marginTop: 4 }}
+              >
+                + Add Provider
+              </button>
             </div>
 
-            <div className="form-group">
-              <label>Provider API Key (optional)</label>
-              <input
-                type="password"
-                value={providerApiKey}
-                onChange={(e) => setProviderApiKey(e.target.value)}
-                placeholder="sk-..."
-              />
-            </div>
-
-            <div className="form-group">
-              <label>OpenCode Permissions</label>
+            <div className="wizard-section">
+              <h3>OpenCode Permissions</h3>
               <div className="permission-grid">
                 {PERMISSION_KEYS.map((key) => (
                   <div key={key} className="permission-row">

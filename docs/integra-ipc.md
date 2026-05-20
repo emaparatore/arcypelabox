@@ -38,9 +38,10 @@ await client.post("/api/sandboxes", {
   projectMount: "C:\\progetti\\mio-progetto",
   opencodePort: 4096,
   permissions: {},
-  providerApiKey: "...",
-  providerId: "anthropic",
-  modelId: "claude-sonnet-4-20250514",
+  providers: [
+    { id: "anthropic", apiKey: "sk-ant-..." },
+    { id: "openai", apiKey: "sk-proj-..." },
+  ],
 })
 
 // Avvia / ferma / rimuovi

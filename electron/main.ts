@@ -237,7 +237,7 @@ app.whenReady().then(() => {
       validateString(id, "sandboxId")
       const record = getSandboxRecord(id)
       if (!record) return null
-      const { provider_api_key_enc: _, ...safe } = record as Record<string, unknown>
+      const { providers: _, ...safe } = record as Record<string, unknown>
       return safe
     } catch (err) {
       return { error: getErrorMessage(err) }

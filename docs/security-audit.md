@@ -20,13 +20,13 @@
 
 ## Riepilogo
 
-| Severità | Conteggio |
-|----------|-----------|
-| 🔴 Critica | 5 |
-| 🟠 Alta | 7 |
-| 🟡 Media | 7 |
-| 🔵 Bassa | 4 |
-| **Totale** | **23** |
+| Severità | Totale | Risolti | Accettati | Aperti |
+|----------|--------|---------|-----------|--------|
+| 🔴 Critica | 5 | 4 | 1 | 0 |
+| 🟠 Alta | 7 | 1 | 1 | 5 |
+| 🟡 Media | 7 | 0 | 0 | 7 |
+| 🔵 Bassa | 4 | 0 | 0 | 4 |
+| **Totale** | **23** | **5** | **2** | **16** |
 
 ---
 
@@ -114,8 +114,8 @@ L'handler IPC `sandobox:db:sandbox:getById` decifrava e restituiva la provider A
 La porta dell'OpenCode server era esposta su **tutte le interfacce host** (`0.0.0.0`) tramite Docker port binding. Il server stesso bindava a `0.0.0.0`.
 
 **Fix applicati:**
-- ✅ `HostIp: "127.0.0.1"` aggiunto al port binding Docker
-- ✅ `--hostname 127.0.0.1` nel comando di avvio dell'OpenCode server
+- ✅ `HostIp: "127.0.0.1"` aggiunto al port binding Docker — limita l'accesso a localhost sull'host
+- ✅ `--hostname 0.0.0.0` tenuto dentro il container (Docker forwarding richiede che il processo ascolti su tutte le interfacce del container, non solo loopback)
 
 ---
 

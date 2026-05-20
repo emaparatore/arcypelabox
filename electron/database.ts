@@ -12,6 +12,30 @@ export function initDatabase(): void {
   db.pragma("journal_mode = WAL")
   db.pragma("foreign_keys = ON")
   createTables()
+  try {
+    migrateSchema()
+  } catch (err) {
+    console.error("[db] Migration failed (non-critical):", err)
+  }
+}
+
+function migrateSchema(): void {
+  const hasOldColumns = db.prepare(
+    "SELECT count(*) as cnt FROM pragma_table_info('sandboxes') WHERE name IN ('provider_id', 'model_id', 'provider_api_key_enc')",
+  ).get() as { cnt: number } | undefined
+
+  if (hasOldColumns && hasOldColumns.cnt > 0) {
+    const hasProviders = db.prepare(
+      "SELECT count(*) as cnt FROM pragma_table_info('sandboxes') WHERE name = 'providers'",
+    ).get() as { cnt: number } | undefined
+
+    if (!hasProviders || hasProviders.cnt === 0) {
+      db.exec(`
+        ALTER TABLE sandboxes ADD COLUMN providers TEXT;
+      `)
+      console.log("[db] Migrated schema: added providers column")
+    }
+  }
 }
 
 function createTables(): void {
@@ -25,9 +49,7 @@ function createTables(): void {
       runtimes TEXT NOT NULL DEFAULT '[]',
       tools TEXT NOT NULL DEFAULT '[]',
       services TEXT NOT NULL DEFAULT '[]',
-      provider_id TEXT,
-      model_id TEXT,
-      provider_api_key_enc TEXT,
+      providers TEXT,
       permissions TEXT NOT NULL DEFAULT '{}',
       generated_dockerfile TEXT NOT NULL,
       docker_container_id TEXT,
@@ -73,13 +95,15 @@ function decrypt(encrypted: string): string {
 export function createSandboxRecord(config: SandboxConfig, dockerContainerId: string): string {
   const id = config.sandboxId ?? randomUUID()
   const now = new Date().toISOString()
-  const apiKeyEnc = config.providerApiKey ? encrypt(config.providerApiKey) : null
+  const providersJson = config.providers && config.providers.length > 0
+    ? encrypt(JSON.stringify(config.providers))
+    : null
 
   db.prepare(`
     INSERT INTO sandboxes (id, name, image_tag, opencode_port, project_mount,
-      runtimes, tools, services, provider_id, model_id, provider_api_key_enc,
+      runtimes, tools, services, providers,
       permissions, generated_dockerfile, docker_container_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     config.name,
@@ -89,9 +113,7 @@ export function createSandboxRecord(config: SandboxConfig, dockerContainerId: st
     JSON.stringify(config.runtimes),
     JSON.stringify(config.tools),
     JSON.stringify(config.services),
-    config.providerId ?? null,
-    config.modelId ?? null,
-    apiKeyEnc,
+    providersJson,
     JSON.stringify(config.permissions),
     config.generatedDockerfile,
     dockerContainerId,
@@ -137,10 +159,15 @@ export function deleteSandboxByContainerId(containerId: string): void {
   db.prepare("DELETE FROM sandboxes WHERE docker_container_id = ?").run(containerId)
 }
 
-export function getDecryptedApiKey(sandboxId: string): string | null {
-  const row = db.prepare("SELECT provider_api_key_enc FROM sandboxes WHERE id = ?").get(sandboxId) as { provider_api_key_enc: string | null } | undefined
-  if (!row?.provider_api_key_enc) return null
-  return decrypt(row.provider_api_key_enc)
+export function getDecryptedProviders(sandboxId: string): Array<{ id: string; apiKey: string }> | null {
+  const row = db.prepare("SELECT providers FROM sandboxes WHERE id = ?").get(sandboxId) as { providers: string | null } | undefined
+  if (!row?.providers) return null
+  try {
+    const json = decrypt(row.providers)
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
 }
 
 export function getChatMessages(sandboxId: string) {

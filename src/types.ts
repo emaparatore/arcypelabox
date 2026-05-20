@@ -9,6 +9,11 @@ export interface SandboxInfo {
   createdAt: string
 }
 
+export interface ProviderConfig {
+  id: string
+  apiKey: string
+}
+
 export interface SandboxConfig {
   name: string
   image: string
@@ -19,9 +24,7 @@ export interface SandboxConfig {
   runtimes: SandboxRuntime[]
   tools: SandboxTool[]
   services: SandboxService[]
-  providerApiKey?: string
-  providerId?: string
-  modelId?: string
+  providers?: ProviderConfig[]
 }
 
 export type SandboxRuntime = "node" | "python" | "dotnet"
@@ -125,6 +128,33 @@ export const SANDBOX_TOOLS: SandboxTool[] = [
 ]
 export const SANDBOX_SERVICES: SandboxService[] = ["postgres", "redis"]
 
+export const OPENCODE_PROVIDERS = [
+  "anthropic",
+  "openai",
+  "deepseek",
+  "openrouter",
+  "google",
+  "groq",
+  "together",
+  "fireworks",
+  "cerebras",
+  "deepinfra",
+  "huggingface",
+  "mistral",
+  "github-copilot",
+  "gitlab",
+  "amazon-bedrock",
+  "azure-openai",
+  "ollama",
+  "github",
+  "nebius",
+  "xai",
+  "opencode-zen",
+  "opencode-go",
+] as const
+
+export type OpenCodeProviderId = (typeof OPENCODE_PROVIDERS)[number]
+
 export interface SandboxRecord {
   id: string
   name: string
@@ -134,9 +164,7 @@ export interface SandboxRecord {
   runtimes: SandboxRuntime[]
   tools: SandboxTool[]
   services: SandboxService[]
-  provider_id: string | null
-  model_id: string | null
-  providerApiKey: string | null
+  providers: ProviderConfig[] | null
   permissions: Record<string, string>
   generated_dockerfile: string
   docker_container_id: string | null

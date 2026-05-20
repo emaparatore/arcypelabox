@@ -43,7 +43,7 @@ import { registerRoutes, getErrorMessage } from "./api.js"
 
 let mainWindow: BrowserWindow | null = null
 
-const ipcServer = createIpcServer("sandobox-manager")
+const ipcServer = createIpcServer("paratoolz-arcypelabox")
 
 function validateString(value: unknown, name: string): value is string {
   if (typeof value !== "string" || value.length === 0) {

@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto"
 import os from "os"
 
 const PIPE = os.platform() === "win32"
-  ? "//./pipe/sandobox-manager"
-  : "/tmp/sandobox-manager.sock"
+  ? "//./pipe/paratoolz-arcypelabox"
+  : "/tmp/paratoolz-arcypelabox.sock"
 
 function request(method, path, body) {
   return new Promise((resolve, reject) => {

@@ -4,7 +4,7 @@ Arcypelabox espone un server **REST-like su named pipe** (Windows) o **Unix sock
 
 ## Come funziona
 
-- Ogni app che vuole esporsi crea un server named pipe con nome univoco (`sandobox-manager`).
+- Ogni app che vuole esporsi crea un server named pipe con nome univoco (`paratoolz-arcypelabox`).
 - Altre app sulla stessa macchina si connettono al pipe e inviano richieste JSON.
 - Il protocollo è **newline-delimited JSON**: ogni messaggio è un oggetto JSON su una riga terminata da `\n`.
 - Le richieste hanno metodo (`GET/POST/PUT/DELETE`) e path, come una REST API.
@@ -41,7 +41,7 @@ Arcypelabox espone un server **REST-like su named pipe** (Windows) o **Unix sock
 ```ts
 import { createIpcClient } from "./ipc-client.js"
 
-const client = createIpcClient("sandobox-manager")
+const client = createIpcClient("paratoolz-arcypelabox")
 
 // Lista sandbox
 const { status, body } = await client.get("/api/sandboxes")

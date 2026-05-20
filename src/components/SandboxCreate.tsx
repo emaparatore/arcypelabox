@@ -28,17 +28,31 @@ const RUNTIME_LABELS: Record<SandboxRuntime, string> = {
   node: "Node.js",
   python: "Python",
   dotnet: ".NET SDK",
+  go: "Go",
+  java: "Java",
+  ruby: "Ruby",
+  php: "PHP",
+  rust: "Rust",
+  zig: "Zig",
 }
 
 const TOOL_LABELS: Record<SandboxTool, string> = {
   git: "git",
   curl: "curl",
-  wget: "wget",
   vim: "vim",
   "build-essential": "build tools",
   sqlite: "sqlite",
   pnpm: "pnpm",
   bun: "bun",
+  nvm: "nvm",
+  jq: "jq",
+  gh: "GitHub CLI",
+  unzip: "unzip",
+  tree: "tree",
+  make: "make",
+  zip: "zip",
+  ripgrep: "ripgrep",
+  cmake: "CMake",
 }
 
 const SERVICE_LABELS: Record<SandboxService, string> = {
@@ -49,12 +63,20 @@ const SERVICE_LABELS: Record<SandboxService, string> = {
 const TOOL_DESCRIPTIONS: Record<SandboxTool, string> = {
   git: "Repository operations inside the sandbox",
   curl: "Quick HTTP checks and downloads",
-  wget: "Alternative file downloader",
   vim: "Terminal editor for quick changes",
   "build-essential": "gcc, g++, make and native build headers",
   sqlite: "Local sqlite3 database tooling",
   pnpm: "Fast package manager for Node projects",
   bun: "Bun runtime and package manager",
+  nvm: "Switch Node.js versions with `n` (installato via npm)",
+  jq: "Command-line JSON processor for API responses",
+  gh: "GitHub CLI: issues, PRs, repos from the terminal",
+  unzip: "Extract archive files",
+  tree: "Directory structure visualization",
+  make: "Build automation (Makefile tasks)",
+  zip: "Archive compression",
+  ripgrep: "Fast recursive grep (rg)",
+  cmake: "Cross-platform build system generator",
 }
 
 const SERVICE_DESCRIPTIONS: Record<SandboxService, string> = {

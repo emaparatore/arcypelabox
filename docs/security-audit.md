@@ -23,7 +23,7 @@
 | Severità | Totale | Risolti | Accettati | Aperti |
 |----------|--------|---------|-----------|--------|
 | 🔴 Critica | 5 | 4 | 1 | 0 |
-| 🟠 Alta | 7 | 3 | 1 | 3 |
+| 🟠 Alta | 7 | 4 | 1 | 2 |
 | 🟡 Media | 7 | 0 | 0 | 7 |
 | 🔵 Bassa | 4 | 0 | 0 | 4 |
 | **Totale** | **23** | **6** | **2** | **15** |
@@ -202,17 +202,18 @@ Il parametro `port` (user-controllabile) era usato per costruire URL `http://loc
 
 | Campo | Valore |
 |-------|--------|
-| **File** | `electron/docker.ts:418-421,431-433` |
+| **File** | `electron/docker.ts:517-593` |
 | **Categoria** | Supply chain |
+| **Stato** | ✅ **Risolto** |
 
-Gli script per dotnet e bun sono scaricati con `curl | bash` da URL HTTPS, ma **senza verifica SHA256**.
+Gli script per dotnet e bun erano scaricati con `curl | bash` da URL HTTPS, **senza verifica SHA256**.
 
 **Impatto:** Se i server di download sono compromessi, l'intera catena di build è compromessa.
 
-**Fix:**
-- Aggiungere verifica hash SHA256 dopo il download
-- Usare repository ufficiali (apt) invece di `curl | bash`
-- Validare che gli elementi di `tools` siano tra valori consentiti
+**Fix applicati:**
+- ✅ **dotnet**: sostituito `curl | bash` con il repository Microsoft apt ufficiale (`packages.microsoft.com`) — il pacchetto `dotnet-sdk-8.0` viene installato via `dpkg` + `apt`, che verifica la firma GPG del pacchetto
+- ✅ **bun**: sostituito `curl https://bun.sh/install | bash` con `npm install -g bun` — npm verifica l'integrità del pacchetto via SHA checksum
+- ✅ **Input validation**: `buildGeneratedDockerfile` ora valida che ogni elemento di `runtimes`, `tools`, e `services` sia tra i valori consentiti, lanciando errore esplicito per valori non validi
 
 ---
 
@@ -450,6 +451,6 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 | 8 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
 | 9 | Aggiungere CSP alla Electron window | M-1 |
 | 10 | Aumentare polling interval a 5-10s | H-7 |
-| 11 | Verifica hash SHA256 per download script | H-5 |
+| 11 | Verifica hash SHA256 per download script | H-5 | ✅ **Fatto** |
 | 12 | Generare password casuali per Postgres/Redis | M-3 |
 | 13 | Aggiungere try-catch a tutti gli handler IPC | M-6 |

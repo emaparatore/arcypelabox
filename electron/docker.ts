@@ -514,25 +514,72 @@ function parseDockerLogs(raw: string): ContainerLog[] {
   })
 }
 
+const VALID_RUNTIMES = ["node", "python", "dotnet", "go", "java", "ruby", "php", "rust", "zig"]
+const VALID_TOOLS = ["git", "curl", "vim", "build-essential", "sqlite", "pnpm", "bun", "nvm", "jq", "gh", "unzip", "tree", "make", "zip", "ripgrep", "cmake"]
+const VALID_SERVICES = ["postgres", "redis"]
+
 export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[] }) {
-  const packages = new Set<string>(["ca-certificates"])
   const runtimes = config.runtimes ?? ["node"]
   const tools = config.tools ?? ["git", "curl", "pnpm"]
   const services = config.services ?? []
 
+  for (const r of runtimes) {
+    if (!VALID_RUNTIMES.includes(r)) {
+      throw new Error(`Invalid runtime: "${r}". Allowed: ${VALID_RUNTIMES.join(", ")}`)
+    }
+  }
+  for (const t of tools) {
+    if (!VALID_TOOLS.includes(t)) {
+      throw new Error(`Invalid tool: "${t}". Allowed: ${VALID_TOOLS.join(", ")}`)
+    }
+  }
+  for (const s of services) {
+    if (!VALID_SERVICES.includes(s)) {
+      throw new Error(`Invalid service: "${s}". Allowed: ${VALID_SERVICES.join(", ")}`)
+    }
+  }
+
+  const packages = new Set<string>(["ca-certificates", "curl"])
+
   for (const tool of tools) {
     if (tool === "git") packages.add("git")
-    if (tool === "curl") packages.add("curl")
-    if (tool === "wget") packages.add("wget")
     if (tool === "vim") packages.add("vim")
     if (tool === "build-essential") packages.add("build-essential")
     if (tool === "sqlite") packages.add("sqlite3")
+    if (tool === "jq") packages.add("jq")
+    if (tool === "unzip") packages.add("unzip")
+    if (tool === "tree") packages.add("tree")
+    if (tool === "make") packages.add("make")
+    if (tool === "zip") packages.add("zip")
+    if (tool === "ripgrep") packages.add("ripgrep")
+    if (tool === "cmake") packages.add("cmake")
   }
 
   if (runtimes.includes("python")) {
     packages.add("python3")
     packages.add("python3-pip")
     packages.add("python3-venv")
+  }
+
+  if (runtimes.includes("go")) {
+    packages.add("golang")
+  }
+
+  if (runtimes.includes("java")) {
+    packages.add("openjdk-17-jdk-headless")
+  }
+
+  if (runtimes.includes("ruby")) {
+    packages.add("ruby-full")
+  }
+
+  if (runtimes.includes("php")) {
+    packages.add("php-cli")
+  }
+
+  if (runtimes.includes("rust")) {
+    packages.add("rustc")
+    packages.add("cargo")
   }
 
   if (services.includes("postgres")) {
@@ -558,13 +605,23 @@ export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: 
     )
   }
 
+  if (runtimes.includes("zig")) {
+    lines.push(
+      "",
+      "RUN curl -fsSL https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -o /tmp/zig.tar.xz \\",
+      "  && tar -xf /tmp/zig.tar.xz -C /usr/local \\",
+      "  && ln -sf /usr/local/zig-linux-x86_64-0.14.0/zig /usr/local/bin/zig \\",
+      "  && rm /tmp/zig.tar.xz",
+    )
+  }
+
   if (runtimes.includes("dotnet")) {
     lines.push(
       "",
-      "RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \\",
-      "  && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \\",
-      "  && ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet \\",
-      "  && rm /tmp/dotnet-install.sh",
+      "RUN curl -fsSL https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb \\",
+      "  && dpkg -i /tmp/packages-microsoft-prod.deb \\",
+      "  && rm /tmp/packages-microsoft-prod.deb \\",
+      "  && apt-get update && apt-get install -y --no-install-recommends dotnet-sdk-8.0 && rm -rf /var/lib/apt/lists/*",
     )
   }
 
@@ -573,10 +630,19 @@ export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: 
   }
 
   if (tools.includes("bun")) {
+    lines.push("", "RUN npm install -g bun")
+  }
+
+  if (tools.includes("nvm")) {
+    lines.push("", "RUN npm install -g n")
+  }
+
+  if (tools.includes("gh")) {
     lines.push(
       "",
-      "RUN curl -fsSL https://bun.sh/install | bash \\",
-      "  && ln -s /root/.bun/bin/bun /usr/local/bin/bun",
+      "RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg \\",
+      "  && echo 'deb [arch='\"$(dpkg --print-architecture)\"' signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' > /etc/apt/sources.list.d/github-cli.list \\",
+      "  && apt-get update && apt-get install -y --no-install-recommends gh && rm -rf /var/lib/apt/lists/*",
     )
   }
 

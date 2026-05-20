@@ -27,17 +27,25 @@ export interface SandboxConfig {
   providers?: ProviderConfig[]
 }
 
-export type SandboxRuntime = "node" | "python" | "dotnet"
+export type SandboxRuntime = "node" | "python" | "dotnet" | "go" | "java" | "ruby" | "php" | "rust" | "zig"
 
 export type SandboxTool =
   | "git"
   | "curl"
-  | "wget"
   | "vim"
   | "build-essential"
   | "sqlite"
   | "pnpm"
   | "bun"
+  | "nvm"
+  | "jq"
+  | "gh"
+  | "unzip"
+  | "tree"
+  | "make"
+  | "zip"
+  | "ripgrep"
+  | "cmake"
 
 export type SandboxService = "postgres" | "redis"
 
@@ -115,16 +123,24 @@ export const PERMISSION_KEYS = [
   "external_directory",
 ] as const
 
-export const SANDBOX_RUNTIMES: SandboxRuntime[] = ["node", "python", "dotnet"]
+export const SANDBOX_RUNTIMES: SandboxRuntime[] = ["node", "python", "dotnet", "go", "java", "ruby", "php", "rust", "zig"]
 export const SANDBOX_TOOLS: SandboxTool[] = [
   "git",
   "curl",
-  "wget",
   "vim",
   "build-essential",
   "sqlite",
   "pnpm",
   "bun",
+  "nvm",
+  "jq",
+  "gh",
+  "unzip",
+  "tree",
+  "make",
+  "zip",
+  "ripgrep",
+  "cmake",
 ]
 export const SANDBOX_SERVICES: SandboxService[] = ["postgres", "redis"]
 

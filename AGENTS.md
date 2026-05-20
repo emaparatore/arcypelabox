@@ -24,6 +24,13 @@
 - Postgres/Redis sidecars share a generated `sandobox.group` label and network. Start, stop, and delete actions operate on the whole group, not just the main sandbox container.
 - If a sandbox has a project mount, the host path is bind-mounted to `/workspace` inside the container.
 
+## Styling
+
+- All colors are defined as CSS custom properties in `src/index.css` (`:root`).
+- Each color has a companion `--<name>-rgb` variable (e.g. `--accent-rgb: 88, 166, 255`) for use with `rgba()`.
+- Never hardcode hex or rgb(a) values in component CSS or inline styles — always use the variables.
+- To change the theme, edit only the `:root` block in `src/index.css`.
+
 ## Verified Gotchas
 
 - The create flow currently requires a project mount path in the UI before it will submit.

@@ -149,8 +149,8 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted }: Prop
             <div
               style={{
                 padding: "8px 12px",
-                background: "rgba(63, 185, 80, 0.1)",
-                border: "1px solid rgba(63, 185, 80, 0.3)",
+                background: "rgba(var(--success-rgb), 0.1)",
+                border: "1px solid rgba(var(--success-rgb), 0.3)",
                 borderRadius: 6,
                 fontSize: 13,
                 color: "var(--success)",

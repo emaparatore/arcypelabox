@@ -273,197 +273,199 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
         </div>
       </div>
 
-      {step === 0 && (
-        <div className="wizard-panel">
-          <div className="template-card selected">
-            <div className="template-card-badge">Base template</div>
-            <h3>OpenCode Minimal</h3>
-            <p>
-              Debian slim with Node.js, OpenCode CLI, workspace folders and room for optional
-              tooling.
-            </p>
-            <ul className="template-list">
-              <li>OpenCode preinstalled</li>
-              <li>Node.js included as part of the base</li>
-              <li>Ready for mounted local projects</li>
-            </ul>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Sandbox Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
+      <div className="wizard-body">
+        {step === 0 && (
+          <div className="wizard-panel">
+            <div className="template-card selected">
+              <div className="template-card-badge">Base template</div>
+              <h3>OpenCode Minimal</h3>
+              <p>
+                Debian slim with Node.js, OpenCode CLI, workspace folders and room for optional
+                tooling.
+              </p>
+              <ul className="template-list">
+                <li>OpenCode preinstalled</li>
+                <li>Node.js included as part of the base</li>
+                <li>Ready for mounted local projects</li>
+              </ul>
             </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Sandbox Name</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
+              </div>
+              <div className="form-group">
+                <label>Image Tag</label>
+                <input
+                  value={image}
+                  onChange={(e) => setImage(e.target.value)}
+                  placeholder="sandobox-base:latest"
+                />
+              </div>
+            </div>
+
             <div className="form-group">
-              <label>Image Tag</label>
+              <label>OpenCode Port</label>
               <input
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                placeholder="sandobox-base:latest"
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>OpenCode Port</label>
-            <input
-              type="number"
-              value={opencodePort}
-              onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
-            <input
-              value={projectMount}
-              onChange={(e) => setProjectMount(e.target.value)}
-              placeholder="C:\Users\emapa\Desktop\my-project"
-            />
-          </div>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="wizard-panel">
-          <div className="wizard-section">
-            <h3>Runtimes</h3>
-            <p className="wizard-muted">Node.js is already included in the base image.</p>
-            <div className="option-grid">
-              {SANDBOX_RUNTIMES.map((runtime) => {
-                const selected = runtimes.includes(runtime)
-                const locked = runtime === "node"
-                return (
-                  <button
-                    key={runtime}
-                    type="button"
-                    className={`option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
-                    onClick={() => {
-                      if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
-                    }}
-                  >
-                    <strong>{RUNTIME_LABELS[runtime]}</strong>
-                    <span>{locked ? "Required by the base OpenCode template" : "Install into the sandbox image"}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="wizard-section">
-            <h3>Common Tools</h3>
-            <div className="option-grid">
-              {SANDBOX_TOOLS.map((tool) => {
-                const selected = tools.includes(tool)
-                return (
-                  <button
-                    key={tool}
-                    type="button"
-                    className={`option-card ${selected ? "selected" : ""}`}
-                    onClick={() => setTools((prev) => toggleValue(prev, tool))}
-                  >
-                    <strong>{TOOL_LABELS[tool]}</strong>
-                    <span>{TOOL_DESCRIPTIONS[tool]}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="wizard-section">
-            <h3>Services</h3>
-            <p className="wizard-muted">These run as separate containers on the same sandbox network.</p>
-            <div className="option-grid">
-              {SANDBOX_SERVICES.map((service) => {
-                const selected = services.includes(service)
-                return (
-                  <button
-                    key={service}
-                    type="button"
-                    className={`option-card ${selected ? "selected" : ""}`}
-                    onClick={() => setServices((prev) => toggleValue(prev, service))}
-                  >
-                    <strong>{SERVICE_LABELS[service]}</strong>
-                    <span>{SERVICE_DESCRIPTIONS[service]}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="wizard-panel">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Provider ID (optional)</label>
-              <input
-                value={providerId}
-                onChange={(e) => setProviderId(e.target.value)}
-                placeholder="anthropic"
+                type="number"
+                value={opencodePort}
+                onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
               />
             </div>
 
             <div className="form-group">
-              <label>Model ID (optional)</label>
+              <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
               <input
-                value={modelId}
-                onChange={(e) => setModelId(e.target.value)}
-                placeholder="claude-sonnet-4-20250514"
+                value={projectMount}
+                onChange={(e) => setProjectMount(e.target.value)}
+                placeholder="C:\Users\emapa\Desktop\my-project"
               />
             </div>
           </div>
+        )}
 
-          <div className="form-group">
-            <label>Provider API Key (optional)</label>
-            <input
-              type="password"
-              value={providerApiKey}
-              onChange={(e) => setProviderApiKey(e.target.value)}
-              placeholder="sk-..."
-            />
-          </div>
+        {step === 1 && (
+          <div className="wizard-panel">
+            <div className="wizard-section">
+              <h3>Runtimes</h3>
+              <p className="wizard-muted">Node.js is already included in the base image.</p>
+              <div className="option-grid">
+                {SANDBOX_RUNTIMES.map((runtime) => {
+                  const selected = runtimes.includes(runtime)
+                  const locked = runtime === "node"
+                  return (
+                    <button
+                      key={runtime}
+                      type="button"
+                      className={`option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
+                      onClick={() => {
+                        if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
+                      }}
+                    >
+                      <strong>{RUNTIME_LABELS[runtime]}</strong>
+                      <span>{locked ? "Required by the base OpenCode template" : "Install into the sandbox image"}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-          <div className="form-group">
-            <label>OpenCode Permissions</label>
-            <div className="permission-grid">
-              {PERMISSION_KEYS.map((key) => (
-                <div key={key} className="permission-row">
-                  <label>{key}</label>
-                  <select
-                    value={permissions[key] ?? "ask"}
-                    onChange={(e) => updatePermission(key, e.target.value)}
-                  >
-                    {PERMISSION_ACTIONS.map((action) => (
-                      <option key={action} value={action}>
-                        {action}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+            <div className="wizard-section">
+              <h3>Common Tools</h3>
+              <div className="option-grid">
+                {SANDBOX_TOOLS.map((tool) => {
+                  const selected = tools.includes(tool)
+                  return (
+                    <button
+                      key={tool}
+                      type="button"
+                      className={`option-card ${selected ? "selected" : ""}`}
+                      onClick={() => setTools((prev) => toggleValue(prev, tool))}
+                    >
+                      <strong>{TOOL_LABELS[tool]}</strong>
+                      <span>{TOOL_DESCRIPTIONS[tool]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="wizard-section">
+              <h3>Services</h3>
+              <p className="wizard-muted">These run as separate containers on the same sandbox network.</p>
+              <div className="option-grid">
+                {SANDBOX_SERVICES.map((service) => {
+                  const selected = services.includes(service)
+                  return (
+                    <button
+                      key={service}
+                      type="button"
+                      className={`option-card ${selected ? "selected" : ""}`}
+                      onClick={() => setServices((prev) => toggleValue(prev, service))}
+                    >
+                      <strong>{SERVICE_LABELS[service]}</strong>
+                      <span>{SERVICE_DESCRIPTIONS[service]}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {step === 3 && (
-        <div className="wizard-panel">
-          <div className="wizard-review-grid">
-            <div className="review-card">
-              <h3>Sandbox Plan</h3>
-              <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+        {step === 2 && (
+          <div className="wizard-panel">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Provider ID (optional)</label>
+                <input
+                  value={providerId}
+                  onChange={(e) => setProviderId(e.target.value)}
+                  placeholder="anthropic"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Model ID (optional)</label>
+                <input
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                  placeholder="claude-sonnet-4-20250514"
+                />
+              </div>
             </div>
-            <div className="review-card">
-              <h3>Generated Dockerfile</h3>
-              <pre className="code-preview">{generatedDockerfile}</pre>
+
+            <div className="form-group">
+              <label>Provider API Key (optional)</label>
+              <input
+                type="password"
+                value={providerApiKey}
+                onChange={(e) => setProviderApiKey(e.target.value)}
+                placeholder="sk-..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label>OpenCode Permissions</label>
+              <div className="permission-grid">
+                {PERMISSION_KEYS.map((key) => (
+                  <div key={key} className="permission-row">
+                    <label>{key}</label>
+                    <select
+                      value={permissions[key] ?? "ask"}
+                      onChange={(e) => updatePermission(key, e.target.value)}
+                    >
+                      {PERMISSION_ACTIONS.map((action) => (
+                        <option key={action} value={action}>
+                          {action}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && <div style={{ color: "var(--danger)", marginTop: 12, fontSize: 13 }}>{error}</div>}
+        {step === 3 && (
+          <div className="wizard-panel">
+            <div className="wizard-review-grid">
+              <div className="review-card">
+                <h3>Sandbox Plan</h3>
+                <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+              </div>
+              <div className="review-card">
+                <h3>Generated Dockerfile</h3>
+                <pre className="code-preview">{generatedDockerfile}</pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && <div style={{ color: "var(--danger)", marginTop: 12, fontSize: 13 }}>{error}</div>}
+      </div>
 
       <div className="modal-actions wizard-actions">
         <button className="btn" onClick={onCancel} disabled={creating}>

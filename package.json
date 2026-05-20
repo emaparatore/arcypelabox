@@ -45,7 +45,7 @@
       "output": "release"
     },
     "win": {
-      "icon": "imgs/arcypelabox-logo-round.ico"
+      "icon": "imgs/arcypelabox-logo-blu.ico"
     },
     "linux": {
       "icon": "imgs/arcypelabox-logo-round.png"

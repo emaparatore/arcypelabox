@@ -45,7 +45,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Sandobox Manager</h1>
+        <h1>Arcypelabox</h1>
         <div className="app-header-actions">
           <button className="btn btn-sm" onClick={refresh}>
             Refresh

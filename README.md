@@ -1,4 +1,4 @@
-# Sandobox Manager
+# Arcypelabox
 
 Desktop app for creating and managing Docker-based sandboxes that run an OpenCode server inside each sandbox.
 

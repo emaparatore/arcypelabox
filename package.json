@@ -34,8 +34,8 @@
     "wait-on": "^8.0.0"
   },
   "build": {
-    "appId": "com.sandobox.manager",
-    "productName": "Sandobox Manager",
+    "appId": "com.arcypelabox",
+    "productName": "Arcypelabox",
     "files": [
       "dist/**/*",
       "dist-electron/**/*"

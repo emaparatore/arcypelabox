@@ -520,7 +520,7 @@ const VALID_SERVICES = ["postgres", "redis"]
 
 export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string }) {
   const runtimes = config.runtimes ?? ["node"]
-  const tools = config.tools ?? ["git", "curl", "pnpm"]
+  const tools = config.tools ?? ["git"]
   const services = config.services ?? []
 
   for (const r of runtimes) {

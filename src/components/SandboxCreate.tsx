@@ -95,7 +95,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [opencodePort, setOpencodePort] = useState(4096)
   const [projectMount, setProjectMount] = useState("")
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
-  const [tools, setTools] = useState<SandboxTool[]>(["git", "curl", "pnpm"])
+  const [tools, setTools] = useState<SandboxTool[]>(["git"])
   const [services, setServices] = useState<SandboxService[]>([])
   const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)

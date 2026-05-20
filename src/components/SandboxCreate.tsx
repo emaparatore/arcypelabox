@@ -136,6 +136,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       return
     }
 
+    if (!Number.isInteger(opencodePort) || opencodePort < 1024 || opencodePort > 65535) {
+      setError("OpenCode port must be an integer between 1024 and 65535")
+      return
+    }
+
     if (!image.trim()) {
       setError("Image tag is required")
       return
@@ -242,6 +247,8 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
               <label>OpenCode Port</label>
               <input
                 type="number"
+                min={1024}
+                max={65535}
                 value={opencodePort}
                 onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
               />

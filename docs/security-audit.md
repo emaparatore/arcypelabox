@@ -23,10 +23,10 @@
 | Severità | Totale | Risolti | Accettati | Aperti |
 |----------|--------|---------|-----------|--------|
 | 🔴 Critica | 5 | 4 | 1 | 0 |
-| 🟠 Alta | 7 | 2 | 1 | 4 |
+| 🟠 Alta | 7 | 3 | 1 | 3 |
 | 🟡 Media | 7 | 0 | 0 | 7 |
 | 🔵 Bassa | 4 | 0 | 0 | 4 |
-| **Totale** | **23** | **5** | **2** | **16** |
+| **Totale** | **23** | **6** | **2** | **15** |
 
 ---
 
@@ -182,17 +182,19 @@ La provider API key era passata come `OPENCODE_PROVIDER_API_KEY` e dentro `OPENC
 
 | Campo | Valore |
 |-------|--------|
-| **File** | `electron/opencode.ts:47,91,166-168,189-213` |
+| **File** | `electron/opencode.ts`, `electron/main.ts`, `src/components/SandboxCreate.tsx` |
 | **Categoria** | SSRF |
+| **Stato** | ✅ **Risolto** |
 
-Il parametro `port` (user-controllabile) è usato per costruire URL `http://localhost:${port}`. Nessuna validazione che la porta sia nel range consentito.
+Il parametro `port` (user-controllabile) era usato per costruire URL `http://localhost:${port}`. Nessuna validazione che la porta sia nel range consentito.
 
 **Impatto:** Port scanning di localhost, accesso ad altri servizi locali.
 
-**Fix:**
-- Validare porta nel range 1024-65535
-- Sanitizzare a intero prima dell'uso
-- Usare Docker networking diretto invece di port binding
+**Fix applicati:**
+- ✅ `validatePort()` in `electron/opencode.ts` — ogni funzione export valida 1024-65535 all'ingresso
+- ✅ `validatePort()` in `electron/main.ts` — ogni IPC handler sanitizza il port prima di passarlo a opencode.ts
+- ✅ Input HTML `<input min=1024 max=65535>` in `SandboxCreate.tsx`
+- ✅ Validazione in `handleSubmit` di `SandboxCreate.tsx` — errore esplicito se port fuori range
 
 ---
 
@@ -444,9 +446,10 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 | 4 | Rimuovere API key dalle env var del container (usa PUT /auth/:id) | H-2 | ✅ **Fatto** |
 | 5 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
 | 6 | Sanitizzare nome container Docker | H-3 | ✅ **Fatto** |
-| 7 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
-| 8 | Aggiungere CSP alla Electron window | M-1 |
-| 9 | Aumentare polling interval a 5-10s | H-7 |
-| 10 | Verifica hash SHA256 per download script | H-5 |
-| 11 | Generare password casuali per Postgres/Redis | M-3 |
-| 12 | Aggiungere try-catch a tutti gli handler IPC | M-6 |
+| 7 | Validare porta OpenCode (range 1024-65535) su UI + IPC + client | H-4 | ✅ **Fatto** |
+| 8 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
+| 9 | Aggiungere CSP alla Electron window | M-1 |
+| 10 | Aumentare polling interval a 5-10s | H-7 |
+| 11 | Verifica hash SHA256 per download script | H-5 |
+| 12 | Generare password casuali per Postgres/Redis | M-3 |
+| 13 | Aggiungere try-catch a tutti gli handler IPC | M-6 |

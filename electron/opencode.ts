@@ -42,7 +42,14 @@ type OpenCodeQuestionRequest = {
   }>
 }
 
+function validatePort(port: number): void {
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error("Port must be an integer between 1024 and 65535")
+  }
+}
+
 export async function checkHealth(port: number): Promise<boolean> {
+  validatePort(port)
   try {
     const res = await fetch(`http://localhost:${port}/global/health`)
     return res.ok
@@ -52,6 +59,7 @@ export async function checkHealth(port: number): Promise<boolean> {
 }
 
 export async function sendPrompt(port: number, text: string): Promise<string> {
+  validatePort(port)
   const createOpencodeClient = await getOpencodeClient()
   const client = createOpencodeClient({
     baseUrl: `http://localhost:${port}`,
@@ -88,6 +96,7 @@ export async function sendPrompt(port: number, text: string): Promise<string> {
 }
 
 export async function listPendingPermissions(port: number): Promise<PermissionRequestInfo[]> {
+  validatePort(port)
   const response = await fetch(`http://localhost:${port}/permission`)
   const data = (await response.json()) as any[]
 
@@ -100,6 +109,7 @@ export async function listPendingPermissions(port: number): Promise<PermissionRe
 }
 
 export async function getOpenCodeSessions(port: number): Promise<OpenCodeSessionInfo[]> {
+  validatePort(port)
   const createOpencodeClient = await getOpencodeClient()
   const client = createOpencodeClient({
     baseUrl: `http://localhost:${port}`,
@@ -109,6 +119,7 @@ export async function getOpenCodeSessions(port: number): Promise<OpenCodeSession
 }
 
 export async function abortOpenCodeSession(port: number, sessionId: string): Promise<boolean> {
+  validatePort(port)
   const createOpencodeClient = await getOpencodeClient()
   const client = createOpencodeClient({
     baseUrl: `http://localhost:${port}`,
@@ -125,6 +136,7 @@ export async function getOpenCodeSessionDebug(
   port: number,
   sessionId: string
 ): Promise<OpenCodeSessionDebugInfo> {
+  validatePort(port)
   const createOpencodeClient = await getOpencodeClient()
   const client = createOpencodeClient({
     baseUrl: `http://localhost:${port}`,
@@ -164,6 +176,7 @@ export async function getOpenCodeSessionDebug(
 }
 
 export async function listPendingQuestions(port: number): Promise<OpenCodeQuestionRequest[]> {
+  validatePort(port)
   const response = await fetch(`http://localhost:${port}/question`)
   const data = (await response.json()) as any[]
 
@@ -191,6 +204,7 @@ export async function replyQuestion(
   requestId: string,
   answers: string[][]
 ): Promise<boolean> {
+  validatePort(port)
   const response = await fetch(`http://localhost:${port}/question/${requestId}/reply`, {
     method: "POST",
     headers: {
@@ -211,6 +225,7 @@ export async function replyPermission(
   requestId: string,
   reply: "once" | "always" | "reject"
 ): Promise<boolean> {
+  validatePort(port)
   const response = await fetch(`http://localhost:${port}/permission/${requestId}/reply`, {
     method: "POST",
     headers: {
@@ -227,6 +242,7 @@ export async function replyPermission(
 }
 
 export async function runShell(port: number, command: string): Promise<string> {
+  validatePort(port)
   const createOpencodeClient = await getOpencodeClient()
   const client = createOpencodeClient({
     baseUrl: `http://localhost:${port}`,

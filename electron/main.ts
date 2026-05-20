@@ -52,6 +52,14 @@ function validateString(value: unknown, name: string): value is string {
   return true
 }
 
+function validatePort(value: unknown): number {
+  const port = typeof value === "string" ? parseInt(value, 10) : value
+  if (!Number.isInteger(port) || (port as number) < 1024 || (port as number) > 65535) {
+    throw new Error("Port must be an integer between 1024 and 65535")
+  }
+  return port as number
+}
+
 function createWindow() {
   const isDev = !app.isPackaged || process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL
   const iconPath = path.join(app.getAppPath(), "imgs", "arcypelabox-logo-round.png")
@@ -165,16 +173,16 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle("sandobox:opencode:health", async (_event, port) => {
-    return await checkHealth(port)
+    return await checkHealth(validatePort(port))
   })
 
   ipcMain.handle("sandobox:opencode:prompt", async (_event, port, text) => {
-    return await sendPrompt(port, text)
+    return await sendPrompt(validatePort(port), text)
   })
 
   ipcMain.handle("sandobox:opencode:permissions", async (_event, port) => {
     try {
-      return await listPendingPermissions(port)
+      return await listPendingPermissions(validatePort(port))
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -182,7 +190,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:permission:reply", async (_event, port, requestId, reply) => {
     try {
-      return await replyPermission(port, requestId, reply)
+      return await replyPermission(validatePort(port), requestId, reply)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -190,7 +198,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:sessions", async (_event, port) => {
     try {
-      return await getOpenCodeSessions(port)
+      return await getOpenCodeSessions(validatePort(port))
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -198,7 +206,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:session:abort", async (_event, port, sessionId) => {
     try {
-      return await abortOpenCodeSession(port, sessionId)
+      return await abortOpenCodeSession(validatePort(port), sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -206,7 +214,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:session:debug", async (_event, port, sessionId) => {
     try {
-      return await getOpenCodeSessionDebug(port, sessionId)
+      return await getOpenCodeSessionDebug(validatePort(port), sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -214,7 +222,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:questions", async (_event, port) => {
     try {
-      return await listPendingQuestions(port)
+      return await listPendingQuestions(validatePort(port))
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -222,14 +230,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:question:reply", async (_event, port, requestId, answers) => {
     try {
-      return await replyQuestion(port, requestId, answers)
+      return await replyQuestion(validatePort(port), requestId, answers)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
   ipcMain.handle("sandobox:opencode:shell", async (_event, port, command) => {
-    return await runShell(port, command)
+    return await runShell(validatePort(port), command)
   })
 
   ipcMain.handle("sandobox:db:sandbox:getById", async (_event, id) => {

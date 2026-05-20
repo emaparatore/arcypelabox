@@ -77,16 +77,11 @@ Il campo `projectMount` era montato direttamente come bind mount in `/workspace`
 |-------|--------|
 | **File** | `electron/docker.ts:194-210`, `electron/main.ts:160-166`, `electron/api.ts:137-147` |
 | **Categoria** | Command injection |
+| **Stato** | ⏹️ **Non risolto (accettato)** |
 
-`execInSandbox` passa il comando utente a `sh -c` dentro il container. Il comando arriva direttamente da IPC (`sandobox:exec`) o dalla named pipe (`POST /api/sandboxes/exec`).
+`execInSandbox` passa il comando utente a `sh -c` dentro il container. Il comando arriva da IPC (`sandobox:exec`) o dalla named pipe (`POST /api/sandboxes/exec`).
 
-**Impatto:** Chiunque abbia accesso al renderer o alla named pipe può eseguire comandi shell arbitrari nei container. Con bind mount arbitrario (C-2) → full host compromise.
-
-**Fix:**
-- Rate limiting sulle exec
-- Validare/sanitizzare il comando
-- Usare binary specifici invece di `sh -c`
-- Aggiungere conferma UI per comandi pericolosi
+**Nota:** Questo equivale funzionalmente a `docker exec`. Il container è già isolato da Docker, C-2 è risolto (niente bind mount pericolosi), e l'agente OpenCode deve poter eseguire comandi shell per funzionare. Chi ha accesso alla named pipe può già parlare direttamente con `//./pipe/docker_engine`. L'endpoint exec opera solo dentro sandbox già create, che sono isolate.
 
 ---
 
@@ -96,15 +91,15 @@ Il campo `projectMount` era montato direttamente come bind mount in `/workspace`
 |-------|--------|
 | **File** | `electron/main.ts:241-242`, `electron/preload.ts:33` |
 | **Categoria** | Secret exposure |
+| **Stato** | ✅ **Risolto** |
 
-L'handler IPC `sandobox:db:sandbox:getById` decifra e restituisce la provider API key al renderer.
+L'handler IPC `sandobox:db:sandbox:getById` decifrava e restituiva la provider API key al renderer.
 
-**Impatto:** Un XSS, estensione malevola o dipendenza npm compromessa nel frontend può rubare tutte le chiavi API. Le chiavi sono in memoria e potenzialmente accessibili via debug.
-
-**Fix:**
-- Mai esporre chiavi decifrate al renderer
-- Fare da proxy per tutte le chiamate API che richiedono la chiave
-- Usare un approccio token-based: il main process gestisce le chiavi
+**Fix applicati:**
+- ✅ `providerApiKey` rimosso dal record di ritorno di `sandobox:db:sandbox:getById`
+- ✅ Anche `provider_api_key_enc` (blob cifrato) rimosso dal record
+- ✅ `getDecryptedApiKey` non è più importata/usata in `main.ts`
+- Nota: l'endpoint non era mai chiamato dal renderer, ma ora è protetto anche per il futuro
 
 ---
 
@@ -442,7 +437,7 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 | 1 | Rimuovere `generatedDockerfile` dall'API della named pipe | C-1 | ✅ **Fatto** |
 | 2 | Validare `projectMount` con whitelist + scan symlink | C-2 | ✅ **Fatto** |
 | 3 | Bindare porte Docker su `127.0.0.1` | C-5 |
-| 4 | Rimuovere API key decrypt dal canale renderer | C-4 |
+| 4 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
 | 5 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
 | 6 | Aggiungere CSP alla Electron window | M-1 |
 | 7 | Aumentare polling interval a 5-10s | H-7 |

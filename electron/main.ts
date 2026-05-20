@@ -32,7 +32,6 @@ import {
   listSandboxRecords,
   deleteSandboxRecord,
   deleteSandboxByContainerId,
-  getDecryptedApiKey,
   getChatMessages,
   addChatMessage,
   clearChatMessages,
@@ -238,8 +237,8 @@ app.whenReady().then(() => {
       validateString(id, "sandboxId")
       const record = getSandboxRecord(id)
       if (!record) return null
-      const apiKey = getDecryptedApiKey(id)
-      return { ...record, providerApiKey: apiKey }
+      const { provider_api_key_enc: _, ...safe } = record as Record<string, unknown>
+      return safe
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

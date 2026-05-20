@@ -80,7 +80,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 |--------|------|-------------|----------------|
 | `GET` | `/api/ping` | Verifica se Arcypelabox è raggiungibile | — |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox | — |
-| `POST` | `/api/sandboxes` | Crea una sandbox | `{ name, image, ... }` |
+| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, ... }` |
 | `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount | `{ mountPath }` |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox | `{ id }` |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |
@@ -90,6 +90,8 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 | `POST` | `/api/sandboxes/exec` | Esegue un comando | `{ id, command }` |
 
 > **Nota:** `id` nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.
+>
+> **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount`; `generatedDockerfile` è opzionale (generato automaticamente da `runtimes`, `tools` e `services` se omesso).
 
 ## 5. Gestione errori
 

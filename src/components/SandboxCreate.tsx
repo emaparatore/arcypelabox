@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type {
   SandboxConfig,
   SandboxRuntime,
@@ -64,86 +64,6 @@ function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value]
 }
 
-function buildGeneratedDockerfile(config: {
-  runtimes: SandboxRuntime[]
-  tools: SandboxTool[]
-  services: SandboxService[]
-}) {
-  const packages = new Set<string>(["ca-certificates"])
-
-  for (const tool of config.tools) {
-    if (tool === "git") packages.add("git")
-    if (tool === "curl") packages.add("curl")
-    if (tool === "wget") packages.add("wget")
-    if (tool === "vim") packages.add("vim")
-    if (tool === "build-essential") packages.add("build-essential")
-    if (tool === "sqlite") packages.add("sqlite3")
-  }
-
-  if (config.runtimes.includes("python")) {
-    packages.add("python3")
-    packages.add("python3-pip")
-    packages.add("python3-venv")
-  }
-
-  if (config.services.includes("postgres")) {
-    packages.add("postgresql-client")
-  }
-
-  if (config.services.includes("redis")) {
-    packages.add("redis-tools")
-  }
-
-  const installPackages = Array.from(packages).sort()
-  const installPackageList = installPackages.join(" ")
-  const lines = [
-    "FROM node:20-bookworm-slim",
-    "",
-    "ENV DEBIAN_FRONTEND=noninteractive",
-    "WORKDIR /workspace",
-  ]
-
-  if (installPackages.length > 0) {
-    lines.push(
-      "",
-      `RUN apt-get update && apt-get install -y --no-install-recommends ${installPackageList} && rm -rf /var/lib/apt/lists/*`
-    )
-  }
-
-  if (config.runtimes.includes("dotnet")) {
-    lines.push(
-      "",
-      "RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \\",
-      "  && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \\",
-      "  && ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet \\",
-      "  && rm /tmp/dotnet-install.sh"
-    )
-  }
-
-  if (config.tools.includes("pnpm")) {
-    lines.push("", "RUN corepack enable && corepack prepare pnpm@latest --activate")
-  }
-
-  if (config.tools.includes("bun")) {
-    lines.push(
-      "",
-      "RUN curl -fsSL https://bun.sh/install | bash \\",
-      "  && ln -s /root/.bun/bin/bun /usr/local/bin/bun"
-    )
-  }
-
-  lines.push(
-    "",
-    "RUN npm install -g opencode-ai",
-    "",
-    "RUN mkdir -p /root/.config/opencode",
-    "",
-    "CMD [\"sh\", \"-c\", \"opencode --help && sleep infinity\"]"
-  )
-
-  return lines.join("\n")
-}
-
 export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
@@ -176,10 +96,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const generatedDockerfile = useMemo(
-    () => buildGeneratedDockerfile({ runtimes, tools, services }),
-    [runtimes, tools, services]
-  )
+  const [generatedDockerfile, setGeneratedDockerfile] = useState("")
+
+  useEffect(() => {
+    window.sandobox.generateDockerfile({ runtimes, tools, services }).then(setGeneratedDockerfile)
+  }, [runtimes, tools, services])
 
   const configPreview = useMemo(
     () => ({

@@ -26,6 +26,8 @@ Arcypelabox espone un server **REST-like su named pipe** (Windows) o **Unix sock
 | `POST` | `/api/sandboxes/exec` | Esegue un comando (body: `{ id, command }`) |
 
 > **Nota:** `id` si riferisce sempre al **sandbox UUID** (chiave primaria del database), non al Docker container ID. La risoluzione avviene automaticamente lato server.
+>
+> **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount` nel body; `generatedDockerfile` è opzionale — se omesso viene generato automaticamente da `runtimes`, `tools` e `services`.
 
 ## Formato dei messaggi
 

@@ -9,6 +9,7 @@ import {
   getSandboxLogs,
   getSandboxInfo,
   execInSandbox,
+  buildGeneratedDockerfile,
 } from "./docker.js"
 import { createSandboxRecord, deleteSandboxByContainerId, getSandboxRecord, listSandboxRecords } from "./database.js"
 
@@ -54,6 +55,16 @@ export function registerRoutes(server: IpcServerHandle) {
   server.register("POST", "/api/sandboxes", async (req) => {
     try {
       const config = req.body as Record<string, unknown>
+      if (!config?.projectMount) {
+        return { status: 400, body: { error: "projectMount is required" } }
+      }
+      if (!config?.generatedDockerfile) {
+        config.generatedDockerfile = buildGeneratedDockerfile({
+          runtimes: config.runtimes as string[] | undefined,
+          tools: config.tools as string[] | undefined,
+          services: config.services as string[] | undefined,
+        })
+      }
       const sandboxId = (config?.sandboxId as string) ?? randomUUID()
       const containerId = await createSandbox({ ...config, sandboxId } as Parameters<typeof createSandbox>[0])
       try {

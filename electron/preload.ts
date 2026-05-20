@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 contextBridge.exposeInMainWorld("sandobox", {
+  generateDockerfile: (config: unknown) => ipcRenderer.invoke("sandobox:generate:dockerfile", config),
   listSandboxes: () => ipcRenderer.invoke("sandobox:list"),
   createSandbox: (config: unknown) => ipcRenderer.invoke("sandobox:create", config),
   startSandbox: (id: string) => ipcRenderer.invoke("sandobox:start", id),

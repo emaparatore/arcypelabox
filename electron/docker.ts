@@ -367,3 +367,81 @@ function parseDockerLogs(raw: string): ContainerLog[] {
     return { time: "", message: line }
   })
 }
+
+export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[] }) {
+  const packages = new Set<string>(["ca-certificates"])
+  const runtimes = config.runtimes ?? ["node"]
+  const tools = config.tools ?? ["git", "curl", "pnpm"]
+  const services = config.services ?? []
+
+  for (const tool of tools) {
+    if (tool === "git") packages.add("git")
+    if (tool === "curl") packages.add("curl")
+    if (tool === "wget") packages.add("wget")
+    if (tool === "vim") packages.add("vim")
+    if (tool === "build-essential") packages.add("build-essential")
+    if (tool === "sqlite") packages.add("sqlite3")
+  }
+
+  if (runtimes.includes("python")) {
+    packages.add("python3")
+    packages.add("python3-pip")
+    packages.add("python3-venv")
+  }
+
+  if (services.includes("postgres")) {
+    packages.add("postgresql-client")
+  }
+
+  if (services.includes("redis")) {
+    packages.add("redis-tools")
+  }
+
+  const installPackages = Array.from(packages).sort()
+  const lines = [
+    "FROM node:20-bookworm-slim",
+    "",
+    "ENV DEBIAN_FRONTEND=noninteractive",
+    "WORKDIR /workspace",
+  ]
+
+  if (installPackages.length > 0) {
+    lines.push(
+      "",
+      `RUN apt-get update && apt-get install -y --no-install-recommends ${installPackages.join(" ")} && rm -rf /var/lib/apt/lists/*`,
+    )
+  }
+
+  if (runtimes.includes("dotnet")) {
+    lines.push(
+      "",
+      "RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \\",
+      "  && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \\",
+      "  && ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet \\",
+      "  && rm /tmp/dotnet-install.sh",
+    )
+  }
+
+  if (tools.includes("pnpm")) {
+    lines.push("", "RUN corepack enable && corepack prepare pnpm@latest --activate")
+  }
+
+  if (tools.includes("bun")) {
+    lines.push(
+      "",
+      "RUN curl -fsSL https://bun.sh/install | bash \\",
+      "  && ln -s /root/.bun/bin/bun /usr/local/bin/bun",
+    )
+  }
+
+  lines.push(
+    "",
+    "RUN npm install -g opencode-ai",
+    "",
+    "RUN mkdir -p /root/.config/opencode",
+    "",
+    'CMD ["sh", "-c", "opencode --help && sleep infinity"]',
+  )
+
+  return lines.join("\n")
+}

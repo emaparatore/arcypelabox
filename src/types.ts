@@ -158,6 +158,7 @@ export interface CreateSandboxResult {
 }
 
 export interface SandboxWindowApi {
+  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[] }) => Promise<string>
   listSandboxes: () => Promise<SandboxInfo[] | { error: string }>
   createSandbox: (config: SandboxConfig) => Promise<CreateSandboxResult | { error: string }>
   startSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>

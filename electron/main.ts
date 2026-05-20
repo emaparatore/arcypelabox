@@ -10,6 +10,7 @@ import {
   getSandboxLogs,
   getSandboxInfo,
   execInSandbox,
+  buildGeneratedDockerfile,
 } from "./docker.js"
 import {
   abortOpenCodeSession,
@@ -322,6 +323,10 @@ app.whenReady().then(() => {
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
+  })
+
+  ipcMain.handle("sandobox:generate:dockerfile", async (_event, config) => {
+    return buildGeneratedDockerfile(config as Parameters<typeof buildGeneratedDockerfile>[0])
   })
 
   registerRoutes(ipcServer)

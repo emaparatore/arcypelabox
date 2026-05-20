@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron"
+import { app, BrowserWindow, ipcMain, Menu } from "electron"
 import path from "path"
 import { randomUUID } from "node:crypto"
 import {
@@ -74,8 +74,10 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173")
-    mainWindow.webContents.once("did-finish-load", () => {
-      mainWindow?.webContents.openDevTools()
+    mainWindow.webContents.on("before-input-event", (event, input) => {
+      if (input.key === "F12" && input.type === "keyDown") {
+        mainWindow?.webContents.toggleDevTools()
+      }
     })
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"))
@@ -88,6 +90,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   initDatabase()
+  Menu.setApplicationMenu(null)
   createWindow()
 
   ipcMain.handle("sandobox:list", async () => {

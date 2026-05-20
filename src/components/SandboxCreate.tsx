@@ -97,6 +97,9 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git"])
   const [services, setServices] = useState<SandboxService[]>([])
+  const [gitUserName, setGitUserName] = useState("")
+  const [gitUserEmail, setGitUserEmail] = useState("")
+  const [gitAutocrlf, setGitAutocrlf] = useState<"input" | "true" | "false">("input")
   const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
   const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
@@ -124,9 +127,13 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [customCommands, setCustomCommands] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  const gitConfig = tools.includes("git")
+    ? { userName: gitUserName, userEmail: gitUserEmail, autocrlf: gitAutocrlf }
+    : undefined
+
   useEffect(() => {
-    window.sandobox.generateDockerfile({ runtimes, tools, services, customCommands: customCommands || undefined }).then(setGeneratedDockerfile)
-  }, [runtimes, tools, services, customCommands])
+    window.sandobox.generateDockerfile({ runtimes, tools, services, customCommands: customCommands || undefined, gitConfig }).then(setGeneratedDockerfile)
+  }, [runtimes, tools, services, customCommands, gitConfig])
 
   const configPreview = useMemo(
     () => ({
@@ -139,8 +146,9 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       providers: providers.length > 0
         ? providers.map((p) => ({ id: p.id, apiKey: "****" }))
         : null,
+      ...(gitConfig ? { gitConfig } : {}),
     }),
-    [image, opencodePort, projectMount, providers, runtimes, services, tools]
+    [image, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig]
   )
 
   const handleSubmit = async () => {
@@ -190,6 +198,7 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       ...(projectMount.trim() ? { projectMount: projectMount.trim() } : {}),
       ...(providers.length > 0 ? { providers } : {}),
       ...(customCommands.trim() ? { customCommands: customCommands.trim() } : {}),
+      ...(gitConfig ? { gitConfig } : {}),
     }
 
     try {
@@ -556,6 +565,33 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
                 ))}
               </div>
             </div>
+
+            {tools.includes("git") && (
+              <div className="wizard-section" style={{ marginTop: 16 }}>
+                <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
+                <p className="wizard-muted" style={{ fontSize: 12 }}>
+                  These credentials are embedded via <code>git config --global</code> in the sandbox image.
+                </p>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Git User Name</label>
+                    <input value={gitUserName} onChange={(e) => setGitUserName(e.target.value)} placeholder="Your Name (sandbox)" />
+                  </div>
+                  <div className="form-group">
+                    <label>Git User Email</label>
+                    <input value={gitUserEmail} onChange={(e) => setGitUserEmail(e.target.value)} placeholder="your@email.com" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>core.autocrlf</label>
+                  <select value={gitAutocrlf} onChange={(e) => setGitAutocrlf(e.target.value as "input" | "true" | "false")}>
+                    <option value="input">input (recommended for Linux/macOS)</option>
+                    <option value="true">true (recommended for Windows)</option>
+                    <option value="false">false (disabled)</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

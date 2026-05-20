@@ -14,6 +14,12 @@ export interface ProviderConfig {
   apiKey: string
 }
 
+export interface GitConfig {
+  userName: string
+  userEmail: string
+  autocrlf: "input" | "true" | "false"
+}
+
 export interface SandboxConfig {
   name: string
   image: string
@@ -26,6 +32,7 @@ export interface SandboxConfig {
   services: SandboxService[]
   providers?: ProviderConfig[]
   customCommands?: string
+  gitConfig?: GitConfig
 }
 
 export type SandboxRuntime = "node" | "python" | "dotnet" | "go" | "java" | "ruby" | "php" | "rust" | "zig"
@@ -203,7 +210,7 @@ export interface CreateSandboxResult {
 }
 
 export interface SandboxWindowApi {
-  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string }) => Promise<string>
+  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string; gitConfig?: { userName: string; userEmail: string; autocrlf: string } }) => Promise<string>
   listSandboxes: () => Promise<SandboxInfo[] | { error: string }>
   createSandbox: (config: SandboxConfig) => Promise<CreateSandboxResult | { error: string }>
   startSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>

@@ -518,7 +518,7 @@ const VALID_RUNTIMES = ["node", "python", "dotnet", "go", "java", "ruby", "php",
 const VALID_TOOLS = ["git", "curl", "vim", "build-essential", "sqlite", "pnpm", "bun", "nvm", "jq", "gh", "unzip", "tree", "make", "zip", "ripgrep", "cmake"]
 const VALID_SERVICES = ["postgres", "redis"]
 
-export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string }) {
+export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string; gitConfig?: { userName: string; userEmail: string; autocrlf: string } }) {
   const runtimes = config.runtimes ?? ["node"]
   const tools = config.tools ?? ["git"]
   const services = config.services ?? []
@@ -649,6 +649,29 @@ export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: 
   lines.push(
     "",
     "RUN npm install -g opencode-ai",
+  )
+
+  if (tools.includes("git") && config.gitConfig) {
+    const { userName, userEmail, autocrlf } = config.gitConfig
+    const gitCmds: string[] = []
+    if (userName || userEmail || autocrlf) {
+      gitCmds.push(`git config --global --add safe.directory /workspace`)
+    }
+    if (userName) {
+      gitCmds.push(`git config --global user.name "${userName.replace(/"/g, '\\"')}"`)
+    }
+    if (userEmail) {
+      gitCmds.push(`git config --global user.email "${userEmail.replace(/"/g, '\\"')}"`)
+    }
+    if (autocrlf) {
+      gitCmds.push(`git config --global core.autocrlf ${autocrlf}`)
+    }
+    if (gitCmds.length > 0) {
+      lines.push("", `RUN ${gitCmds.join(" \\\n  && ")}`)
+    }
+  }
+
+  lines.push(
     "",
     "RUN mkdir -p /root/.config/opencode",
   )

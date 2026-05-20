@@ -10,7 +10,7 @@ import {
   getSandboxInfo,
   execInSandbox,
 } from "./docker.js"
-import { createSandboxRecord, deleteSandboxByContainerId } from "./database.js"
+import { createSandboxRecord, deleteSandboxByContainerId, getSandboxRecord, listSandboxRecords } from "./database.js"
 
 export function getErrorMessage(err: unknown) {
   const message = err instanceof Error ? err.message : String(err)
@@ -20,6 +20,14 @@ export function getErrorMessage(err: unknown) {
   }
 
   return message
+}
+
+function resolveContainerId(sandboxId: string): string {
+  const record = getSandboxRecord(sandboxId)
+  if (!record) throw new Error(`Sandbox not found: ${sandboxId}`)
+  const containerId = record.docker_container_id as string
+  if (!containerId) throw new Error(`No Docker container for sandbox: ${sandboxId}`)
+  return containerId
 }
 
 interface IpcServerHandle {
@@ -61,8 +69,9 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("POST", "/api/sandboxes/start", async (req) => {
     try {
-      const id = (req.body as Record<string, unknown>)?.id as string
-      await startSandbox(id)
+      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const containerId = resolveContainerId(sandboxId)
+      await startSandbox(containerId)
       return { status: 200, body: { success: true } }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
@@ -71,8 +80,9 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("POST", "/api/sandboxes/stop", async (req) => {
     try {
-      const id = (req.body as Record<string, unknown>)?.id as string
-      await stopSandbox(id)
+      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const containerId = resolveContainerId(sandboxId)
+      await stopSandbox(containerId)
       return { status: 200, body: { success: true } }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
@@ -81,9 +91,10 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("DELETE", "/api/sandboxes", async (req) => {
     try {
-      const id = (req.body as Record<string, unknown>)?.id as string
-      await removeSandbox(id)
-      deleteSandboxByContainerId(id)
+      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const containerId = resolveContainerId(sandboxId)
+      await removeSandbox(containerId)
+      deleteSandboxByContainerId(containerId)
       return { status: 200, body: { success: true } }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
@@ -92,8 +103,9 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("GET", "/api/sandboxes/logs", async (req) => {
     try {
-      const id = (req.body as Record<string, unknown>)?.id as string
-      const logs = await getSandboxLogs(id)
+      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const containerId = resolveContainerId(sandboxId)
+      const logs = await getSandboxLogs(containerId)
       return { status: 200, body: logs }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
@@ -102,8 +114,9 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("GET", "/api/sandboxes/info", async (req) => {
     try {
-      const id = (req.body as Record<string, unknown>)?.id as string
-      const info = await getSandboxInfo(id)
+      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const containerId = resolveContainerId(sandboxId)
+      const info = await getSandboxInfo(containerId)
       return { status: 200, body: info }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
@@ -112,9 +125,27 @@ export function registerRoutes(server: IpcServerHandle) {
 
   server.register("POST", "/api/sandboxes/exec", async (req) => {
     try {
-      const { id, command } = req.body as { id: string; command: string }
-      const result = await execInSandbox(id, command)
+      const sandboxId = (req.body as { id: string })?.id
+      const command = (req.body as { command: string })?.command
+      const containerId = resolveContainerId(sandboxId)
+      const result = await execInSandbox(containerId, command)
       return { status: 200, body: result }
+    } catch (err) {
+      return { status: 500, body: { error: getErrorMessage(err) } }
+    }
+  })
+
+  server.register("GET", "/api/sandboxes/by-mount", async (req) => {
+    try {
+      const mountPath = (req.body as Record<string, unknown>)?.mountPath as string
+      if (!mountPath) {
+        return { status: 400, body: { error: "mountPath is required" } }
+      }
+      const all = listSandboxRecords()
+      const sandboxes = all
+        .filter((r) => r.project_mount === mountPath)
+        .map((r) => ({ id: r.id, name: r.name }))
+      return { status: 200, body: sandboxes }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
     }

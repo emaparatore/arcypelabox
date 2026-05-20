@@ -68,6 +68,17 @@ async function main() {
   } catch (err) {
     console.log("✗ GET /api/sandboxes →", err.message)
   }
+
+  // 3. by-mount (filtra sandbox per percorso progetto)
+  try {
+    const mountPath = process.argv[2]
+    if (mountPath) {
+      const byMount = await request("GET", "/api/sandboxes/by-mount", { mountPath })
+      console.log("✓ GET /api/sandboxes/by-mount →", byMount.status, `(${Array.isArray(byMount.body) ? byMount.body.length : "?"} found)`)
+    }
+  } catch (err) {
+    console.log("✗ GET /api/sandboxes/by-mount →", err.message)
+  }
 }
 
 main()

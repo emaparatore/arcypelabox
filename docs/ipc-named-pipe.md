@@ -17,12 +17,15 @@ Arcypelabox espone un server **REST-like su named pipe** (Windows) o **Unix sock
 | `GET` | `/api/ping` | Health check |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox |
 | `POST` | `/api/sandboxes` | Crea una nuova sandbox |
+| `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount (body: `{ mountPath }`) |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox (body: `{ id }`) |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox (body: `{ id }`) |
 | `DELETE` | `/api/sandboxes` | Rimuove una sandbox (body: `{ id }`) |
 | `GET` | `/api/sandboxes/logs` | Log di una sandbox (body: `{ id }`) |
 | `GET` | `/api/sandboxes/info` | Info di una sandbox (body: `{ id }`) |
 | `POST` | `/api/sandboxes/exec` | Esegue un comando (body: `{ id, command }`) |
+
+> **Nota:** `id` si riferisce sempre al **sandbox UUID** (chiave primaria del database), non al Docker container ID. La risoluzione avviene automaticamente lato server.
 
 ## Formato dei messaggi
 

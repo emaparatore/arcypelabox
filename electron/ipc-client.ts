@@ -77,10 +77,10 @@ export function createIpcClient(serviceName: string) {
   }
 
   return {
-    get: (path: string) => request("GET", path),
+    get: (path: string, body?: unknown) => request("GET", path, body),
     post: (path: string, body?: unknown) => request("POST", path, body),
     put: (path: string, body?: unknown) => request("PUT", path, body),
-    delete: (path: string) => request("DELETE", path),
+    delete: (path: string, body?: unknown) => request("DELETE", path, body),
     request,
   }
 }

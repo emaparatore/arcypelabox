@@ -56,15 +56,18 @@ La named pipe `//./pipe/paratoolz-arcypelabox` non richiedeva **alcuna autentica
 |-------|--------|
 | **File** | `electron/docker.ts:87-91`, `src/components/SandboxCreate.tsx:130-133` |
 | **Categoria** | Path traversal, Privilege escalation |
+| **Stato** | ✅ **Risolto** |
 
-Il campo `projectMount` è montato direttamente come bind mount in `/workspace` con **zero validazioni**. Solo controllo `non vuoto` in UI.
+Il campo `projectMount` era montato direttamente come bind mount in `/workspace` con **zero validazioni**. Solo controllo `non vuoto` in UI.
 
 **Impatto:** Montando `/` → intero filesystem host accessibile. Montando `/var/run/docker.sock` → controllo completo del Docker daemon dal container. Combinato con C-3, è **compromissione totale dell'host**.
 
-**Fix:**
-- Whitelist di directory parent consentite (es. home utente, progetti)
-- Bloccare `/etc`, `/proc`, `/dev`, `/var/run`, `/sys`
-- Validare che il path risolva a una directory consentita (no symlink escape)
+**Fix applicati:**
+- ✅ Whitelist su home directory (`os.homedir()`) — nessun path fuori da `C:\Users\<user>` o `/home/<user>` è accettato
+- ✅ Symlink resolution (`fs.realpathSync()`) — impedisce traversal via `../../`
+- ✅ Scansione ricorsiva della directory: i symlink sono permessi se puntano **dentro** il progetto, bloccati se puntano **fuori**
+- ✅ La scansione **recurse** nei symlink pointing dentro il progetto per scoprire catene di link (A -> B -> /etc)
+- ✅ `visited.set` per evitare cicli e scansioni duplicate
 
 ---
 
@@ -437,7 +440,7 @@ Nessun logging strutturato per operazioni di sicurezza (creazione/rimozione cont
 | Priorità | Azione | ID rif. | Stato |
 |----------|--------|---------|-------|
 | 1 | Rimuovere `generatedDockerfile` dall'API della named pipe | C-1 | ✅ **Fatto** |
-| 2 | Validare `projectMount` con whitelist di path | C-2 | ❌ Da fare |
+| 2 | Validare `projectMount` con whitelist + scan symlink | C-2 | ✅ **Fatto** |
 | 3 | Bindare porte Docker su `127.0.0.1` | C-5 |
 | 4 | Rimuovere API key decrypt dal canale renderer | C-4 |
 | 5 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |

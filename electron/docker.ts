@@ -1,13 +1,98 @@
 import Docker from "dockerode"
 import { randomUUID } from "node:crypto"
 import { execFile } from "node:child_process"
-import { writeFile, mkdtemp, rm } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { readdir, lstat, readlink, writeFile, mkdtemp, rm } from "node:fs/promises"
+import { realpathSync } from "node:fs"
+import { tmpdir, homedir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
 
 const docker = new Docker()
 const execFileAsync = promisify(execFile)
+
+async function findSymlinks(root: string, maxDepth = 12): Promise<string[]> {
+  const results: string[] = []
+  const normalize = (p: string) => (process.platform === "win32" ? p.toLowerCase() : p)
+  const rootNormalized = normalize(path.resolve(root))
+  const visited = new Set<string>()
+
+  async function walk(dir: string, depth: number) {
+    if (depth > maxDepth) return
+    const dirNormalized = normalize(path.resolve(dir))
+    if (visited.has(dirNormalized)) return
+    visited.add(dirNormalized)
+
+    let entries: string[]
+    try {
+      entries = await readdir(dir)
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry)
+      try {
+        const stat = await lstat(fullPath)
+        if (stat.isSymbolicLink()) {
+          const target = await readlink(fullPath)
+          const absoluteTarget = path.resolve(path.dirname(fullPath), target)
+          if (!normalize(absoluteTarget).startsWith(rootNormalized)) {
+            results.push(`${fullPath} -> ${target} (outside project mount)`)
+          } else {
+            const targetStat = await lstat(absoluteTarget)
+            if (targetStat.isDirectory()) {
+              await walk(absoluteTarget, depth + 1)
+            }
+          }
+        } else if (stat.isDirectory()) {
+          await walk(fullPath, depth + 1)
+        }
+      } catch {
+        /* skip unreadable */
+      }
+    }
+  }
+
+  await walk(root, 0)
+  return results
+}
+
+async function validateMountPath(projectMount: string): Promise<void> {
+  const resolved = path.resolve(projectMount)
+  let realPath: string
+  try {
+    realPath = realpathSync(resolved)
+  } catch {
+    realPath = resolved
+  }
+
+  const home = homedir()
+  const normalize = (p: string) => (process.platform === "win32" ? p.toLowerCase() : p)
+
+  if (!normalize(realPath).startsWith(normalize(home))) {
+    throw new Error(
+      `Mount path must be under your home directory (${home}). ` +
+        `Path "${projectMount}" resolves to "${realPath}".`
+    )
+  }
+
+  let isDir = false
+  try {
+    isDir = (await lstat(realPath)).isDirectory()
+  } catch {
+    /* path doesn't exist yet, OK */
+  }
+
+  if (isDir) {
+    const symlinks = await findSymlinks(realPath)
+    if (symlinks.length > 0) {
+      throw new Error(
+        `Mount path contains symlinks pointing outside the project directory.\n` +
+          `Remove or replace them with direct copies:\n` +
+          symlinks.map((s) => `  - ${s}`).join("\n")
+      )
+    }
+  }
+}
 
 export interface SandboxConfig {
   sandboxId?: string
@@ -58,6 +143,10 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
 }
 
 export async function createSandbox(config: SandboxConfig): Promise<string> {
+  if (config.projectMount) {
+    await validateMountPath(config.projectMount)
+  }
+
   const image = await buildImage(config.image, config.generatedDockerfile)
   const opencodeConfig = buildOpenCodeConfig(config)
   const group = createGroupName(config.name)

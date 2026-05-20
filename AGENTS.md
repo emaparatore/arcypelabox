@@ -15,6 +15,7 @@
 - `electron/main.ts` owns all IPC handlers. `electron/preload.ts` is the only renderer bridge; renderer code talks through `window.sandobox`.
 - Docker lifecycle and image creation are implemented in `electron/docker.ts`.
 - OpenCode HTTP/SDK integration is implemented in `electron/opencode.ts`.
+- Local inter-app communication via named pipe is implemented in `electron/ipc-server.ts` and `electron/ipc-client.ts`. Routes are registered in `electron/api.ts`. See [docs/ipc-named-pipe.md](docs/ipc-named-pipe.md).
 
 ## Sandbox Flow
 

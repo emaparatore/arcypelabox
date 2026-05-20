@@ -68,6 +68,7 @@ npm run electron:build
 - `electron/preload.ts`: safe bridge exposed as `window.sandobox`
 - `electron/docker.ts`: Docker image build, container lifecycle, sidecar management
 - `electron/opencode.ts`: OpenCode health, prompt, session, permission, and question handling
+- `electron/ipc-server.ts` / `electron/ipc-client.ts`: [Local REST API via named pipe](docs/ipc-named-pipe.md) for inter-app communication
 
 ## Important Behavior
 

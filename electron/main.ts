@@ -38,18 +38,12 @@ import {
   getSetting,
   setSetting,
 } from "./database.js"
+import { createIpcServer } from "./ipc-server.js"
+import { registerRoutes, getErrorMessage } from "./api.js"
 
 let mainWindow: BrowserWindow | null = null
 
-function getErrorMessage(err: unknown) {
-  const message = err instanceof Error ? err.message : String(err)
-
-  if (message.includes("connect ENOENT //./pipe/docker_engine")) {
-    return "Docker Desktop is not running or Docker Engine is unavailable. Start Docker Desktop, wait for the engine to finish starting, then refresh the app."
-  }
-
-  return message
-}
+const ipcServer = createIpcServer("sandobox-manager")
 
 function validateString(value: unknown, name: string): value is string {
   if (typeof value !== "string" || value.length === 0) {
@@ -330,9 +324,19 @@ app.whenReady().then(() => {
     }
   })
 
+  registerRoutes(ipcServer)
+
+  ipcServer.start().catch((err: unknown) => {
+    console.error("[main] Failed to start IPC server:", err)
+  })
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on("before-quit", () => {
+  ipcServer.stop()
 })
 
 app.on("window-all-closed", () => {

@@ -1,153 +1,180 @@
-async function getOpencodeClient() {
-  const { createOpencodeClient } = await import("@opencode-ai/sdk")
-  return createOpencodeClient
-}
-
-type PermissionRequestInfo = {
-  id: string
-  sessionId: string
-  permission: string
-  patterns: string[]
-}
-
-type OpenCodeSessionInfo = {
-  id: string
-  title: string
-  status: "idle" | "busy" | "retry" | "unknown"
-  statusMessage?: string
-}
-
-type OpenCodeSessionDebugInfo = {
-  sessionId: string
-  lastMessageRole?: string
-  lastMessageId?: string
-  toolName?: string
-  toolStatus?: string
-  toolInput?: string
-  assistantText?: string
-  error?: string
-}
-
-type OpenCodeQuestionRequest = {
-  id: string
-  sessionId?: string
-  questions: Array<{
-    question: string
-    header: string
-    options: Array<{
-      label: string
-      description: string
-    }>
-    multiple: boolean
-  }>
-}
-
 function validatePort(port: number): void {
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
     throw new Error("Port must be an integer between 1024 and 65535")
   }
 }
 
-export async function checkHealth(port: number): Promise<boolean> {
+async function getClient(port: number) {
   validatePort(port)
+  const { createOpencodeClient } = await import("@opencode-ai/sdk/v2")
+  return createOpencodeClient({
+    baseUrl: `http://localhost:${port}`,
+  })
+}
+
+export async function checkHealth(port: number): Promise<boolean> {
   try {
-    const res = await fetch(`http://localhost:${port}/global/health`)
-    return res.ok
+    const client = await getClient(port)
+    await client.global.health()
+    return true
   } catch {
     return false
   }
 }
 
-export async function sendPrompt(port: number, text: string): Promise<string> {
-  validatePort(port)
-  const createOpencodeClient = await getOpencodeClient()
-  const client = createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
+export async function sendPrompt(port: number, text: string, sessionId: string): Promise<string> {
+  const client = await getClient(port)
+  const result = await client.session.prompt({
+    sessionID: sessionId,
+    parts: [{ type: "text", text }],
   })
-
-  const sessionId = await getAvailableSessionId(client)
-
-  const result = (await withTimeout(
-    (client.session as any).prompt({
-      path: { id: sessionId },
-      body: { parts: [{ type: "text", text }] },
-    }),
-    30000,
-    async () => {
-      const sessions = await getSessionStates(client)
-      const current = sessions.find((session) => session.id === sessionId)
-      const details = current
-        ? `Session status: ${current.status}${current.statusMessage ? ` (${current.statusMessage})` : ""}.`
-        : "Session status unavailable."
-      throw new Error(
-        `OpenCode did not respond within 30s. ${details} It may be waiting on a tool, permission, or a stuck session.`
-      )
-    }
-  )) as any
-
-  const response = result.data
+  const response = result.data as any
   const textParts =
     response?.parts
-      ?.filter((p: { type: string }) => p.type === "text")
-      .map((p: { text?: string }) => p.text ?? "")
+      ?.filter((p: any) => p.type === "text")
+      .map((p: any) => p.text ?? "")
       .join("\n") ?? JSON.stringify(response?.info ?? result.data)
-
   return textParts
 }
 
-export async function listPendingPermissions(port: number): Promise<PermissionRequestInfo[]> {
-  validatePort(port)
-  const response = await fetch(`http://localhost:${port}/permission`)
-  const data = (await response.json()) as any[]
+export async function sessionPromptAsync(port: number, text: string, sessionId: string): Promise<boolean> {
+  const client = await getClient(port)
+  await client.session.promptAsync({
+    sessionID: sessionId,
+    parts: [{ type: "text", text }],
+  })
+  return true
+}
 
-  return (data ?? []).map((request: any) => ({
-    id: request.id,
-    sessionId: request.sessionID,
-    permission: request.permission,
-    patterns: Array.isArray(request.patterns) ? request.patterns : [],
+export async function listProviders(port: number) {
+  const client = await getClient(port)
+  const result: any = await client.provider.list()
+  const data = result.data ?? {}
+  const all: any[] = data.all ?? []
+  const connected: string[] = data.connected ?? []
+  return all
+    .filter((p: any) => connected.includes(p.id))
+    .map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      models: Object.entries(p.models ?? {}).map(([modelId, model]: [string, any]) => ({
+        id: modelId,
+        name: model.name ?? modelId,
+        providerId: p.id,
+        variants: model.variants ? Object.keys(model.variants) : [],
+      })),
+    }))
+}
+
+export async function listSessions(port: number) {
+  const client = await getClient(port)
+  const [listResult, statusResult] = await Promise.all([
+    client.session.list(),
+    client.session.status(),
+  ])
+  const sessions = listResult.data ?? []
+  const statuses = (statusResult.data ?? {}) as Record<string, any>
+  return sessions.map((s: any) => ({
+    id: s.id,
+    title: s.title ?? "Untitled session",
+    model: s.model ?? null,
+    status: statuses[s.id]?.type ?? "unknown",
+    statusMessage: statuses[s.id]?.message,
   }))
 }
 
-export async function getOpenCodeSessions(port: number): Promise<OpenCodeSessionInfo[]> {
-  validatePort(port)
-  const createOpencodeClient = await getOpencodeClient()
-  const client = createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
+export async function createSession(port: number, params: { title?: string; model?: { providerID: string; id: string; variant?: string } }) {
+  const client = await getClient(port)
+  const result = await client.session.create({
+    title: params.title ?? "Sandbox Chat",
+    model: params.model,
   })
-
-  return getSessionStates(client)
+  return {
+    id: result.data?.id ?? (result as any).id,
+    title: params.title ?? "Sandbox Chat",
+    model: params.model ?? null,
+    status: "idle",
+  }
 }
 
-export async function abortOpenCodeSession(port: number, sessionId: string): Promise<boolean> {
-  validatePort(port)
-  const createOpencodeClient = await getOpencodeClient()
-  const client = createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
-  })
-
-  const result = await (client.session as any).abort({
-    path: { id: sessionId },
-  })
-
-  return Boolean(result?.data ?? true)
+export async function deleteSession(port: number, sessionId: string) {
+  const client = await getClient(port)
+  await client.session.delete({ sessionID: sessionId })
 }
 
-export async function getOpenCodeSessionDebug(
-  port: number,
-  sessionId: string
-): Promise<OpenCodeSessionDebugInfo> {
-  validatePort(port)
-  const createOpencodeClient = await getOpencodeClient()
-  const client = createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
-  })
+export async function abortOpenCodeSession(port: number, sessionId: string) {
+  const client = await getClient(port)
+  await client.session.abort({ sessionID: sessionId })
+}
 
-  const result = await (client.session as any).messages({
-    path: { id: sessionId },
-  })
+export async function listPendingPermissions(port: number) {
+  const client = await getClient(port)
+  const result = await client.permission.list()
+  return (result.data ?? []).map((req: any) => ({
+    id: req.id,
+    sessionId: req.sessionID,
+    permission: req.permission,
+    patterns: req.patterns ?? [],
+  }))
+}
 
-  const messages = Array.isArray(result?.data) ? result.data : []
-  const latest = messages.at(-1)
+export async function replyPermission(port: number, requestId: string, reply: "once" | "always" | "reject") {
+  const client = await getClient(port)
+  await client.permission.reply({ requestID: requestId, reply })
+  return true
+}
+
+export async function listPendingQuestions(port: number) {
+  const client = await getClient(port)
+  const result = await client.question.list()
+  return (result.data ?? []).map((req: any) => ({
+    id: req.id,
+    sessionId: req.sessionID,
+    questions: (req.questions ?? []).map((q: any) => ({
+      question: q.question,
+      header: q.header,
+      options: (q.options ?? []).map((o: any) => ({
+        label: o.label,
+        description: o.description ?? "",
+      })),
+      multiple: Boolean(q.multiple),
+    })),
+  }))
+}
+
+export async function replyQuestion(port: number, requestId: string, answers: string[][]) {
+  const client = await getClient(port)
+  await client.question.reply({ requestID: requestId, answers })
+  return true
+}
+
+export async function getSessionMessages(port: number, sessionId: string) {
+  const client = await getClient(port)
+  const result: any = await client.session.messages({ sessionID: sessionId })
+  const msgs = Array.isArray(result.data) ? result.data : []
+  return msgs.map((msg: any) => ({
+    role: msg.info?.role === "user" ? "user" : "assistant",
+    content: (msg.parts ?? [])
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => p.text ?? "")
+      .join("\n"),
+    timestamp: msg.info?.time?.created ?? Date.now(),
+    parts: (msg.parts ?? []).map((p: any) => ({
+      type: p.type,
+      text: p.text,
+      tool: p.tool,
+      status: p.state?.status,
+      input: p.state?.raw ?? stringifyToolInput(p.state?.input),
+      output: p.state?.output,
+    })),
+  }))
+}
+
+export async function getOpenCodeSessionDebug(port: number, sessionId: string) {
+  const client = await getClient(port)
+  const result: any = await client.session.messages({ sessionID: sessionId })
+  const msgs = Array.isArray(result.data) ? result.data : []
+  const latest = msgs[msgs.length - 1]
   const parts = Array.isArray(latest?.parts) ? latest.parts : []
   const latestTool = [...parts].reverse().find((part: any) => part?.type === "tool")
   const latestText = parts
@@ -156,7 +183,6 @@ export async function getOpenCodeSessionDebug(
     .filter(Boolean)
     .join("\n")
   const latestError = latest?.info?.error?.message || latestTool?.state?.error
-
   return {
     sessionId,
     lastMessageRole: latest?.info?.role,
@@ -175,175 +201,82 @@ export async function getOpenCodeSessionDebug(
   }
 }
 
-export async function listPendingQuestions(port: number): Promise<OpenCodeQuestionRequest[]> {
-  validatePort(port)
-  const response = await fetch(`http://localhost:${port}/question`)
-  const data = (await response.json()) as any[]
-
-  return (data ?? []).map((request: any) => ({
-    id: request.id,
-    sessionId: request.tool?.sessionID,
-    questions: Array.isArray(request.questions)
-      ? request.questions.map((question: any) => ({
-          question: question.question,
-          header: question.header,
-          multiple: Boolean(question.multiple),
-          options: Array.isArray(question.options)
-            ? question.options.map((option: any) => ({
-                label: option.label,
-                description: option.description ?? "",
-              }))
-            : [],
-        }))
-      : [],
-  }))
-}
-
-export async function replyQuestion(
-  port: number,
-  requestId: string,
-  answers: string[][]
-): Promise<boolean> {
-  validatePort(port)
-  const response = await fetch(`http://localhost:${port}/question/${requestId}/reply`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ answers }),
-  })
-
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-
-  return true
-}
-
-export async function replyPermission(
-  port: number,
-  requestId: string,
-  reply: "once" | "always" | "reject"
-): Promise<boolean> {
-  validatePort(port)
-  const response = await fetch(`http://localhost:${port}/permission/${requestId}/reply`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ reply }),
-  })
-
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-
-  return true
-}
-
-export async function runShell(port: number, command: string): Promise<string> {
-  validatePort(port)
-  const createOpencodeClient = await getOpencodeClient()
-  const client = createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
-  })
-
-  const sessionId = await getAvailableSessionId(client)
-
-  const result = await (client.session as any).shell({
-    path: { id: sessionId },
-    body: { agent: "default", command },
-  })
-
-  return JSON.stringify(result.data)
-}
-
-async function getAvailableSessionId(client: any): Promise<string> {
-  const sessions = await client.session.list()
-  const sessionList = Array.isArray(sessions.data) ? sessions.data : []
-
-  if (sessionList.length === 0) {
-    const created = await client.session.create({
-      body: { title: "Sandbox Chat" },
-    })
-    if (created.error) throw new Error(`Failed to create session: ${JSON.stringify(created.error)}`)
-    return created.data?.id ?? (created as any).id
-  }
-
-  const statuses = await getSessionStates(client)
-  const idleSession = sessionList.find(
-    (session: any) => statuses.find((entry) => entry.id === session.id)?.status !== "busy"
-  )
-
+export async function getAvailableSessionId(port: number): Promise<string> {
+  const sessions = await listSessions(port)
+  const idleSession = sessions.find((s: any) => s.status !== "busy")
   if (idleSession) return idleSession.id
-
-  const created = await client.session.create({
-    body: { title: "Sandbox Chat" },
-  })
-  if (created.error) throw new Error(`Failed to create session: ${JSON.stringify(created.error)}`)
-  return created.data?.id ?? (created as any).id
-}
-
-async function getSessionStates(client: any): Promise<OpenCodeSessionInfo[]> {
-  const sessions = await client.session.list()
-  const sessionList = Array.isArray(sessions.data) ? sessions.data : []
-  const statusResult = await client.session.status()
-  const statuses = statusResult.data ?? {}
-
-  return sessionList.map((session: any) => {
-    const status = statuses[session.id]
-    if (!status) {
-      return {
-        id: session.id,
-        title: session.title ?? "Untitled session",
-        status: "unknown",
-      }
-    }
-
-    if (status.type === "retry") {
-      return {
-        id: session.id,
-        title: session.title ?? "Untitled session",
-        status: "retry",
-        statusMessage: status.message,
-      }
-    }
-
-    return {
-      id: session.id,
-      title: session.title ?? "Untitled session",
-      status: status.type,
-    }
-  })
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  onTimeout: () => Promise<never>
-): Promise<T> {
-  let timer: NodeJS.Timeout | undefined
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          onTimeout().then(reject).catch(reject)
-        }, timeoutMs)
-      }),
-    ])
-  } finally {
-    if (timer) clearTimeout(timer)
-  }
+  const created = await createSession(port, { title: "Sandbox Chat" })
+  return created.id
 }
 
 function stringifyToolInput(input: unknown) {
   if (!input) return undefined
-
   try {
     return JSON.stringify(input, null, 2)
   } catch {
     return String(input)
   }
+}
+
+const maxRetryAttempts = 10
+let retryDelay = 1000
+
+export async function subscribeToEvents(
+  port: number,
+  onEvent: (event: any) => void,
+  onError?: (error: any) => void
+): Promise<AbortController> {
+  validatePort(port)
+  const abortController = new AbortController()
+  const maxDelay = 30000
+
+  const connect = async (attempt = 0) => {
+    try {
+      const response = await fetch(`http://localhost:${port}/event`, {
+        signal: abortController.signal,
+      })
+      if (!response.ok || !response.body) {
+        throw new Error(`SSE connection failed: ${response.status}`)
+      }
+      retryDelay = 1000
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              onEvent(data)
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") return
+      if (attempt < maxRetryAttempts) {
+        await new Promise((r) => setTimeout(r, retryDelay))
+        retryDelay = Math.min(retryDelay * 2, maxDelay)
+        connect(attempt + 1)
+      } else {
+        onError?.(err)
+      }
+    }
+  }
+  connect()
+  return abortController
+}
+
+export async function runShell(port: number, command: string): Promise<string> {
+  const client = await getClient(port)
+  const sessionId = await getAvailableSessionId(port)
+  const result = await client.session.shell({ sessionID: sessionId, command })
+  return JSON.stringify(result.data)
 }

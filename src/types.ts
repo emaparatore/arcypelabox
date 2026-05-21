@@ -62,22 +62,45 @@ export interface ContainerLog {
   message: string
 }
 
+export interface SandboxMessagePart {
+  type: "text" | "tool" | "file"
+  text?: string
+  tool?: string
+  status?: string
+  input?: string
+  output?: string
+}
+
 export interface SandboxMessage {
   role: "user" | "assistant"
   content: string
   timestamp: number
+  parts?: SandboxMessagePart[]
 }
 
-export interface PermissionRequestInfo {
+export interface OpenCodeModelInfo {
   id: string
-  sessionId: string
-  permission: string
-  patterns: string[]
+  name: string
+  providerId: string
+  variants: string[]
+}
+
+export interface OpenCodeProviderInfo {
+  id: string
+  name: string
+  models: OpenCodeModelInfo[]
+}
+
+export interface OpenCodeSessionModel {
+  providerID: string
+  id: string
+  variant?: string
 }
 
 export interface OpenCodeSessionInfo {
   id: string
   title: string
+  model: OpenCodeSessionModel | null
   status: "idle" | "busy" | "retry" | "unknown"
   statusMessage?: string
 }
@@ -91,6 +114,13 @@ export interface OpenCodeSessionDebugInfo {
   toolInput?: string
   assistantText?: string
   error?: string
+}
+
+export interface PermissionRequestInfo {
+  id: string
+  sessionId: string
+  permission: string
+  patterns: string[]
 }
 
 export interface OpenCodeQuestionOption {
@@ -109,6 +139,13 @@ export interface OpenCodeQuestionRequest {
   id: string
   sessionId?: string
   questions: OpenCodeQuestionItem[]
+}
+
+export interface OpenCodeEventState {
+  sessions: OpenCodeSessionInfo[]
+  permissions: PermissionRequestInfo[]
+  questions: OpenCodeQuestionRequest[]
+  providers: OpenCodeProviderInfo[]
 }
 
 export const PERMISSION_ACTIONS = ["allow", "ask", "deny"] as const
@@ -227,22 +264,32 @@ export interface SandboxWindowApi {
     requestId: string,
     reply: "once" | "always" | "reject"
   ) => Promise<boolean | { error: string }>
-  getOpenCodeSessions: (port: number) => Promise<OpenCodeSessionInfo[] | { error: string }>
-  abortOpenCodeSession: (port: number, sessionId: string) => Promise<boolean | { error: string }>
-  getOpenCodeSessionDebug: (
-    port: number,
-    sessionId: string
-  ) => Promise<OpenCodeSessionDebugInfo | { error: string }>
   listPendingQuestions: (port: number) => Promise<OpenCodeQuestionRequest[] | { error: string }>
   replyQuestion: (
     port: number,
     requestId: string,
     answers: string[][]
   ) => Promise<boolean | { error: string }>
+  getOpenCodeSessions: (port: number) => Promise<OpenCodeSessionInfo[] | { error: string }>
+  createOpenCodeSession: (port: number, params?: { title?: string; model?: { providerID: string; id: string; variant?: string } }) => Promise<OpenCodeSessionInfo | { error: string }>
+  deleteOpenCodeSession: (port: number, sessionId: string) => Promise<{ success: boolean } | { error: string }>
+  abortOpenCodeSession: (port: number, sessionId: string) => Promise<boolean | { error: string }>
+  getOpenCodeSessionDebug: (
+    port: number,
+    sessionId: string
+  ) => Promise<OpenCodeSessionDebugInfo | { error: string }>
+  getAvailableSessionId: (port: number) => Promise<string | { error: string }>
+  getSessionMessages: (port: number, sessionId: string) => Promise<SandboxMessage[] | { error: string }>
   opencode: {
     checkHealth: (port: number) => Promise<boolean>
-    sendPrompt: (port: number, text: string) => Promise<string>
+    sendPrompt: (port: number, sessionId: string, text: string) => Promise<string>
+    sendPromptAsync: (port: number, sessionId: string, text: string) => Promise<boolean | { error: string }>
     runShell: (port: number, command: string) => Promise<string>
+    listProviders: (port: number) => Promise<OpenCodeProviderInfo[] | { error: string }>
+    subscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
+    unsubscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
+    onEvent: (callback: (port: number, event: any) => void) => () => void
+    onState: (callback: (port: number, state: OpenCodeEventState) => void) => () => void
   }
   db: {
     getSandboxById: (id: string) => Promise<SandboxRecord | null | { error: string }>

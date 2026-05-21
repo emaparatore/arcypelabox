@@ -16,13 +16,20 @@ import {
 import {
   abortOpenCodeSession,
   checkHealth,
+  createSession,
+  deleteSession,
+  getAvailableSessionId,
   getOpenCodeSessionDebug,
-  getOpenCodeSessions,
-  listPendingQuestions,
+  getSessionMessages,
   listPendingPermissions,
-  replyQuestion,
+  listPendingQuestions,
+  listProviders,
+  listSessions,
   replyPermission,
+  replyQuestion,
   sendPrompt,
+  sessionPromptAsync,
+  subscribeToEvents,
   runShell,
 } from "./opencode.js"
 import {
@@ -48,6 +55,8 @@ let mainWindow: BrowserWindow | null = null
 
 const ipcServer = createIpcServer("paratoolz-arcypelabox")
 
+const opencodeSubscriptions = new Map<number, AbortController>()
+
 function validateString(value: unknown, name: string): value is string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`Invalid ${name}: expected non-empty string`)
@@ -61,6 +70,12 @@ function validatePort(value: unknown): number {
     throw new Error("Port must be an integer between 1024 and 65535")
   }
   return port as number
+}
+
+function sendToRenderer(channel: string, ...args: unknown[]) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, ...args)
+  }
 }
 
 function createWindow() {
@@ -194,8 +209,28 @@ app.whenReady().then(() => {
     return await checkHealth(validatePort(port))
   })
 
-  ipcMain.handle("sandobox:opencode:prompt", async (_event, port, text) => {
-    return await sendPrompt(validatePort(port), text)
+  ipcMain.handle("sandobox:opencode:prompt", async (_event, port, sessionId, text) => {
+    try {
+      return await sendPrompt(validatePort(port), text, sessionId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:prompt-async", async (_event, port, sessionId, text) => {
+    try {
+      return await sessionPromptAsync(validatePort(port), text, sessionId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:providers", async (_event, port) => {
+    try {
+      return await listProviders(validatePort(port))
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
   })
 
   ipcMain.handle("sandobox:opencode:permissions", async (_event, port) => {
@@ -214,9 +249,42 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle("sandobox:opencode:questions", async (_event, port) => {
+    try {
+      return await listPendingQuestions(validatePort(port))
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:question:reply", async (_event, port, requestId, answers) => {
+    try {
+      return await replyQuestion(validatePort(port), requestId, answers)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
   ipcMain.handle("sandobox:opencode:sessions", async (_event, port) => {
     try {
-      return await getOpenCodeSessions(validatePort(port))
+      return await listSessions(validatePort(port))
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:session:create", async (_event, port, params) => {
+    try {
+      return await createSession(validatePort(port), params ?? {})
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:session:delete", async (_event, port, sessionId) => {
+    try {
+      await deleteSession(validatePort(port), sessionId)
+      return { success: true }
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
@@ -238,20 +306,100 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle("sandobox:opencode:questions", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:session:messages", async (_event, port, sessionId) => {
     try {
-      return await listPendingQuestions(validatePort(port))
+      return await getSessionMessages(validatePort(port), sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:question:reply", async (_event, port, requestId, answers) => {
+  ipcMain.handle("sandobox:opencode:session:get-available", async (_event, port) => {
     try {
-      return await replyQuestion(validatePort(port), requestId, answers)
+      return await getAvailableSessionId(validatePort(port))
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
+  })
+
+  ipcMain.handle("sandobox:opencode:events:subscribe", async (_event, port) => {
+    const p = validatePort(port)
+
+    const existing = opencodeSubscriptions.get(p)
+    if (existing) {
+      existing.abort()
+      opencodeSubscriptions.delete(p)
+    }
+
+    try {
+      let pushTimer: NodeJS.Timeout | undefined
+      let dirtyFlags = 0
+      const DIRTY_SESSIONS = 1
+      const DIRTY_PERMISSIONS = 2
+      const DIRTY_QUESTIONS = 4
+
+      const flushState = async () => {
+        pushTimer = undefined
+        const flags = dirtyFlags
+        dirtyFlags = 0
+        if (!flags) return
+        const updates: Record<string, unknown> = {}
+        if (flags & DIRTY_SESSIONS) updates.sessions = await listSessions(p)
+        if (flags & DIRTY_PERMISSIONS) updates.permissions = await listPendingPermissions(p)
+        if (flags & DIRTY_QUESTIONS) updates.questions = await listPendingQuestions(p)
+        sendToRenderer("sandobox:opencode:state", p, updates)
+      }
+
+      const markDirty = (flag: number) => {
+        dirtyFlags |= flag
+        if (!pushTimer) {
+          pushTimer = setTimeout(flushState, 100)
+        }
+      }
+
+      const abortController = await subscribeToEvents(
+        p,
+        (event: any) => {
+          sendToRenderer("sandobox:opencode:event", p, event)
+          const type: string = event?.type ?? ""
+          if (type.startsWith("session.") || type === "session.created" || type === "session.deleted") {
+            markDirty(DIRTY_SESSIONS)
+          }
+          if (type.startsWith("permission.")) {
+            markDirty(DIRTY_PERMISSIONS)
+          }
+          if (type.startsWith("question.")) {
+            markDirty(DIRTY_QUESTIONS)
+          }
+        },
+        (error) => {
+          console.error(`[SSE] Error on port ${p}:`, error)
+        }
+      )
+      opencodeSubscriptions.set(p, abortController)
+
+      const [sessions, permissions, questions, providers] = await Promise.all([
+        listSessions(p),
+        listPendingPermissions(p),
+        listPendingQuestions(p),
+        listProviders(p),
+      ])
+      sendToRenderer("sandobox:opencode:state", p, { sessions, permissions, questions, providers })
+
+      return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:opencode:events:unsubscribe", async (_event, port) => {
+    const p = validatePort(port)
+    const existing = opencodeSubscriptions.get(p)
+    if (existing) {
+      existing.abort()
+      opencodeSubscriptions.delete(p)
+    }
+    return { success: true }
   })
 
   ipcMain.handle("sandobox:opencode:shell", async (_event, port, command) => {
@@ -363,6 +511,14 @@ app.whenReady().then(() => {
     return buildGeneratedDockerfile(config as Parameters<typeof buildGeneratedDockerfile>[0])
   })
 
+  app.on("before-quit", () => {
+    for (const abortController of opencodeSubscriptions.values()) {
+      abortController.abort()
+    }
+    opencodeSubscriptions.clear()
+    ipcServer.stop()
+  })
+
   registerRoutes(ipcServer)
 
   ipcServer.start().catch((err: unknown) => {
@@ -372,10 +528,6 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
-
-app.on("before-quit", () => {
-  ipcServer.stop()
 })
 
 app.on("window-all-closed", () => {

@@ -15,20 +15,46 @@ contextBridge.exposeInMainWorld("sandobox", {
   listPendingPermissions: (port: number) => ipcRenderer.invoke("sandobox:opencode:permissions", port),
   replyPermission: (port: number, requestId: string, reply: "once" | "always" | "reject") =>
     ipcRenderer.invoke("sandobox:opencode:permission:reply", port, requestId, reply),
+  listPendingQuestions: (port: number) => ipcRenderer.invoke("sandobox:opencode:questions", port),
+  replyQuestion: (port: number, requestId: string, answers: string[][]) =>
+    ipcRenderer.invoke("sandobox:opencode:question:reply", port, requestId, answers),
   getOpenCodeSessions: (port: number) => ipcRenderer.invoke("sandobox:opencode:sessions", port),
+  createOpenCodeSession: (port: number, params?: { title?: string; model?: { providerID: string; id: string; variant?: string } }) =>
+    ipcRenderer.invoke("sandobox:opencode:session:create", port, params),
+  deleteOpenCodeSession: (port: number, sessionId: string) =>
+    ipcRenderer.invoke("sandobox:opencode:session:delete", port, sessionId),
   abortOpenCodeSession: (port: number, sessionId: string) =>
     ipcRenderer.invoke("sandobox:opencode:session:abort", port, sessionId),
   getOpenCodeSessionDebug: (port: number, sessionId: string) =>
     ipcRenderer.invoke("sandobox:opencode:session:debug", port, sessionId),
-  listPendingQuestions: (port: number) => ipcRenderer.invoke("sandobox:opencode:questions", port),
-  replyQuestion: (port: number, requestId: string, answers: string[][]) =>
-    ipcRenderer.invoke("sandobox:opencode:question:reply", port, requestId, answers),
+  getSessionMessages: (port: number, sessionId: string) =>
+    ipcRenderer.invoke("sandobox:opencode:session:messages", port, sessionId),
+  getAvailableSessionId: (port: number) =>
+    ipcRenderer.invoke("sandobox:opencode:session:get-available", port),
   opencode: {
     checkHealth: (port: number) => ipcRenderer.invoke("sandobox:opencode:health", port),
-    sendPrompt: (port: number, text: string) =>
-      ipcRenderer.invoke("sandobox:opencode:prompt", port, text),
+    sendPrompt: (port: number, sessionId: string, text: string) =>
+      ipcRenderer.invoke("sandobox:opencode:prompt", port, sessionId, text),
+    sendPromptAsync: (port: number, sessionId: string, text: string) =>
+      ipcRenderer.invoke("sandobox:opencode:prompt-async", port, sessionId, text),
     runShell: (port: number, command: string) =>
       ipcRenderer.invoke("sandobox:opencode:shell", port, command),
+    listProviders: (port: number) =>
+      ipcRenderer.invoke("sandobox:opencode:providers", port),
+    subscribeEvents: (port: number) =>
+      ipcRenderer.invoke("sandobox:opencode:events:subscribe", port),
+    unsubscribeEvents: (port: number) =>
+      ipcRenderer.invoke("sandobox:opencode:events:unsubscribe", port),
+    onEvent: (callback: (port: number, event: any) => void) => {
+      const handler = (_event: any, port: number, data: any) => callback(port, data)
+      ipcRenderer.on("sandobox:opencode:event", handler)
+      return () => ipcRenderer.removeListener("sandobox:opencode:event", handler)
+    },
+    onState: (callback: (port: number, state: any) => void) => {
+      const handler = (_event: any, port: number, state: any) => callback(port, state)
+      ipcRenderer.on("sandobox:opencode:state", handler)
+      return () => ipcRenderer.removeListener("sandobox:opencode:state", handler)
+    },
   },
   db: {
     getSandboxById: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:getById", id),

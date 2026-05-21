@@ -17,6 +17,8 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
   const [selectedModelId, setSelectedModelId] = useState<string>("")
   const [showIntermediate, setShowIntermediate] = useState(false)
   const [busyMessage, setBusyMessage] = useState<string | null>(null)
+  const [sessionFilter, setSessionFilter] = useState("")
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const {
     messages,
@@ -118,8 +120,10 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
     }
   }
 
-  const handleDeleteSession = async (sessionId: string) => {
-    await deleteSession(sessionId)
+  const handleDeleteSession = async () => {
+    if (!deleteConfirmId) return
+    await deleteSession(deleteConfirmId)
+    setDeleteConfirmId(null)
   }
 
   const handleNewSession = async () => {
@@ -408,6 +412,15 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
             </div>
           </div>
 
+          <div className="sessions-filter">
+            <input
+              type="text"
+              placeholder="Filter sessions..."
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+            />
+          </div>
+
           {showNewSessionForm && (
             <div className="sessions-new-form">
               <input
@@ -460,12 +473,14 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
           )}
 
           <div className="sessions-list">
-            {sessions.length === 0 && (
+            {sessions.filter((s) => s.title.toLowerCase().includes(sessionFilter.toLowerCase())).length === 0 && (
               <div className="sessions-empty">
-                No sessions yet. Create one to start.
+                {sessionFilter ? "No sessions match your filter." : "No sessions yet. Create one to start."}
               </div>
             )}
-            {sessions.map((session) => (
+            {sessions
+              .filter((s) => s.title.toLowerCase().includes(sessionFilter.toLowerCase()))
+              .map((session) => (
               <div
                 key={session.id}
                 className={`sessions-item ${session.id === selectedSessionId ? "active" : ""}`}
@@ -488,7 +503,7 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
                   className="sessions-item-delete"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleDeleteSession(session.id)
+                    setDeleteConfirmId(session.id)
                   }}
                   title="Delete session"
                 >
@@ -523,6 +538,25 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
           </div>
         </div>
       </div>
+
+      {deleteConfirmId && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">Delete session</div>
+            <div className="modal-body">
+              Are you sure you want to delete this session? This action cannot be undone.
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-sm" onClick={() => setDeleteConfirmId(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger btn-sm" onClick={handleDeleteSession}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

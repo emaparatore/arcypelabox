@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import {
   listSandboxes,
   createSandbox,
+  updateSandbox,
   startSandbox,
   stopSandbox,
   removeSandbox,
@@ -27,7 +28,9 @@ import {
 import {
   initDatabase,
   createSandboxRecord,
+  updateSandboxRecord,
   getSandboxRecord,
+  getSandboxRecordFull,
   getSandboxByContainerId,
   listSandboxRecords,
   deleteSandboxRecord,
@@ -113,6 +116,21 @@ app.whenReady().then(() => {
         createSandboxRecord({ ...config, sandboxId }, containerId)
       } catch (dbErr) {
         console.error("[create] DB save failed (non-critical):", dbErr)
+      }
+      return { sandboxId, containerId }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:update", async (_event, sandboxId, config) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      const containerId = await updateSandbox(sandboxId, config)
+      try {
+        updateSandboxRecord(sandboxId, { ...config, sandboxId }, containerId)
+      } catch (dbErr) {
+        console.error("[update] DB save failed (non-critical):", dbErr)
       }
       return { sandboxId, containerId }
     } catch (err) {
@@ -247,6 +265,15 @@ app.whenReady().then(() => {
       if (!record) return null
       const { providers: _, ...safe } = record as Record<string, unknown>
       return safe
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:getFullRecord", async (_event, id) => {
+    try {
+      validateString(id, "sandboxId")
+      return getSandboxRecordFull(id)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

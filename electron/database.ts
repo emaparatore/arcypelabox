@@ -52,6 +52,7 @@ function createTables(): void {
       providers TEXT,
       permissions TEXT NOT NULL DEFAULT '{}',
       generated_dockerfile TEXT NOT NULL,
+      git_config TEXT,
       docker_container_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -99,11 +100,15 @@ export function createSandboxRecord(config: SandboxConfig, dockerContainerId: st
     ? encrypt(JSON.stringify(config.providers))
     : null
 
+  const gitConfigJson = config.gitConfig
+    ? JSON.stringify(config.gitConfig)
+    : null
+
   db.prepare(`
     INSERT INTO sandboxes (id, name, image_tag, opencode_port, project_mount,
       runtimes, tools, services, providers,
-      permissions, generated_dockerfile, docker_container_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      permissions, generated_dockerfile, git_config, docker_container_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     config.name,
@@ -116,6 +121,7 @@ export function createSandboxRecord(config: SandboxConfig, dockerContainerId: st
     providersJson,
     JSON.stringify(config.permissions),
     config.generatedDockerfile,
+    gitConfigJson,
     dockerContainerId,
     now,
     now,
@@ -147,6 +153,7 @@ function parseRecord(row: Record<string, unknown>): Record<string, unknown> {
     tools: JSON.parse(row.tools as string),
     services: JSON.parse(row.services as string),
     permissions: JSON.parse(row.permissions as string),
+    git_config: row.git_config ? JSON.parse(row.git_config as string) : null,
   }
 }
 
@@ -157,6 +164,56 @@ export function listSandboxRecords(): Record<string, unknown>[] {
 
 export function deleteSandboxByContainerId(containerId: string): void {
   db.prepare("DELETE FROM sandboxes WHERE docker_container_id = ?").run(containerId)
+}
+
+export function updateSandboxRecord(
+  id: string,
+  config: SandboxConfig,
+  dockerContainerId: string,
+): void {
+  const now = new Date().toISOString()
+  const providersJson = config.providers && config.providers.length > 0
+    ? encrypt(JSON.stringify(config.providers))
+    : null
+
+  const gitConfigJson = config.gitConfig
+    ? JSON.stringify(config.gitConfig)
+    : null
+
+  db.prepare(`
+    UPDATE sandboxes SET
+      name = ?, image_tag = ?, opencode_port = ?, project_mount = ?,
+      runtimes = ?, tools = ?, services = ?, providers = ?,
+      permissions = ?, generated_dockerfile = ?, git_config = ?,
+      docker_container_id = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    config.name,
+    config.image,
+    config.opencodePort,
+    config.projectMount ?? null,
+    JSON.stringify(config.runtimes),
+    JSON.stringify(config.tools),
+    JSON.stringify(config.services),
+    providersJson,
+    JSON.stringify(config.permissions),
+    config.generatedDockerfile,
+    gitConfigJson,
+    dockerContainerId,
+    now,
+    id,
+  )
+}
+
+export function getSandboxRecordFull(id: string): Record<string, unknown> | null {
+  const row = db.prepare("SELECT * FROM sandboxes WHERE id = ?").get(id) as Record<string, unknown> | undefined
+  if (!row) return null
+  const parsed = parseRecord(row)
+  const providers = getDecryptedProviders(id)
+  if (providers) {
+    parsed.providers = providers
+  }
+  return parsed
 }
 
 export function getDecryptedProviders(sandboxId: string): Array<{ id: string; apiKey: string }> | null {

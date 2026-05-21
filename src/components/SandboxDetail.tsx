@@ -7,11 +7,12 @@ interface Props {
   sandboxId: string
   onRefresh: () => void
   onDeleted: () => void
+  onEdit?: () => void
 }
 
 type Tab = "info" | "logs" | "opencode"
 
-export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted }: Props) {
+export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit }: Props) {
   const [tab, setTab] = useState<Tab>("info")
   const [logs, setLogs] = useState<ContainerLog[]>([])
   const [loading, setLoading] = useState(false)
@@ -137,6 +138,9 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted }: Prop
               </button>
               <button className="btn" onClick={onRefresh}>
                 Refresh
+              </button>
+              <button className="btn" onClick={() => onEdit?.()} disabled={loading}>
+                Edit
               </button>
             </div>
           </div>

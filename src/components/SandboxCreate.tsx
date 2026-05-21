@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import type {
   ProviderConfig,
   SandboxConfig,
+  SandboxRecord,
   SandboxRuntime,
   SandboxService,
   SandboxTool,
@@ -18,6 +19,7 @@ import {
 interface Props {
   onCreated: () => void
   onCancel: () => void
+  editRecord?: SandboxRecord | null
 }
 
 type Step = 0 | 1 | 2 | 3
@@ -88,7 +90,7 @@ function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value]
 }
 
-export function SandboxCreate({ onCreated, onCancel }: Props) {
+export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
   const [image, setImage] = useState("sandobox-base:latest")
@@ -126,6 +128,32 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
   const [generatedDockerfile, setGeneratedDockerfile] = useState("")
   const [customCommands, setCustomCommands] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showWarning, setShowWarning] = useState(true)
+  const [showDockerWarning, setShowDockerWarning] = useState(true)
+
+  useEffect(() => {
+    if (!editRecord) return
+    setShowWarning(true)
+    setName(editRecord.name)
+    setImage(editRecord.image_tag)
+    setOpencodePort(editRecord.opencode_port)
+    setProjectMount(editRecord.project_mount ?? "")
+    setRuntimes(editRecord.runtimes)
+    setTools(editRecord.tools)
+    setServices(editRecord.services)
+    if (editRecord.providers && editRecord.providers.length > 0) {
+      setProviders(editRecord.providers.map((p) => ({ id: p.id, apiKey: p.apiKey })))
+    }
+    if (editRecord.permissions) {
+      setPermissions((prev) => ({ ...prev, ...editRecord.permissions }))
+    }
+    if (editRecord.git_config) {
+      setGitUserName(editRecord.git_config.userName ?? "")
+      setGitUserEmail(editRecord.git_config.userEmail ?? "")
+      setGitAutocrlf((editRecord.git_config.autocrlf as "input" | "true" | "false") ?? "input")
+    }
+    setCustomCommands("")
+  }, [editRecord])
 
   const gitConfig = tools.includes("git")
     ? { userName: gitUserName, userEmail: gitUserEmail, autocrlf: gitAutocrlf }
@@ -202,7 +230,9 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
     }
 
     try {
-      const result = await window.sandobox.createSandbox(config)
+      const result = editRecord
+        ? await window.sandobox.updateSandbox(editRecord.id, config)
+        : await window.sandobox.createSandbox(config)
       if (result && typeof result === "object" && !("error" in result)) {
         setError(null)
         onCreated()
@@ -224,10 +254,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
     <div className="wizard-shell">
       <div className="wizard-header">
         <div>
-          <h2>Create Sandbox</h2>
+          <h2>{editRecord ? "Edit Sandbox" : "Create Sandbox"}</h2>
           <p>
-            Start from a minimal OpenCode-ready template, then layer runtimes, tools and
-            services.
+            {editRecord
+              ? "Modify the sandbox configuration. The container will be rebuilt from scratch."
+              : "Start from a minimal OpenCode-ready template, then layer runtimes, tools and services."}
           </p>
         </div>
         <div className="wizard-steps">
@@ -246,6 +277,47 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
       </div>
 
       <div className="wizard-body">
+        {editRecord && showWarning && (
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "flex-start",
+              padding: "12px 16px",
+              marginBottom: 16,
+              border: "1px solid var(--warning, #f0a030)",
+              borderRadius: 6,
+              background: "rgba(240, 160, 48, 0.1)",
+              color: "var(--warning, #f0a030)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <strong>⚠️ Sandbox will be recreated.</strong> Any changes made inside the
+              container outside of Arcypelabox (installed packages, modified files, etc.)
+              will be lost. Your mounted project folder <code>/workspace</code> will not be
+              affected.
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowWarning(false)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--warning, #f0a030)",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 0,
+                opacity: 0.7,
+              }}
+              aria-label="Close warning"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {step === 0 && (
           <div className="wizard-panel">
             <div className="template-card selected">
@@ -390,11 +462,32 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
               <summary style={{ fontWeight: 600, fontSize: 14, marginBottom: showAdvanced ? 12 : 0 }}>
                 Advanced: Custom Dockerfile commands
               </summary>
-              <div style={{ fontSize: 12, color: "var(--danger)", marginBottom: 8, padding: "6px 10px", border: "1px solid var(--danger)", borderRadius: 6, background: "rgba(var(--danger-rgb, 255, 80, 80), 0.08)" }}>
-                ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
-                You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
-                or compromise your system.
-              </div>
+              {showDockerWarning && (
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--warning, #f0a030)", marginBottom: 8, padding: "6px 10px", border: "1px solid var(--warning, #f0a030)", borderRadius: 6, background: "rgba(240, 160, 48, 0.1)" }}>
+                  <div style={{ flex: 1 }}>
+                    ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
+                    You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
+                    or compromise your system.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDockerWarning(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--warning, #f0a030)",
+                      cursor: "pointer",
+                      fontSize: 16,
+                      lineHeight: 1,
+                      padding: 0,
+                      opacity: 0.7,
+                    }}
+                    aria-label="Close warning"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               <textarea
                 value={customCommands}
                 onChange={(e) => setCustomCommands(e.target.value)}
@@ -611,7 +704,11 @@ export function SandboxCreate({ onCreated, onCancel }: Props) {
           </button>
         ) : (
           <button className="btn btn-primary" onClick={handleSubmit} disabled={creating}>
-            {creating ? "Building sandbox..." : "Build and Create Sandbox"}
+            {creating
+              ? "Building sandbox..."
+              : editRecord
+                ? "Build and Update Sandbox"
+                : "Build and Create Sandbox"}
           </button>
         )}
       </div>

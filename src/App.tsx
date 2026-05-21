@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import type { SandboxInfo } from "./types"
+import type { SandboxInfo, SandboxRecord } from "./types"
 import { SandboxList } from "./components/SandboxList"
 import { SandboxCreate } from "./components/SandboxCreate"
 import { SandboxDetail } from "./components/SandboxDetail"
@@ -15,6 +15,7 @@ export default function App() {
   const [view, setView] = useState<View>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingRecord, setEditingRecord] = useState<SandboxRecord | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -60,6 +61,7 @@ export default function App() {
           <button
             className="btn btn-primary btn-sm"
             onClick={() => {
+              setEditingRecord(null)
               setView("create")
               setSelectedId(null)
             }}
@@ -88,11 +90,16 @@ export default function App() {
         <main className="app-main">
           {view === "create" ? (
             <SandboxCreate
+              editRecord={editingRecord}
               onCreated={() => {
+                setEditingRecord(null)
                 refresh()
                 setView("list")
               }}
-              onCancel={() => setView("list")}
+              onCancel={() => {
+                setEditingRecord(null)
+                setView("list")
+              }}
             />
           ) : selected ? (
             <SandboxDetail
@@ -103,6 +110,14 @@ export default function App() {
                 setSelectedId(null)
                 setSelectedSandboxId(null)
                 refresh()
+              }}
+              onEdit={async () => {
+                const sid = selectedSandboxId ?? selected.id
+                const record = await window.sandobox.db.getFullSandboxRecord(sid)
+                if (record && typeof record === "object" && !("error" in record)) {
+                  setEditingRecord(record as SandboxRecord)
+                  setView("create")
+                }
               }}
             />
           ) : (

@@ -191,6 +191,7 @@ export interface SandboxRecord {
   providers: ProviderConfig[] | null
   permissions: Record<string, string>
   generated_dockerfile: string
+  git_config: Record<string, string> | null
   docker_container_id: string | null
   created_at: string
   updated_at: string
@@ -210,9 +211,10 @@ export interface CreateSandboxResult {
 }
 
 export interface SandboxWindowApi {
-  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string; gitConfig?: { userName: string; userEmail: string; autocrlf: string } }) => Promise<string>
+  generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string; gitConfig?: GitConfig }) => Promise<string>
   listSandboxes: () => Promise<SandboxInfo[] | { error: string }>
   createSandbox: (config: SandboxConfig) => Promise<CreateSandboxResult | { error: string }>
+  updateSandbox: (sandboxId: string, config: SandboxConfig) => Promise<CreateSandboxResult | { error: string }>
   startSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>
   stopSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>
   removeSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>
@@ -245,6 +247,7 @@ export interface SandboxWindowApi {
   db: {
     getSandboxById: (id: string) => Promise<SandboxRecord | null | { error: string }>
     getSandboxByContainerId: (containerId: string) => Promise<SandboxRecord | null | { error: string }>
+    getFullSandboxRecord: (id: string) => Promise<SandboxRecord | null | { error: string }>
     listSandboxes: () => Promise<SandboxRecord[] | { error: string }>
     deleteSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>
     getChatMessages: (sandboxId: string) => Promise<ChatMessage[] | { error: string }>

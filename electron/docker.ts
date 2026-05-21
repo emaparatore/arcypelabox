@@ -107,10 +107,11 @@ export interface SandboxConfig {
   generatedDockerfile: string
   projectMount?: string
   permissions: Record<string, string>
-  runtimes: Array<"node" | "python" | "dotnet">
-  tools: Array<"git" | "curl" | "wget" | "vim" | "build-essential" | "sqlite" | "pnpm" | "bun">
-  services: Array<"postgres" | "redis">
+  runtimes: string[]
+  tools: string[]
+  services: string[]
   providers?: ProviderConfig[]
+  gitConfig?: { userName: string; userEmail: string; autocrlf: string }
 }
 
 export interface SandboxInfo {
@@ -280,6 +281,34 @@ export async function stopSandbox(id: string): Promise<void> {
   const info = await container.inspect()
   const group = info.Config.Labels?.["sandobox.group"]
   await stopGroupContainers(group ?? id)
+}
+
+export async function removeSandboxBySandboxId(sandboxId: string): Promise<void> {
+  const containers = await docker.listContainers({ all: true })
+  const matches = containers.filter((c) => c.Labels?.["sandobox.id"] === sandboxId)
+  if (matches.length === 0) return
+
+  const group = matches[0].Labels?.["sandobox.group"]
+  const groupContainers = group
+    ? containers.filter((c) => c.Labels?.["sandobox.group"] === group)
+    : matches
+
+  for (const c of groupContainers) {
+    try {
+      await docker.getContainer(c.Id).remove({ force: true })
+    } catch { /* ignore */ }
+  }
+
+  if (group) {
+    try {
+      await docker.getNetwork(`${group}-net`).remove()
+    } catch { /* ignore */ }
+  }
+}
+
+export async function updateSandbox(sandboxId: string, config: SandboxConfig): Promise<string> {
+  await removeSandboxBySandboxId(sandboxId)
+  return createSandbox({ ...config, sandboxId })
 }
 
 export async function removeSandbox(id: string): Promise<void> {
@@ -518,7 +547,7 @@ const VALID_RUNTIMES = ["node", "python", "dotnet", "go", "java", "ruby", "php",
 const VALID_TOOLS = ["git", "curl", "vim", "build-essential", "sqlite", "pnpm", "bun", "nvm", "jq", "gh", "unzip", "tree", "make", "zip", "ripgrep", "cmake"]
 const VALID_SERVICES = ["postgres", "redis"]
 
-export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string; gitConfig?: { userName: string; userEmail: string; autocrlf: string } }) {
+export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: string[]; services?: string[]; customCommands?: string; gitConfig?: SandboxConfig["gitConfig"] }) {
   const runtimes = config.runtimes ?? ["node"]
   const tools = config.tools ?? ["git"]
   const services = config.services ?? []

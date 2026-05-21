@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("sandobox", {
   generateDockerfile: (config: unknown) => ipcRenderer.invoke("sandobox:generate:dockerfile", config),
   listSandboxes: () => ipcRenderer.invoke("sandobox:list"),
   createSandbox: (config: unknown) => ipcRenderer.invoke("sandobox:create", config),
+  updateSandbox: (sandboxId: string, config: unknown) => ipcRenderer.invoke("sandobox:update", sandboxId, config),
   startSandbox: (id: string) => ipcRenderer.invoke("sandobox:start", id),
   stopSandbox: (id: string) => ipcRenderer.invoke("sandobox:stop", id),
   removeSandbox: (id: string) => ipcRenderer.invoke("sandobox:remove", id),
@@ -33,6 +34,7 @@ contextBridge.exposeInMainWorld("sandobox", {
     getSandboxById: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:getById", id),
     getSandboxByContainerId: (containerId: string) =>
       ipcRenderer.invoke("sandobox:db:sandbox:getByContainerId", containerId),
+    getFullSandboxRecord: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:getFullRecord", id),
     listSandboxes: () => ipcRenderer.invoke("sandobox:db:sandbox:list"),
     deleteSandbox: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:delete", id),
     getChatMessages: (sandboxId: string) => ipcRenderer.invoke("sandobox:db:chat:list", sandboxId),

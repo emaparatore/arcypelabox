@@ -36,6 +36,17 @@ function migrateSchema(): void {
       console.log("[db] Migrated schema: added providers column")
     }
   }
+
+  const hasGitConfig = db.prepare(
+    "SELECT count(*) as cnt FROM pragma_table_info('sandboxes') WHERE name = 'git_config'",
+  ).get() as { cnt: number } | undefined
+
+  if (!hasGitConfig || hasGitConfig.cnt === 0) {
+    db.exec(`
+      ALTER TABLE sandboxes ADD COLUMN git_config TEXT;
+    `)
+    console.log("[db] Migrated schema: added git_config column")
+  }
 }
 
 function createTables(): void {
@@ -206,10 +217,13 @@ export function updateSandboxRecord(
 }
 
 export function getSandboxRecordFull(id: string): Record<string, unknown> | null {
-  const row = db.prepare("SELECT * FROM sandboxes WHERE id = ?").get(id) as Record<string, unknown> | undefined
+  let row = db.prepare("SELECT * FROM sandboxes WHERE id = ?").get(id) as Record<string, unknown> | undefined
+  if (!row) {
+    row = db.prepare("SELECT * FROM sandboxes WHERE docker_container_id = ?").get(id) as Record<string, unknown> | undefined
+  }
   if (!row) return null
   const parsed = parseRecord(row)
-  const providers = getDecryptedProviders(id)
+  const providers = getDecryptedProviders(row.id as string)
   if (providers) {
     parsed.providers = providers
   }

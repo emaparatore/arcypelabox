@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron"
 import { exec, spawn } from "child_process"
 import path from "path"
 import { randomUUID } from "node:crypto"
+import type { SandboxConfig } from "./docker.js"
 import {
   listSandboxes,
   createSandbox,
@@ -9,6 +10,7 @@ import {
   startSandbox,
   stopSandbox,
   removeSandbox,
+  removeSandboxBySandboxId,
   getSandboxLogs,
   getSandboxInfo,
   execInSandbox,
@@ -79,6 +81,44 @@ function sendToRenderer(channel: string, ...args: unknown[]) {
   }
 }
 
+async function tryRecoverSandboxRecord(id: string): Promise<Record<string, unknown> | null> {
+  const sandboxes = await listSandboxes()
+  const match = sandboxes.find((s) => s.sandboxId === id || s.id === id)
+  if (!match) return null
+
+  const info = await getSandboxInfo(match.id)
+  if (!info) return null
+
+  const sandboxId = info.sandboxId || id
+  const config: SandboxConfig = {
+    name: info.name,
+    image: info.image,
+    opencodePort: info.opencodePort || 4096,
+    projectMount: info.projectMount,
+    permissions: {
+      read: "allow", edit: "allow", write: "allow",
+      glob: "allow", grep: "allow", bash: "allow",
+      task: "allow", skill: "allow", question: "allow",
+      todowrite: "allow", webfetch: "allow", websearch: "allow",
+      lsp: "allow", external_directory: "allow", doom_loop: "deny",
+    },
+    runtimes: ["node"],
+    tools: ["git"],
+    services: [],
+    generatedDockerfile: buildGeneratedDockerfile({ runtimes: ["node"], tools: ["git"] }),
+  }
+
+  try {
+    createSandboxRecord({ ...config, sandboxId }, info.id)
+    console.log("[recover] Created missing DB record for sandbox:", sandboxId)
+  } catch (err) {
+    console.error("[recover] Failed to create missing sandbox record:", err)
+    return null
+  }
+
+  return getSandboxRecordFull(sandboxId)
+}
+
 function createWindow() {
   const isDev = !app.isPackaged || process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL
   const iconPath = path.join(app.getAppPath(), "imgs", "arcypelabox-logo-round.png")
@@ -131,7 +171,13 @@ app.whenReady().then(() => {
       try {
         createSandboxRecord({ ...config, sandboxId }, containerId)
       } catch (dbErr) {
-        console.error("[create] DB save failed (non-critical):", dbErr)
+        console.error("[create] DB save failed, rolling back container:", dbErr)
+        try {
+          await removeSandboxBySandboxId(sandboxId)
+        } catch (rollbackErr) {
+          console.error("[create] Rollback also failed:", rollbackErr)
+        }
+        throw new Error("Failed to save sandbox configuration. The container has been removed.")
       }
       return { sandboxId, containerId }
     } catch (err) {
@@ -144,7 +190,12 @@ app.whenReady().then(() => {
       validateString(sandboxId, "sandboxId")
       const containerId = await updateSandbox(sandboxId, config)
       try {
-        updateSandboxRecord(sandboxId, { ...config, sandboxId }, containerId)
+        const existing = getSandboxRecordFull(sandboxId)
+        if (existing) {
+          updateSandboxRecord(sandboxId, { ...config, sandboxId }, containerId)
+        } else {
+          createSandboxRecord({ ...config, sandboxId }, containerId)
+        }
       } catch (dbErr) {
         console.error("[update] DB save failed (non-critical):", dbErr)
       }
@@ -448,7 +499,11 @@ app.whenReady().then(() => {
   ipcMain.handle("sandobox:db:sandbox:getFullRecord", async (_event, id) => {
     try {
       validateString(id, "sandboxId")
-      return getSandboxRecordFull(id)
+      let record = getSandboxRecordFull(id)
+      if (!record) {
+        record = await tryRecoverSandboxRecord(id)
+      }
+      return record
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

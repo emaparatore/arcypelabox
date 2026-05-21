@@ -290,6 +290,7 @@ export async function removeSandboxBySandboxId(sandboxId: string): Promise<void>
   if (matches.length === 0) return
 
   const group = matches[0].Labels?.["sandobox.group"]
+  const imageTag = matches[0].Image
   const groupContainers = group
     ? containers.filter((c) => c.Labels?.["sandobox.group"] === group)
     : matches
@@ -305,6 +306,20 @@ export async function removeSandboxBySandboxId(sandboxId: string): Promise<void>
       await docker.getNetwork(`${group}-net`).remove()
     } catch { /* ignore */ }
   }
+
+  await removeImage(imageTag)
+}
+
+export async function removeImage(imageTag: string): Promise<void> {
+  try {
+    const remaining = await docker.listContainers({ all: true })
+    const inUse = remaining.some((c) => c.Image === imageTag)
+    if (inUse) return
+    const image = docker.getImage(imageTag)
+    await image.remove()
+  } catch {
+    return
+  }
 }
 
 export async function updateSandbox(sandboxId: string, config: SandboxConfig): Promise<string> {
@@ -315,6 +330,7 @@ export async function updateSandbox(sandboxId: string, config: SandboxConfig): P
 export async function removeSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
   const info = await container.inspect()
+  const imageTag = info.Config.Image
   const group = info.Config.Labels?.["sandobox.group"] ?? id
   const networkName = `${group}-net`
 
@@ -334,6 +350,8 @@ export async function removeSandbox(id: string): Promise<void> {
   } catch {
     return
   }
+
+  await removeImage(imageTag)
 }
 
 export async function getSandboxLogs(id: string): Promise<ContainerLog[]> {

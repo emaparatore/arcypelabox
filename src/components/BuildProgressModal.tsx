@@ -19,8 +19,8 @@ export function BuildProgressModal({ status, logs }: Props) {
       <div className="modal build-progress-modal">
         {status === "building" ? (
           <>
+            <div className="build-progress-spinner" />
             <div className="build-progress-header">
-              <div className="build-progress-spinner" />
               <h2>Building Sandbox</h2>
             </div>
             <div className="build-log-container">

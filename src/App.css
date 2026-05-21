@@ -937,8 +937,9 @@
 }
 
 .opencode-message.user {
-  background: var(--accent);
-  color: var(--white);
+  background: rgba(var(--accent-rgb), 0.22);
+  color: var(--text);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
   align-self: flex-end;
 }
 

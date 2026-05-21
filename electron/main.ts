@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron"
-import { exec } from "child_process"
+import { exec, spawn } from "child_process"
 import path from "path"
 import { randomUUID } from "node:crypto"
 import {
@@ -413,9 +413,23 @@ app.whenReady().then(() => {
     if (typeof sessionId === "string" && sessionId.length > 0) {
       cmd += ` --session ${sessionId}`
     }
-    exec(`start cmd.exe /k "${cmd}"`, { shell: "cmd.exe" }, (err) => {
-      if (err) console.error("[open-cli] Failed to open terminal:", err)
-    })
+
+    const platform = process.platform
+    if (platform === "win32") {
+      exec(`start cmd.exe /k "${cmd}"`, { shell: "cmd.exe" })
+    } else if (platform === "darwin") {
+      const script = `tell application "Terminal" to do script "${cmd.replace(/"/g, '\\"')}"`
+      exec(`osascript -e '${script}'`)
+    } else {
+      const openTerminal = (term: string, args: string[]) => {
+        const child = spawn(term, args, { detached: true, stdio: "ignore" })
+        child.on("error", () => {})
+        child.unref()
+      }
+      openTerminal("x-terminal-emulator", ["-e", cmd])
+      openTerminal("gnome-terminal", ["--", "sh", "-c", cmd])
+      openTerminal("xterm", ["-e", cmd])
+    }
     return { success: true }
   })
 

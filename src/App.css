@@ -878,6 +878,15 @@
   flex-shrink: 0;
 }
 
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .opencode-busy-warning {
   font-size: 11px;
   color: var(--warning);
@@ -1126,8 +1135,23 @@
   padding: 10px 12px;
   border-top: 1px solid var(--border);
   display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+}
+
+.sessions-model-left {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sessions-model-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .sessions-model-label {

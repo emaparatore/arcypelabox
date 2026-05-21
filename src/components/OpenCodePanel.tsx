@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useOpenCode } from "../hooks/useOpenCode"
+import { OpenCodeCLIButton } from "./OpenCodeCLIButton"
 
 interface Props {
   sandboxId: string
@@ -514,27 +515,32 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
           </div>
 
           <div className="sessions-model-info">
-            {selectedSession && !showNewSessionForm && (
-              <>
-                <span className="sessions-model-label">Active model</span>
-                <span className="sessions-model-value">
-                  {selectedSession.model
-                    ? `${selectedSession.model.providerID}/${selectedSession.model.id}`
-                    : "Default"}
-                </span>
-              </>
-            )}
-            <label className="sessions-toggle-label">
-              <input
-                type="checkbox"
-                checked={showIntermediate}
-                onChange={(e) => {
-                  setShowIntermediate(e.target.checked)
-                  requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView())
-                }}
-              />
-              <span>Show intermediate steps</span>
-            </label>
+            <div className="sessions-model-left">
+              {selectedSession && !showNewSessionForm && (
+                <>
+                  <span className="sessions-model-label">Active model</span>
+                  <span className="sessions-model-value">
+                    {selectedSession.model
+                      ? `${selectedSession.model.providerID}/${selectedSession.model.id}`
+                      : "Default"}
+                  </span>
+                </>
+              )}
+              <label className="sessions-toggle-label">
+                <input
+                  type="checkbox"
+                  checked={showIntermediate}
+                  onChange={(e) => {
+                    setShowIntermediate(e.target.checked)
+                    requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView())
+                  }}
+                />
+                <span>Show intermediate steps</span>
+              </label>
+            </div>
+            <div className="sessions-model-right">
+              <OpenCodeCLIButton port={port} sessionId={selectedSessionId ?? undefined} className="btn-sm" />
+            </div>
           </div>
         </div>
       </div>

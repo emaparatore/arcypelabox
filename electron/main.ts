@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron"
+import { exec } from "child_process"
 import path from "path"
 import { randomUUID } from "node:crypto"
 import {
@@ -404,6 +405,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle("sandobox:opencode:shell", async (_event, port, command) => {
     return await runShell(validatePort(port), command)
+  })
+
+  ipcMain.handle("sandobox:opencode:open-cli", async (_event, port, sessionId) => {
+    const p = validatePort(port)
+    let cmd = `opencode attach http://localhost:${p}`
+    if (typeof sessionId === "string" && sessionId.length > 0) {
+      cmd += ` --session ${sessionId}`
+    }
+    exec(`start cmd.exe /k "${cmd}"`, { shell: "cmd.exe" }, (err) => {
+      if (err) console.error("[open-cli] Failed to open terminal:", err)
+    })
+    return { success: true }
   })
 
   ipcMain.handle("sandobox:db:sandbox:getById", async (_event, id) => {

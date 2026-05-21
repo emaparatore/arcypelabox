@@ -287,6 +287,7 @@ export interface SandboxWindowApi {
     runShell: (port: number, command: string) => Promise<string>
     listProviders: (port: number) => Promise<OpenCodeProviderInfo[] | { error: string }>
     subscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
+    openCLI: (port: number, sessionId?: string) => Promise<{ success: boolean } | { error: string }>
     unsubscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
     onEvent: (callback: (port: number, event: any) => void) => () => void
     onState: (callback: (port: number, state: OpenCodeEventState) => void) => () => void

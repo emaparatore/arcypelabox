@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld("sandobox", {
       ipcRenderer.invoke("sandobox:opencode:prompt-async", port, sessionId, text),
     runShell: (port: number, command: string) =>
       ipcRenderer.invoke("sandobox:opencode:shell", port, command),
+    openCLI: (port: number, sessionId?: string) =>
+      ipcRenderer.invoke("sandobox:opencode:open-cli", port, sessionId),
     listProviders: (port: number) =>
       ipcRenderer.invoke("sandobox:opencode:providers", port),
     subscribeEvents: (port: number) =>

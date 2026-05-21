@@ -1426,3 +1426,88 @@
   gap: 16px;
   color: var(--text-secondary);
 }
+
+.build-progress-modal {
+  max-width: 520px;
+}
+
+.build-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.build-progress-header h2 {
+  margin-bottom: 0;
+}
+
+.build-progress-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.build-log-container {
+  background: var(--bg-primary, #0d1117);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 360px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.build-log-scroll {
+  padding: 8px 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.build-log-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-secondary);
+}
+
+.build-current-step {
+  color: var(--brand-sun);
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.build-log-line:empty {
+  min-height: 1em;
+}
+
+.build-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.build-progress-bar {
+  height: 100%;
+  width: 30%;
+  background: var(--accent);
+  border-radius: 3px;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

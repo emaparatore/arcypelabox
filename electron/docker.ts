@@ -1,14 +1,12 @@
 import Docker from "dockerode"
 import { randomUUID } from "node:crypto"
-import { execFile } from "node:child_process"
+import { spawn } from "node:child_process"
 import { readdir, lstat, readlink, writeFile, mkdtemp, rm } from "node:fs/promises"
 import { realpathSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import path from "node:path"
-import { promisify } from "node:util"
 
 const docker = new Docker()
-const execFileAsync = promisify(execFile)
 
 async function findSymlinks(root: string, maxDepth = 12): Promise<string[]> {
   const results: string[] = []
@@ -97,6 +95,11 @@ async function validateMountPath(projectMount: string): Promise<void> {
 export interface ProviderConfig {
   id: string
   apiKey: string
+}
+
+export interface BuildProgressEvent {
+  type: "step" | "log"
+  text: string
 }
 
 export interface SandboxConfig {
@@ -190,20 +193,29 @@ async function injectApiKey(
   }
 }
 
-export async function createSandbox(config: SandboxConfig): Promise<string> {
+export async function createSandbox(config: SandboxConfig, onProgress?: (event: BuildProgressEvent) => void): Promise<string> {
   if (config.projectMount) {
+    onProgress?.({ type: "step", text: "Checking project mount path for symlinks pointing outside the directory…" })
     await validateMountPath(config.projectMount)
   }
 
   const containerName = sanitizeContainerName(config.name)
-  const image = await buildImage(config.image, config.generatedDockerfile)
+
+  onProgress?.({ type: "step", text: "Building Docker image with runtimes, tools and services…" })
+  const image = await buildImage(config.image, config.generatedDockerfile, onProgress)
+
+  onProgress?.({ type: "step", text: "Generating OpenCode configuration file with permissions and providers…" })
   const opencodeConfig = buildOpenCodeConfig(config)
   const group = createGroupName(config.name)
   const networkName = `${group}-net`
 
+  onProgress?.({ type: "step", text: "Creating isolated Docker network for the sandbox group…" })
   await ensureNetwork(networkName)
+
+  onProgress?.({ type: "step", text: "Launching sidecar service containers (Postgres, Redis…)…" })
   await ensureServiceContainers(containerName, config, group, networkName)
 
+  onProgress?.({ type: "step", text: "Creating sandbox container with port mapping and environment…" })
   const container = await docker.createContainer({
     name: containerName,
     Image: image,
@@ -250,6 +262,7 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     ],
   })
 
+  onProgress?.({ type: "step", text: "Attaching container to the sandbox network…" })
   await docker.getNetwork(networkName).connect({
     Container: container.id,
     EndpointConfig: {
@@ -257,9 +270,11 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
     },
   })
 
+  onProgress?.({ type: "step", text: "Starting container and waiting for OpenCode to boot…" })
   await container.start()
 
   if (config.providers) {
+    onProgress?.({ type: "step", text: "Injecting provider API keys into OpenCode…" })
     for (const p of config.providers) {
       injectApiKey(config.opencodePort, p.id, p.apiKey).catch((err) =>
         console.error(`[docker] injectApiKey for ${p.id} failed:`, err),
@@ -332,9 +347,10 @@ export async function removeImage(imageTag: string): Promise<void> {
   }
 }
 
-export async function updateSandbox(sandboxId: string, config: SandboxConfig): Promise<string> {
+export async function updateSandbox(sandboxId: string, config: SandboxConfig, onProgress?: (event: BuildProgressEvent) => void): Promise<string> {
+  onProgress?.({ type: "step", text: "Removing old sandbox container and image…" })
   await removeSandboxBySandboxId(sandboxId)
-  return createSandbox({ ...config, sandboxId })
+  return createSandbox({ ...config, sandboxId }, onProgress)
 }
 
 export async function removeSandbox(id: string): Promise<void> {
@@ -412,19 +428,72 @@ export async function execInSandbox(id: string, command: string): Promise<string
   })
 }
 
-async function buildImage(tag: string, dockerfile: string): Promise<string> {
+async function buildImage(tag: string, dockerfile: string, onProgress?: (event: BuildProgressEvent) => void): Promise<string> {
   const buildDir = await mkdtemp(path.join(tmpdir(), "sandobox-build-"))
 
   try {
     await writeFile(path.join(buildDir, "Dockerfile"), dockerfile, "utf8")
 
-    try {
-      await execFileAsync("docker", ["build", "-t", tag, buildDir], { windowsHide: true })
-    } catch (error) {
-      const stderr = error && typeof error === "object" && "stderr" in error ? error.stderr : ""
-      const stdout = error && typeof error === "object" && "stdout" in error ? error.stdout : ""
-      throw new Error(String(stderr || stdout || error))
-    }
+    await new Promise<void>((resolve, reject) => {
+      let stepEmitted = false
+      const proc = spawn("docker", ["build", "-t", tag, buildDir], {
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"],
+      })
+      const chunks: string[] = []
+      const onData = (chunk: Buffer) => {
+        const text = chunk.toString()
+        chunks.push(text)
+        const lines = text.split(/\r?\n/).filter(Boolean)
+        for (const line of lines) {
+          onProgress?.({ type: "log", text: line })
+
+          const trimmed = line.replace(/^#\d+\s+/, "")
+          if (/load metadata for docker\.io\/library/.test(trimmed)) {
+            if (!stepEmitted) { stepEmitted = true; onProgress?.({ type: "step", text: "Downloading base Docker image metadata…" }) }
+          } else if (/\[auth\]/.test(trimmed)) {
+            if (!stepEmitted) { stepEmitted = true; onProgress?.({ type: "step", text: "Authenticating with Docker registry…" }) }
+          } else if (/\d+\/\d+\]\s+RUN\s+/.test(trimmed)) {
+            stepEmitted = true
+            const runCmd = trimmed.replace(/.*?\]\s+RUN\s+/, "")
+            if (/apt-get update/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Installing system packages via apt-get…" })
+            } else if (/ziglang/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Downloading and installing Zig…" })
+            } else if (/packages\.microsoft/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Setting up .NET SDK…" })
+            } else if (/corepack/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Enabling pnpm package manager…" })
+            } else if (/npm install -g bun/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Installing Bun runtime…" })
+            } else if (/npm install -g n\b/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Installing Node version manager (n)…" })
+            } else if (/githubcli/.test(runCmd) || /github\.com/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Installing GitHub CLI…" })
+            } else if (/opencode-ai/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Installing OpenCode CLI…" })
+            } else if (/git config/.test(runCmd)) {
+              onProgress?.({ type: "step", text: "Configuring git…" })
+            } else {
+              onProgress?.({ type: "step", text: `Executing build step…` })
+            }
+          } else if (/exporting manifest|pushing manifest/.test(trimmed)) {
+            onProgress?.({ type: "step", text: "Finalizing Docker image layers…" })
+          }
+        }
+      }
+      proc.stdout?.on("data", onData)
+      proc.stderr?.on("data", onData)
+      proc.on("error", reject)
+      proc.on("exit", (code) => {
+        if (code === 0) {
+          resolve()
+        } else {
+          const output = chunks.join("").trim()
+          reject(new Error(output || `docker build exited with code ${code}`))
+        }
+      })
+    })
 
     return tag
   } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type {
   ProviderConfig,
   SandboxConfig,
@@ -15,6 +15,7 @@ import {
   SANDBOX_SERVICES,
   SANDBOX_TOOLS,
 } from "../types"
+import { BuildProgressModal } from "./BuildProgressModal"
 
 interface Props {
   onCreated: () => void
@@ -125,6 +126,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     doom_loop: "deny",
   })
   const [creating, setCreating] = useState(false)
+  const [buildLogs, setBuildLogs] = useState<{ type: "step" | "log"; text: string }[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [generatedDockerfile, setGeneratedDockerfile] = useState("")
@@ -165,6 +167,21 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   useEffect(() => {
     window.sandobox.generateDockerfile({ runtimes, tools, services, customCommands: customCommands || undefined, gitConfig }).then(setGeneratedDockerfile)
   }, [runtimes, tools, services, customCommands, gitConfig])
+
+  const progressCleanup = useRef<(() => void) | undefined>(undefined)
+
+  useEffect(() => {
+    if (creating) {
+      setBuildLogs([])
+      progressCleanup.current = window.sandobox.onBuildProgress((event) => {
+        setBuildLogs((prev) => [...prev, event])
+      })
+    }
+    return () => {
+      progressCleanup.current?.()
+      progressCleanup.current = undefined
+    }
+  }, [creating])
 
   const fullImage = `${IMAGE_NAME}:${imageTag}`
   const configPreview = useMemo(
@@ -269,6 +286,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   }
 
   return (
+    <>
     <div className="wizard-shell">
       <div className="wizard-header">
         <div>
@@ -744,5 +762,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         )}
       </div>
     </div>
+      {creating && <BuildProgressModal logs={buildLogs} />}
+    </>
   )
 }

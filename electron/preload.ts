@@ -59,6 +59,11 @@ contextBridge.exposeInMainWorld("sandobox", {
       return () => ipcRenderer.removeListener("sandobox:opencode:state", handler)
     },
   },
+  onBuildProgress: (callback: (event: { type: "step" | "log"; text: string }) => void) => {
+    const handler = (_event: any, data: { type: "step" | "log"; text: string }) => callback(data)
+    ipcRenderer.on("sandobox:build:progress", handler)
+    return () => ipcRenderer.removeListener("sandobox:build:progress", handler)
+  },
   db: {
     getSandboxById: (id: string) => ipcRenderer.invoke("sandobox:db:sandbox:getById", id),
     getSandboxByContainerId: (containerId: string) =>

@@ -165,10 +165,13 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle("sandobox:create", async (_event, config) => {
+  ipcMain.handle("sandobox:create", async (event, config) => {
     try {
       const sandboxId = config.sandboxId ?? randomUUID()
-      const containerId = await createSandbox({ ...config, sandboxId })
+      const containerId = await createSandbox(
+        { ...config, sandboxId },
+        (msg) => event.sender.send("sandobox:build:progress", msg),
+      )
       try {
         createSandboxRecord({ ...config, sandboxId }, containerId)
       } catch (dbErr) {
@@ -186,10 +189,14 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle("sandobox:update", async (_event, sandboxId, config) => {
+  ipcMain.handle("sandobox:update", async (event, sandboxId, config) => {
     try {
       validateString(sandboxId, "sandboxId")
-      const containerId = await updateSandbox(sandboxId, config)
+      const containerId = await updateSandbox(
+        sandboxId,
+        config,
+        (msg) => event.sender.send("sandobox:build:progress", msg),
+      )
       try {
         const existing = getSandboxRecordFull(sandboxId)
         if (existing) {

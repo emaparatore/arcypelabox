@@ -298,14 +298,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     <>
     <div className="wizard-shell">
       <div className="wizard-header">
-        <div>
-          <h2>{editRecord ? "Edit Sandbox" : "Create Sandbox"}</h2>
-          <p>
-            {editRecord
-              ? "Modify the sandbox configuration. The container will be rebuilt from scratch."
-              : "Start from a minimal OpenCode-ready template, then layer runtimes, tools and services."}
-          </p>
-        </div>
         <div className="wizard-steps">
           {STEP_TITLES.map((title, index) => (
             <button
@@ -365,6 +357,15 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         )}
         {step === 0 && (
           <div className="wizard-panel">
+            <div className="wizard-step-intro">
+              <h2>{editRecord ? "Edit Sandbox" : "Create Sandbox"}</h2>
+              <p>
+                {editRecord
+                  ? "Modify the sandbox configuration. The container will be rebuilt from scratch."
+                  : "Start from a minimal OpenCode-ready template, then layer runtimes, tools and services."}
+              </p>
+            </div>
+
             <div className="template-card selected">
               <div className="template-card-badge">Base template</div>
               <h3>OpenCode Minimal</h3>
@@ -379,42 +380,47 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               </ul>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>Sandbox Name</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
-              </div>
-              <div className="form-group">
-                <label>Image Tag</label>
-                <div className="image-tag-input">
-                  <span className="image-tag-prefix">{IMAGE_NAME}:</span>
+            <div className="wizard-divider" aria-hidden="true" />
+
+            <div className="wizard-form-block">
+              <div className="form-stack-half">
+                <div className="form-group form-group-inline">
+                  <label>Sandbox Name</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
+                </div>
+
+                <div className="form-group form-group-inline">
+                  <label>Image Tag</label>
+                  <div className="image-tag-input">
+                    <span className="image-tag-prefix">{IMAGE_NAME}:</span>
+                    <input
+                      value={imageTag}
+                      onChange={(e) => setImageTag(e.target.value)}
+                      placeholder="latest"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group form-group-inline">
+                  <label>OpenCode Port</label>
                   <input
-                    value={imageTag}
-                    onChange={(e) => setImageTag(e.target.value)}
-                    placeholder="latest"
+                    type="number"
+                    min={1024}
+                    max={65535}
+                    value={opencodePort}
+                    onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
+                  />
+                </div>
+
+                <div className="form-group form-group-inline">
+                  <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
+                  <input
+                    value={projectMount}
+                    onChange={(e) => setProjectMount(e.target.value)}
+                    placeholder="C:\Users\emapa\Desktop\my-project"
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>OpenCode Port</label>
-              <input
-                type="number"
-                min={1024}
-                max={65535}
-                value={opencodePort}
-                onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
-              <input
-                value={projectMount}
-                onChange={(e) => setProjectMount(e.target.value)}
-                placeholder="C:\Users\emapa\Desktop\my-project"
-              />
             </div>
           </div>
         )}

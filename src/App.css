@@ -347,7 +347,7 @@
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 4px;
-  color: var(--text-secondary);
+  color: var(--text);
 }
 
 .form-group input,
@@ -512,6 +512,7 @@
 .review-card h3,
 .template-card h3 {
   margin: 0;
+  color: var(--text);
 }
 
 .wizard-muted {
@@ -568,6 +569,10 @@
 .option-card strong,
 .option-card span {
   display: block;
+}
+
+.option-card strong {
+  color: var(--text);
 }
 
 .option-card span {

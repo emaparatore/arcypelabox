@@ -828,6 +828,11 @@
   gap: 8px;
 }
 
+@keyframes msg-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .opencode-message {
   padding: 10px 14px;
   border-radius: 8px;
@@ -835,6 +840,7 @@
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
+  animation: msg-fade-in 0.2s ease-out;
 }
 
 .opencode-message.user {
@@ -850,9 +856,32 @@
 
 .opencode-panel-input {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 14px;
   border-top: 1px solid var(--border);
+}
+
+.opencode-panel-input-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-send {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opencode-busy-warning {
+  font-size: 11px;
+  color: var(--warning);
+  padding: 0 4px;
 }
 
 .opencode-panel-input textarea {

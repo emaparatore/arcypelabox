@@ -16,6 +16,7 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
   const [selectedProviderId, setSelectedProviderId] = useState<string>("")
   const [selectedModelId, setSelectedModelId] = useState<string>("")
   const [showIntermediate, setShowIntermediate] = useState(false)
+  const [busyMessage, setBusyMessage] = useState<string | null>(null)
 
   const {
     messages,
@@ -69,8 +70,17 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
     }
   }, [selectedSessionId, selectedSession?.status, refreshSessionDebug, setSessionDebug])
 
+  const showBusyWarning = () => {
+    setBusyMessage("Session is busy — wait for the AI to finish before sending a new message.")
+    setTimeout(() => setBusyMessage(null), 3000)
+  }
+
   const handleSend = async () => {
     if (!input.trim() || loading || !selectedSessionId) return
+    if (selectedSession?.status === "busy") {
+      showBusyWarning()
+      return
+    }
     const text = input.trim()
     setInput("")
     await sendPrompt(text)
@@ -79,6 +89,10 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
+      if (selectedSession?.status === "busy") {
+        showBusyWarning()
+        return
+      }
       handleSend()
     }
   }
@@ -346,23 +360,32 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="opencode-panel-input">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask OpenCode to do something..."
-              disabled={!connected || loading || !selectedSessionId}
-              rows={1}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={handleSend}
-              disabled={!connected || loading || !input.trim() || !selectedSessionId}
-            >
-              Send
-            </button>
-          </div>
+      <div className="opencode-panel-input">
+        <div className="opencode-panel-input-wrapper">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask OpenCode to do something..."
+            disabled={!connected || !selectedSessionId}
+            rows={2}
+          />
+          <button
+            className="btn btn-primary btn-send"
+            onClick={handleSend}
+            disabled={!connected || loading || !input.trim() || !selectedSessionId || selectedSession?.status === "busy"}
+            title="Send message"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+        {busyMessage && (
+          <div className="opencode-busy-warning">{busyMessage}</div>
+        )}
+      </div>
         </div>
 
         <div className="opencode-sessions-panel">
@@ -490,7 +513,10 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
               <input
                 type="checkbox"
                 checked={showIntermediate}
-                onChange={(e) => setShowIntermediate(e.target.checked)}
+                onChange={(e) => {
+                  setShowIntermediate(e.target.checked)
+                  requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView())
+                }}
               />
               <span>Show intermediate steps</span>
             </label>

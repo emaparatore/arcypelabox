@@ -78,7 +78,7 @@ export async function listSessions(port: number) {
     id: s.id,
     title: s.title ?? "Untitled session",
     model: s.model ?? null,
-    status: statuses[s.id]?.type ?? "unknown",
+    status: statuses[s.id]?.type ?? "idle",
     statusMessage: statuses[s.id]?.message,
   }))
 }

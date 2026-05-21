@@ -30,9 +30,7 @@ export function useOpenCode(sandboxPort?: number) {
   const messages = selectedSessionId ? messagesBySession[selectedSessionId] ?? [] : []
 
   const scrollToBottom = useCallback(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, 0)
+    messagesEndRef.current?.scrollIntoView()
   }, [])
 
   useEffect(() => {

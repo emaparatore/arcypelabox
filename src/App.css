@@ -1429,6 +1429,11 @@
 
 .build-progress-modal {
   max-width: 520px;
+  overflow: visible;
+}
+
+.build-progress-modal.modal {
+  overflow: visible;
 }
 
 .build-progress-header {
@@ -1438,12 +1443,13 @@
 
 .build-progress-header h2 {
   margin: 0;
+  font-size: 22px;
 }
 
 .build-progress-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border);
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -1451,18 +1457,15 @@
 }
 
 .build-log-container {
-  background: var(--bg-primary, #0d1117);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  max-height: 360px;
+  margin-bottom: 22px;
+  margin-top: 22px;;
+  max-height: 150px;
   overflow: hidden;
-  margin-bottom: 16px;
+  background-color: var(--bg-secondary);
 }
 
 .build-log-scroll {
-  padding: 8px 10px;
-  max-height: 360px;
-  overflow-y: auto;
+  padding: 0px 0px;
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   line-height: 1.5;
@@ -1471,7 +1474,7 @@
 .build-log-line {
   white-space: pre-wrap;
   word-break: break-all;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .build-current-step {

@@ -515,13 +515,13 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               <h3>LLM Providers</h3>
               <p className="wizard-muted">Add one or more AI providers. API keys are injected securely via the OpenCode API after container start — never stored in env vars or image layers.</p>
               {providers.map((p, i) => (
-                <div key={i} className="form-row" style={{ alignItems: "end", marginBottom: 8 }}>
+                <div key={i} className="form-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
                   {(() => {
                     const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
                       id.toLowerCase().includes(p.id.toLowerCase()),
                     )
                     return (
-                  <div className="form-group" style={{ flex: 1 }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                     <label>Provider</label>
                     <div className="provider-combobox">
                       <input
@@ -605,7 +605,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                   </div>
                     )
                   })()}
-                  <div className="form-group" style={{ flex: 2 }}>
+                  <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
                     <label>API Key</label>
                     <input
                       type="password"
@@ -618,14 +618,17 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                       placeholder="sk-..."
                     />
                   </div>
-                  <button
-                    className="btn"
-                    type="button"
-                    onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
-                    style={{ marginBottom: 1 }}
-                  >
-                    Remove
-                  </button>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ visibility: "hidden" }}>Remove</label>
+                    <button
+                      className="btn icon-btn"
+                      type="button"
+                      onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
+                      title="Remove"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
+                    </button>
+                  </div>
                 </div>
               ))}
               <button
@@ -693,22 +696,26 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
 
       <div className="modal-actions wizard-actions">
         <button className="btn" onClick={onCancel} disabled={creating}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
           Cancel
         </button>
         <button className="btn" onClick={() => setStep((prev) => Math.max(0, prev - 1) as Step)} disabled={creating || step === 0}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4L6 8l4 4"/></svg>
           Back
         </button>
         {step < 3 ? (
           <button className="btn btn-primary" onClick={() => setStep((prev) => Math.min(3, prev + 1) as Step)} disabled={creating}>
             Next
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4l4 4-4 4"/></svg>
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={creating}>
-            {creating
-              ? "Building sandbox..."
-              : editRecord
-                ? "Build and Update Sandbox"
-                : "Build and Create Sandbox"}
+          <button className="btn btn-build" onClick={handleSubmit} disabled={creating}>
+            {creating ? (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="spinner-icon"><path d="M8 2v3"/><path d="M8 11v3"/><path d="M3.5 3.5l2 2"/><path d="M10.5 10.5l2 2"/><path d="M2 8h3"/><path d="M11 8h3"/><path d="M3.5 12.5l2-2"/><path d="M10.5 5.5l2-2"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor"/></svg>
+            )}
+            {creating ? "Building sandbox..." : editRecord ? "Build and Update Sandbox" : "Build and Create Sandbox"}
           </button>
         )}
       </div>

@@ -3,6 +3,7 @@ import type { SandboxInfo, SandboxRecord } from "./types"
 import { SandboxList } from "./components/SandboxList"
 import { SandboxCreate } from "./components/SandboxCreate"
 import { SandboxDetail } from "./components/SandboxDetail"
+import { ConfirmModal } from "./components/ConfirmModal"
 import brandLogo from "../imgs/arcypelabox-logo-round.png"
 import "./App.css"
 
@@ -16,6 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingRecord, setEditingRecord] = useState<SandboxRecord | null>(null)
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -42,6 +44,12 @@ export default function App() {
     return () => clearInterval(interval)
   }, [refresh])
 
+  useEffect(() => {
+    if (!editingRecord) {
+      setConfirmAction(null)
+    }
+  }, [editingRecord])
+
   const selected = sandboxes.find((s) => s.id === selectedId) ?? null
 
   return (
@@ -55,15 +63,22 @@ export default function App() {
           </h1>
         </div>
         <div className="app-header-actions">
-          <button className="btn btn-sm" onClick={refresh}>
-            Refresh
+          <button className="btn btn-sm icon-btn" onClick={refresh} title="Refresh">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
           </button>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => {
-              setEditingRecord(null)
-              setView("create")
-              setSelectedId(null)
+              const go = () => {
+                setEditingRecord(null)
+                setView("create")
+                setSelectedId(null)
+              }
+              if (editingRecord) {
+                setConfirmAction(() => go)
+              } else {
+                go()
+              }
             }}
           >
             + New Sandbox
@@ -79,9 +94,16 @@ export default function App() {
             loading={loading}
             error={error}
             onSelect={(id, sandboxId) => {
-              setSelectedId(id)
-              setSelectedSandboxId(sandboxId)
-              setView("list")
+              const go = () => {
+                setSelectedId(id)
+                setSelectedSandboxId(sandboxId)
+                setView("list")
+              }
+              if (view === "create") {
+                setConfirmAction(() => go)
+              } else {
+                go()
+              }
             }}
             onRefresh={refresh}
           />
@@ -97,8 +119,15 @@ export default function App() {
                 setView("list")
               }}
               onCancel={() => {
-                setEditingRecord(null)
-                setView("list")
+                const go = () => {
+                  setEditingRecord(null)
+                  setView("list")
+                }
+                if (view === "create") {
+                  setConfirmAction(() => go)
+                } else {
+                  go()
+                }
               }}
             />
           ) : selected ? (
@@ -128,6 +157,21 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {confirmAction && (
+        <ConfirmModal
+          title="Unsaved changes"
+          message="You have unsaved changes in the sandbox editor. Leaving now will discard them."
+          confirmLabel="Leave"
+          cancelLabel="Stay"
+          onConfirm={() => {
+            const action = confirmAction
+            setConfirmAction(null)
+            action()
+          }}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   )
 }

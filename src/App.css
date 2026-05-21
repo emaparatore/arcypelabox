@@ -232,9 +232,35 @@
   color: var(--white);
 }
 
+.btn-build {
+  background: var(--brand-sun);
+  border-color: var(--brand-sun);
+  color: var(--black);
+  transition: background 0.15s, border-color 0.15s, filter 0.15s;
+}
+
+.btn-build:hover {
+  background: var(--brand-sun);
+  border-color: var(--brand-sun);
+  filter: brightness(1.2);
+}
+
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
+}
+
+.btn-sm.icon-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.btn.icon-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
 }
 
 .btn:disabled {
@@ -912,6 +938,13 @@
   margin-bottom: 20px;
 }
 
+.modal-message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;
@@ -926,6 +959,10 @@
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+}
+
+.spinner-icon {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

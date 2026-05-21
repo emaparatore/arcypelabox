@@ -113,9 +113,11 @@ export default function App() {
           {view === "create" ? (
             <SandboxCreate
               editRecord={editingRecord}
-              onCreated={() => {
+              onCreated={(sandboxId, containerId) => {
                 setEditingRecord(null)
                 refresh()
+                setSelectedId(containerId)
+                setSelectedSandboxId(sandboxId)
                 setView("list")
               }}
               onCancel={() => {

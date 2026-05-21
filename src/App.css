@@ -1511,3 +1511,22 @@
     transform: translateX(400%);
   }
 }
+
+.build-success {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.build-success-icon {
+  margin-bottom: 12px;
+}
+
+.build-success h2 {
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.build-success-sub {
+  color: var(--text-secondary);
+  font-size: 14px;
+}

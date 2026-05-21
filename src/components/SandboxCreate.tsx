@@ -18,7 +18,7 @@ import {
 import { BuildProgressModal } from "./BuildProgressModal"
 
 interface Props {
-  onCreated: () => void
+  onCreated: (sandboxId: string, containerId: string) => void
   onCancel: () => void
   editRecord?: SandboxRecord | null
 }
@@ -125,8 +125,9 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     external_directory: "allow",
     doom_loop: "deny",
   })
-  const [creating, setCreating] = useState(false)
+  const [buildStatus, setBuildStatus] = useState<"idle" | "building" | "success">("idle")
   const [buildLogs, setBuildLogs] = useState<{ type: "step" | "log"; text: string }[]>([])
+  const [buildResult, setBuildResult] = useState<{ sandboxId: string; containerId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const [generatedDockerfile, setGeneratedDockerfile] = useState("")
@@ -171,7 +172,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const progressCleanup = useRef<(() => void) | undefined>(undefined)
 
   useEffect(() => {
-    if (creating) {
+    if (buildStatus === "building") {
       setBuildLogs([])
       progressCleanup.current = window.sandobox.onBuildProgress((event) => {
         setBuildLogs((prev) => [...prev, event])
@@ -181,7 +182,14 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       progressCleanup.current?.()
       progressCleanup.current = undefined
     }
-  }, [creating])
+  }, [buildStatus])
+
+  useEffect(() => {
+    if (buildStatus === "success" && buildResult) {
+      const timer = setTimeout(() => onCreated(buildResult.sandboxId, buildResult.containerId), 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [buildStatus, buildResult, onCreated])
 
   const fullImage = `${IMAGE_NAME}:${imageTag}`
   const configPreview = useMemo(
@@ -246,7 +254,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       // fall through
     }
 
-    setCreating(true)
+    setBuildStatus("building")
     setError(null)
 
     const config: SandboxConfig = {
@@ -270,14 +278,15 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         : await window.sandobox.createSandbox(config)
       if (result && typeof result === "object" && !("error" in result)) {
         setError(null)
-        onCreated()
+        setBuildResult({ sandboxId: result.sandboxId, containerId: result.containerId })
+        setBuildStatus("success")
       } else {
         setError((result as { error?: string })?.error ?? "Failed to create sandbox")
+        setBuildStatus("idle")
       }
     } catch (err) {
       setError((err as Error).message)
-    } finally {
-      setCreating(false)
+      setBuildStatus("idle")
     }
   }
 
@@ -737,32 +746,32 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       </div>
 
       <div className="modal-actions wizard-actions">
-        <button className="btn" onClick={onCancel} disabled={creating}>
+        <button className="btn" onClick={onCancel} disabled={buildStatus !== "idle"}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
           Cancel
         </button>
-        <button className="btn" onClick={() => setStep((prev) => Math.max(0, prev - 1) as Step)} disabled={creating || step === 0}>
+        <button className="btn" onClick={() => setStep((prev) => Math.max(0, prev - 1) as Step)} disabled={buildStatus !== "idle" || step === 0}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4L6 8l4 4"/></svg>
           Back
         </button>
         {step < 3 ? (
-          <button className="btn btn-primary" onClick={() => setStep((prev) => Math.min(3, prev + 1) as Step)} disabled={creating}>
+          <button className="btn btn-primary" onClick={() => setStep((prev) => Math.min(3, prev + 1) as Step)} disabled={buildStatus !== "idle"}>
             Next
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4l4 4-4 4"/></svg>
           </button>
         ) : (
-          <button className="btn btn-build" onClick={handleSubmit} disabled={creating}>
-            {creating ? (
+          <button className="btn btn-build" onClick={handleSubmit} disabled={buildStatus !== "idle"}>
+            {buildStatus === "building" ? (
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="spinner-icon"><path d="M8 2v3"/><path d="M8 11v3"/><path d="M3.5 3.5l2 2"/><path d="M10.5 10.5l2 2"/><path d="M2 8h3"/><path d="M11 8h3"/><path d="M3.5 12.5l2-2"/><path d="M10.5 5.5l2-2"/></svg>
             ) : (
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor"/></svg>
             )}
-            {creating ? "Building sandbox..." : editRecord ? "Build and Update Sandbox" : "Build and Create Sandbox"}
+            {buildStatus === "building" ? "Building sandbox..." : editRecord ? "Build and Update Sandbox" : "Build and Create Sandbox"}
           </button>
         )}
       </div>
     </div>
-      {creating && <BuildProgressModal logs={buildLogs} />}
+      {buildStatus !== "idle" && <BuildProgressModal status={buildStatus} logs={buildLogs} />}
     </>
   )
 }

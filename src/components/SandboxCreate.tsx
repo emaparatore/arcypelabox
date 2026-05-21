@@ -474,59 +474,62 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               </div>
             </div>
 
-            <details
-              className="wizard-section"
-              style={{ cursor: "pointer", marginTop: 16 }}
-              open={showAdvanced}
-              onToggle={(e) => setShowAdvanced((e.target as HTMLDetailsElement).open)}
-            >
-              <summary style={{ fontWeight: 600, fontSize: 14, marginBottom: showAdvanced ? 12 : 0 }}>
+            <div style={{ marginTop: 16 }}>
+              <button
+                className="collapsible-header"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                <span className={`collapsible-chevron ${showAdvanced ? "open" : ""}`}>&#9654;</span>
                 Advanced: Custom Dockerfile commands
-              </summary>
-              {showDockerWarning && (
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--warning, #f0a030)", marginBottom: 8, padding: "6px 10px", border: "1px solid var(--warning, #f0a030)", borderRadius: 6, background: "rgba(240, 160, 48, 0.1)" }}>
-                  <div style={{ flex: 1 }}>
-                    ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
-                    You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
-                    or compromise your system.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowDockerWarning(false)}
+              </button>
+              {showAdvanced && (
+                <>
+                  {showDockerWarning && (
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--warning, #f0a030)", marginTop: 8, marginBottom: 8, padding: "6px 10px", border: "1px solid var(--warning, #f0a030)", borderRadius: 6, background: "rgba(240, 160, 48, 0.1)" }}>
+                      <div style={{ flex: 1 }}>
+                        ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
+                        You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
+                        or compromise your system.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDockerWarning(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--warning, #f0a030)",
+                          cursor: "pointer",
+                          fontSize: 16,
+                          lineHeight: 1,
+                          padding: 0,
+                          opacity: 0.7,
+                        }}
+                        aria-label="Close warning"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  <textarea
+                    value={customCommands}
+                    onChange={(e) => setCustomCommands(e.target.value)}
+                    placeholder={`# Example: install a specific tool version\nRUN curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz\nENV PATH=/usr/local/go/bin:$PATH`}
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--warning, #f0a030)",
-                      cursor: "pointer",
-                      fontSize: 16,
-                      lineHeight: 1,
-                      padding: 0,
-                      opacity: 0.7,
+                      width: "100%",
+                      minHeight: 80,
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: 12,
+                      padding: 8,
+                      border: "1px solid var(--border)",
+                      borderRadius: 4,
+                      background: "var(--bg-secondary)",
+                      color: "var(--text-primary)",
+                      resize: "vertical",
                     }}
-                    aria-label="Close warning"
-                  >
-                    ×
-                  </button>
-                </div>
+                  />
+                </>
               )}
-              <textarea
-                value={customCommands}
-                onChange={(e) => setCustomCommands(e.target.value)}
-                placeholder={`# Example: install a specific tool version\nRUN curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz\nENV PATH=/usr/local/go/bin:$PATH`}
-                style={{
-                  width: "100%",
-                  minHeight: 80,
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: 12,
-                  padding: 8,
-                  border: "1px solid var(--border)",
-                  borderRadius: 4,
-                  background: "var(--bg-secondary)",
-                  color: "var(--text-primary)",
-                  resize: "vertical",
-                }}
-              />
-            </details>
+            </div>
           </div>
         )}
 

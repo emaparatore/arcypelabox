@@ -428,73 +428,70 @@ export async function execInSandbox(id: string, command: string): Promise<string
   })
 }
 
-async function buildImage(tag: string, dockerfile: string, onProgress?: (event: BuildProgressEvent) => void): Promise<string> {
-  const buildDir = await mkdtemp(path.join(tmpdir(), "sandobox-build-"))
+function describeBuildStep(line: string): string | null {
+  const trimmed = line.replace(/^#\d+\s+/, "")
+  if (/load metadata for docker\.io\/library/.test(trimmed)) return "Downloading base Docker image metadata…"
+  if (/\[auth\]/.test(trimmed)) return "Authenticating with Docker registry…"
+  if (/exporting manifest|pushing manifest/.test(trimmed)) return "Finalizing Docker image layers…"
 
-  try {
-    await writeFile(path.join(buildDir, "Dockerfile"), dockerfile, "utf8")
+  const runMatch = trimmed.match(/\d+\/\d+\]\s+RUN\s+(.*)/)
+  if (!runMatch) return null
 
-    await new Promise<void>((resolve, reject) => {
-      let stepEmitted = false
-      const proc = spawn("docker", ["build", "-t", tag, buildDir], {
-        windowsHide: true,
-        stdio: ["ignore", "pipe", "pipe"],
-      })
-      const chunks: string[] = []
-      const onData = (chunk: Buffer) => {
-        const text = chunk.toString()
-        chunks.push(text)
-        const lines = text.split(/\r?\n/).filter(Boolean)
-        for (const line of lines) {
-          onProgress?.({ type: "log", text: line })
+  const cmd = runMatch[1]
+  if (/apt-get update/.test(cmd)) return "Installing system packages via apt-get…"
+  if (/ziglang/.test(cmd)) return "Downloading and installing Zig…"
+  if (/packages\.microsoft/.test(cmd)) return "Setting up .NET SDK…"
+  if (/corepack/.test(cmd)) return "Enabling pnpm package manager…"
+  if (/npm install -g bun/.test(cmd)) return "Installing Bun runtime…"
+  if (/npm install -g n\b/.test(cmd)) return "Installing Node version manager (n)…"
+  if (/githubcli|github\.com\/cli/.test(cmd)) return "Installing GitHub CLI…"
+  if (/opencode-ai/.test(cmd)) return "Installing OpenCode CLI…"
+  if (/git config/.test(cmd)) return "Configuring git…"
+  return null
+}
 
-          const trimmed = line.replace(/^#\d+\s+/, "")
-          if (/load metadata for docker\.io\/library/.test(trimmed)) {
-            if (!stepEmitted) { stepEmitted = true; onProgress?.({ type: "step", text: "Downloading base Docker image metadata…" }) }
-          } else if (/\[auth\]/.test(trimmed)) {
-            if (!stepEmitted) { stepEmitted = true; onProgress?.({ type: "step", text: "Authenticating with Docker registry…" }) }
-          } else if (/\d+\/\d+\]\s+RUN\s+/.test(trimmed)) {
-            stepEmitted = true
-            const runCmd = trimmed.replace(/.*?\]\s+RUN\s+/, "")
-            if (/apt-get update/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Installing system packages via apt-get…" })
-            } else if (/ziglang/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Downloading and installing Zig…" })
-            } else if (/packages\.microsoft/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Setting up .NET SDK…" })
-            } else if (/corepack/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Enabling pnpm package manager…" })
-            } else if (/npm install -g bun/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Installing Bun runtime…" })
-            } else if (/npm install -g n\b/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Installing Node version manager (n)…" })
-            } else if (/githubcli/.test(runCmd) || /github\.com/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Installing GitHub CLI…" })
-            } else if (/opencode-ai/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Installing OpenCode CLI…" })
-            } else if (/git config/.test(runCmd)) {
-              onProgress?.({ type: "step", text: "Configuring git…" })
-            } else {
-              onProgress?.({ type: "step", text: `Executing build step…` })
-            }
-          } else if (/exporting manifest|pushing manifest/.test(trimmed)) {
-            onProgress?.({ type: "step", text: "Finalizing Docker image layers…" })
-          }
+function streamBuildOutput(tag: string, buildDir: string, onProgress?: (event: BuildProgressEvent) => void): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const proc = spawn("docker", ["build", "-t", tag, buildDir], {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+    const chunks: string[] = []
+    let builtStepEmitted = false
+
+    const onData = (chunk: Buffer) => {
+      const text = chunk.toString()
+      chunks.push(text)
+      for (const line of text.split(/\r?\n/).filter(Boolean)) {
+        onProgress?.({ type: "log", text: line })
+        const step = describeBuildStep(line)
+        if (step) {
+          builtStepEmitted = true
+          onProgress?.({ type: "step", text: step })
         }
       }
-      proc.stdout?.on("data", onData)
-      proc.stderr?.on("data", onData)
-      proc.on("error", reject)
-      proc.on("exit", (code) => {
-        if (code === 0) {
-          resolve()
-        } else {
-          const output = chunks.join("").trim()
-          reject(new Error(output || `docker build exited with code ${code}`))
-        }
-      })
-    })
+    }
 
+    if (!builtStepEmitted) {
+      onProgress?.({ type: "step", text: "Running docker build…" })
+    }
+
+    proc.stdout?.on("data", onData)
+    proc.stderr?.on("data", onData)
+    proc.on("error", reject)
+    proc.on("exit", (code) => {
+      if (code === 0) return resolve()
+      const output = chunks.join("").trim()
+      reject(new Error(output || `docker build exited with code ${code}`))
+    })
+  })
+}
+
+async function buildImage(tag: string, dockerfile: string, onProgress?: (event: BuildProgressEvent) => void): Promise<string> {
+  const buildDir = await mkdtemp(path.join(tmpdir(), "sandobox-build-"))
+  try {
+    await writeFile(path.join(buildDir, "Dockerfile"), dockerfile, "utf8")
+    await streamBuildOutput(tag, buildDir, onProgress)
     return tag
   } finally {
     await rm(buildDir, { recursive: true, force: true })

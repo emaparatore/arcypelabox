@@ -19,7 +19,6 @@ export function BuildProgressModal({ status, logs }: Props) {
       <div className="modal build-progress-modal">
         {status === "building" ? (
           <>
-            <div className="build-progress-spinner" />
             <div className="build-progress-header">
               <h2>Building Sandbox</h2>
             </div>
@@ -33,10 +32,8 @@ export function BuildProgressModal({ status, logs }: Props) {
                 <div ref={logEndRef} />
               </div>
             </div>
+            <div className="build-progress-spinner" />
             {currentStep && <div className="build-current-step">{currentStep.text}</div>}
-            <div className="build-progress-track">
-              <div className="build-progress-bar" />
-            </div>
           </>
         ) : (
           <div className="build-success">

@@ -15,6 +15,7 @@ import {
   getSandboxInfo,
   execInSandbox,
   buildGeneratedDockerfile,
+  checkImageExists,
 } from "./docker.js"
 import {
   abortOpenCodeSession,
@@ -584,6 +585,14 @@ app.whenReady().then(() => {
       validateString(value, "value")
       setSetting(key, value)
       return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:check:image", async (_event, tag) => {
+    try {
+      return await checkImageExists(tag)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

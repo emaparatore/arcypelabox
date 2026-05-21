@@ -310,6 +310,16 @@ export async function removeSandboxBySandboxId(sandboxId: string): Promise<void>
   await removeImage(imageTag)
 }
 
+export async function checkImageExists(tag: string): Promise<boolean> {
+  try {
+    const image = docker.getImage(tag)
+    await image.inspect()
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function removeImage(imageTag: string): Promise<void> {
   try {
     const remaining = await docker.listContainers({ all: true })

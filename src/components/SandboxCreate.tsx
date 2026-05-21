@@ -90,10 +90,12 @@ function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value]
 }
 
+const IMAGE_NAME = "arcypelabox-base"
+
 export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
-  const [image, setImage] = useState("sandobox-base:latest")
+  const [imageTag, setImageTag] = useState("latest")
   const [opencodePort, setOpencodePort] = useState(4096)
   const [projectMount, setProjectMount] = useState("")
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
@@ -135,7 +137,8 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     if (!editRecord) return
     setShowWarning(true)
     setName(editRecord.name)
-    setImage(editRecord.image_tag)
+    const colonIdx = (editRecord.image_tag ?? "").lastIndexOf(":")
+    setImageTag(colonIdx >= 0 ? editRecord.image_tag.slice(colonIdx + 1) : editRecord.image_tag || "latest")
     setOpencodePort(editRecord.opencode_port)
     setProjectMount(editRecord.project_mount ?? "")
     setRuntimes(editRecord.runtimes)
@@ -163,9 +166,10 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     window.sandobox.generateDockerfile({ runtimes, tools, services, customCommands: customCommands || undefined, gitConfig }).then(setGeneratedDockerfile)
   }, [runtimes, tools, services, customCommands, gitConfig])
 
+  const fullImage = `${IMAGE_NAME}:${imageTag}`
   const configPreview = useMemo(
     () => ({
-      image,
+      image: fullImage,
       opencodePort,
       projectMount: projectMount || null,
       runtimes,
@@ -176,7 +180,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         : null,
       ...(gitConfig ? { gitConfig } : {}),
     }),
-    [image, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig]
+    [fullImage, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig]
   )
 
   const handleSubmit = async () => {
@@ -201,7 +205,8 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return
     }
 
-    if (!image.trim()) {
+    const trimmedTag = imageTag.trim()
+    if (!trimmedTag) {
       setError("Image tag is required")
       return
     }
@@ -211,12 +216,25 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return
     }
 
+    const fullImage = `${IMAGE_NAME}:${trimmedTag}`
+    try {
+      const exists = await window.sandobox.checkImage(fullImage)
+      if (typeof exists === "object" && "error" in exists) {
+        // check itself failed — continue, docker build will surface the real issue
+      } else if (exists) {
+        setError(`An image with tag "${trimmedTag}" already exists in Docker. Please use a different tag.`)
+        return
+      }
+    } catch {
+      // fall through
+    }
+
     setCreating(true)
     setError(null)
 
     const config: SandboxConfig = {
       name: trimmedName,
-      image: image.trim(),
+      image: fullImage,
       opencodePort,
       generatedDockerfile,
       permissions,
@@ -341,11 +359,14 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               </div>
               <div className="form-group">
                 <label>Image Tag</label>
-                <input
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="sandobox-base:latest"
-                />
+                <div className="image-tag-input">
+                  <span className="image-tag-prefix">{IMAGE_NAME}:</span>
+                  <input
+                    value={imageTag}
+                    onChange={(e) => setImageTag(e.target.value)}
+                    placeholder="latest"
+                  />
+                </div>
               </div>
             </div>
 

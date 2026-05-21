@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import type { SandboxInfo, ContainerLog } from "../types"
+import type { SandboxInfo, SandboxRecord, ContainerLog } from "../types"
 import { OpenCodePanel } from "./OpenCodePanel"
 import { OpenCodeCLIButton } from "./OpenCodeCLIButton"
 import { ConfirmModal } from "./ConfirmModal"
@@ -21,6 +21,9 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<ConfirmAction>(null)
+  const [fullRecord, setFullRecord] = useState<SandboxRecord | null>(null)
+  const [showDockerfile, setShowDockerfile] = useState(false)
+  const [showCompose, setShowCompose] = useState(false)
 
   const fetchLogs = useCallback(async () => {
     const result = await window.sandobox.getSandboxLogs(sandbox.id)
@@ -32,6 +35,17 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
   useEffect(() => {
     if (tab === "logs") fetchLogs()
   }, [tab, fetchLogs])
+
+  useEffect(() => {
+    let cancelled = false
+    const sid = sandbox.sandboxId || sandboxId
+    window.sandobox.db.getFullSandboxRecord(sid).then((rec) => {
+      if (!cancelled && rec && typeof rec === "object" && !("error" in rec)) {
+        setFullRecord(rec as SandboxRecord)
+      }
+    })
+    return () => { cancelled = true }
+  }, [sandbox.sandboxId, sandboxId])
 
   const handleStart = async () => {
     setLoading(true)
@@ -75,6 +89,42 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
     }
   }
 
+  function generateCompose(): string {
+    if (!fullRecord) return ""
+    const lines: string[] = []
+    lines.push("services:")
+    lines.push(`  ${fullRecord.name || "sandbox"}:`)
+    lines.push(`    image: ${fullRecord.image_tag}`)
+    lines.push(`    container_name: ${fullRecord.name || "sandbox"}`)
+    lines.push(`    ports:`)
+    lines.push(`      - "${fullRecord.opencode_port}:${fullRecord.opencode_port}"`)
+    if (fullRecord.project_mount) {
+      lines.push(`    volumes:`)
+      lines.push(`      - ${fullRecord.project_mount}:/workspace`)
+    }
+    lines.push(`    environment:`)
+    lines.push(`      - OPENCODE_PORT=${fullRecord.opencode_port}`)
+    if (fullRecord.services.includes("postgres")) {
+      lines.push("")
+      lines.push(`  postgres:`)
+      lines.push(`    image: postgres:16-alpine`)
+      lines.push(`    environment:`)
+      lines.push(`      POSTGRES_USER: sandbox`)
+      lines.push(`      POSTGRES_PASSWORD: sandbox`)
+      lines.push(`      POSTGRES_DB: sandbox`)
+      lines.push(`    ports:`)
+      lines.push(`      - "5432:5432"`)
+    }
+    if (fullRecord.services.includes("redis")) {
+      lines.push("")
+      lines.push(`  redis:`)
+      lines.push(`    image: redis:7-alpine`)
+      lines.push(`    ports:`)
+      lines.push(`      - "6379:6379"`)
+    }
+    return lines.join("\n")
+  }
+
   const isRunning = sandbox.status === "running"
 
   return (
@@ -101,32 +151,77 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
 
       {tab === "info" && (
         <>
-          <div className="sandbox-detail-section">
-            <h3>Details</h3>
-            <div style={{ display: "grid", gap: 8, fontSize: 14 }}>
-              <div>
-                <strong>ID:</strong> {sandbox.id.slice(0, 12)}...
-              </div>
-              <div>
-                <strong>Image:</strong> {sandbox.image}
-              </div>
-              <div>
-                <strong>OpenCode Port:</strong> {sandbox.opencodePort}
-              </div>
-              <div>
-                <strong>Project Mount:</strong> {sandbox.projectMount || "None"}
-              </div>
-              <div>
-                <strong>Status:</strong> {sandbox.status}
-              </div>
-              <div>
-                <strong>Created:</strong> {new Date(sandbox.createdAt).toLocaleString()}
-              </div>
+          <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+            <div className="info-grid">
+              <div><span className="info-label">Container ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.id}</span></div>
+              <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
+              <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
+              <div><span className="info-label">Port</span><span className="info-value">{sandbox.opencodePort}</span></div>
+              <div><span className="info-label">Mount</span><span className="info-value">{sandbox.projectMount || "None"}</span></div>
+              <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
+              <div><span className="info-label">Created</span><span className="info-value">{new Date(sandbox.createdAt).toLocaleString()}</span></div>
+              {fullRecord && <div><span className="info-label">Updated</span><span className="info-value">{new Date(fullRecord.updated_at).toLocaleString()}</span></div>}
+              {fullRecord?.docker_container_id && <div><span className="info-label">Docker ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{fullRecord.docker_container_id}</span></div>}
             </div>
           </div>
 
+          {fullRecord && (
+            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+              <div className="info-grid">
+                {fullRecord.runtimes.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Runtimes</span><span className="info-value">{fullRecord.runtimes.join(", ")}</span></div>
+                )}
+                {fullRecord.tools.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Tools</span><span className="info-value">{fullRecord.tools.join(", ")}</span></div>
+                )}
+                {fullRecord.services.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Services</span><span className="info-value">{fullRecord.services.join(", ")}</span></div>
+                )}
+                {fullRecord.git_config && Object.keys(fullRecord.git_config).length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Git Config</span><span className="info-value">{Object.entries(fullRecord.git_config).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
+                )}
+                {fullRecord.providers && fullRecord.providers.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Providers</span><span className="info-value">{fullRecord.providers.map((p) => p.id).join(", ")}</span></div>
+                )}
+                {fullRecord.permissions && Object.keys(fullRecord.permissions).length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Permissions</span><span className="info-value">{Object.entries(fullRecord.permissions).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {fullRecord?.generated_dockerfile && (
+            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+              <button
+                className="collapsible-header"
+                onClick={() => setShowDockerfile(!showDockerfile)}
+              >
+                <span className={`collapsible-chevron ${showDockerfile ? "open" : ""}`}>&#9654;</span>
+                Dockerfile
+              </button>
+              {showDockerfile && (
+                <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
+              )}
+            </div>
+          )}
+
+          {fullRecord && (
+            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+              <button
+                className="collapsible-header"
+                onClick={() => setShowCompose(!showCompose)}
+              >
+                <span className={`collapsible-chevron ${showCompose ? "open" : ""}`}>&#9654;</span>
+                Docker Compose
+              </button>
+              {showCompose && (
+                <pre className="collapsible-content">{generateCompose()}</pre>
+              )}
+            </div>
+          )}
+
           <div className="sandbox-detail-section">
-            <h3>Actions</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Actions</h3>
             <div className="sandbox-detail-actions">
               {isRunning ? (
                 <button className="btn btn-danger icon-btn" onClick={() => setConfirming("stop")} disabled={loading} title="Stop">
@@ -163,7 +258,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
                 borderRadius: 6,
                 fontSize: 13,
                 color: "var(--success)",
-                marginTop: 16,
+                marginTop: 12,
               }}
             >
               Sandbox is running. OpenCode server available at{" "}

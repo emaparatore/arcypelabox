@@ -219,6 +219,7 @@ export async function createSandbox(config: SandboxConfig): Promise<string> {
       [`${config.opencodePort}/tcp`]: {},
     },
     HostConfig: {
+      CapDrop: ["ALL"],
       PortBindings: {
         [`${config.opencodePort}/tcp`]: [{ HostPort: config.opencodePort.toString(), HostIp: "127.0.0.1" }],
       },

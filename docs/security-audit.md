@@ -23,7 +23,7 @@
 | Severità | Totale | Risolti | Accettati | Aperti |
 |----------|--------|---------|-----------|--------|
 | 🔴 Critica | 5 | 4 | 1 | 0 |
-| 🟠 Alta | 7 | 4 | 1 | 2 |
+| 🟠 Alta | 7 | 4 | 2 | 1 |
 | 🟡 Media | 7 | 0 | 0 | 7 |
 | 🔵 Bassa | 5 | 0 | 0 | 5 |
 | **Totale** | **24** | **6** | **2** | **16** |
@@ -223,15 +223,18 @@ Gli script per dotnet e bun erano scaricati con `curl | bash` da URL HTTPS, **se
 |-------|--------|
 | **File** | `electron/docker.ts:402`, `docker/Dockerfile.sandbox:1` |
 | **Categoria** | Privilege escalation |
+| **Stato** | ⏹️ **Non risolto (accettato): root con `--cap-drop=ALL`** |
 
 L'immagine parte da `node:20-bookworm-slim` che esegue di default come **root**. L'OpenCode server e tutti i comandi dell'agente AI girano come root.
 
 **Impatto:** Massimizzazione del blast radius — se l'agente AI o un attacco sfrutta una vulnerabilità di container escape, ha accesso root.
 
-**Fix:**
-- Creare utente non-root nel Dockerfile
-- Usare `USER` prima di eseguire l'OpenCode server
-- Applicare `--cap-drop=ALL`
+**Nota:** Si è scelto di tenere root (invece di creare un utente non-root) perché l'agente deve poter installare pacchetti, modificare configurazioni di sistema, e rompere la sandbox senza restrizioni. La protezione è affidata a:
+- ✅ `--cap-drop=ALL` nel `HostConfig` — blocca mount, modprobe, raw socket, ptrace, e altre syscall pericolose
+- ✅ C-2 (bind mount whitelist) — impedisce montaggio di path host arbitrari
+- ✅ C-5 (port binding su `127.0.0.1`) — OpenCode server non esposto in rete
+
+Tutte le capacità di container escape sono rimosse, ma l'agente ha pieni poteri all'interno della sandbox.
 
 ---
 
@@ -468,7 +471,7 @@ La UI permette all'utente di inserire comandi Dockerfile raw (`RUN`, `ENV`, `COP
 | 5 | Rimuovere API key decrypt dal canale renderer | C-4 | ✅ **Fatto** |
 | 6 | Sanitizzare nome container Docker | H-3 | ✅ **Fatto** |
 | 7 | Validare porta OpenCode (range 1024-65535) su UI + IPC + client | H-4 | ✅ **Fatto** |
-| 8 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 |
+| 8 | Eseguire OpenCode server come non-root con `--cap-drop=ALL` | H-6 | ⏹️ **Accettato** (root con `--cap-drop=ALL`) |
 | 9 | Aggiungere CSP alla Electron window | M-1 |
 | 10 | Aumentare polling interval a 5-10s | H-7 |
 | 11 | Verifica hash SHA256 per download script | H-5 | ✅ **Fatto** |

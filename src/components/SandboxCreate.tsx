@@ -745,11 +745,13 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     </button>
                   </div>
                   {tools.includes("git") && (
-                    <div className="wizard-section" style={{ marginTop: 16 }}>
-                      <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
-                      <p className="wizard-muted" style={{ fontSize: 12 }}>
-                        These credentials are embedded via <code>git config --global</code> in the sandbox image.
-                      </p>
+                    <div className="wizard-section workspace-card " style={{ marginTop: 16 }}>
+                      <div className="section-title-row">
+                        <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
+                        <InfoPopover label="Show git config info">
+                          These credentials are embedded via <code>git config --global</code> in the sandbox image.
+                        </InfoPopover>
+                      </div>
                       <div className="form-row">
                         <div className="form-group">
                           <label>Git User Name</label>
@@ -772,7 +774,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                   )}
                   
                 </div>
-
               </div>
 
 

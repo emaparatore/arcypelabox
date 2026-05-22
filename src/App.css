@@ -19,6 +19,8 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  -webkit-app-region: no-drag;
+  cursor: pointer;
 }
 
 .app-brand-logo {

@@ -71,38 +71,45 @@ export default function App() {
   const selected = sandboxes.find((s) => s.id === selectedId) ?? null
   const isSidebarOverlayOpen = isCompactSidebarMode && !isSidebarCollapsed
 
+  const goToNewSandbox = useCallback(() => {
+    setEditingRecord(null)
+    setView("create")
+    setSelectedId(null)
+  }, [])
+
+  const handleNewSandbox = useCallback(() => {
+    if (editingRecord) {
+      setConfirmAction(() => goToNewSandbox)
+    } else {
+      goToNewSandbox()
+    }
+  }, [editingRecord, goToNewSandbox])
+
+  const goHome = useCallback(() => {
+    setSelectedId(null)
+    setSelectedSandboxId(null)
+    setView("list")
+  }, [])
+
+  const handleGoHome = useCallback(() => {
+    if (editingRecord) {
+      setConfirmAction(() => goHome)
+    } else {
+      goHome()
+    }
+  }, [editingRecord, goHome])
+
   return (
     <div className="app">
       <header className="app-header">
-        <div className="app-brand">
+        <div className="app-brand" onClick={handleGoHome}>
           <img className="app-brand-logo" src={brandLogo} alt="Arcypelabox logo" />
           <h1 className="app-brand-name">
             <span className="app-brand-name-primary">arcypela</span>
             <span className="app-brand-name-accent">box</span>
           </h1>
         </div>
-        <div className="app-header-actions">
-          <button className="btn btn-sm icon-btn" onClick={refresh} title="Refresh">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              const go = () => {
-                setEditingRecord(null)
-                setView("create")
-                setSelectedId(null)
-              }
-              if (editingRecord) {
-                setConfirmAction(() => go)
-              } else {
-                go()
-              }
-            }}
-          >
-            + New Sandbox
-          </button>
-        </div>
+
       </header>
 
       <div className={`app-body ${isCompactSidebarMode ? "compact-sidebar-mode" : ""}`}>
@@ -155,6 +162,7 @@ export default function App() {
                 }
               }}
               onRefresh={refresh}
+              onNewSandbox={handleNewSandbox}
             />
           )}
         </aside>
@@ -207,6 +215,9 @@ export default function App() {
             <div className="empty-state">
               <h2>Select a sandbox</h2>
               <p>Choose a sandbox from the sidebar or create a new one to get started.</p>
+              <button className="btn btn-primary btn-sm icon-btn" onClick={handleNewSandbox} title="New Sandbox" style={{ marginTop: 16 }}>
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 3v10"/><path d="M3 8h10"/></svg>
+              </button>
             </div>
           )}
         </main>

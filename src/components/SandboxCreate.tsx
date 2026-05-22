@@ -276,535 +276,538 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
 
   return (
     <>
-    <div className="wizard-shell">
-      <div className="wizard-header">
-        <div className="wizard-steps">
-          {STEP_TITLES.map((title, index) => (
-            <button
-              key={title}
-              className={`wizard-step ${step === index ? "active" : ""}`}
-              onClick={() => setStep(index as Step)}
-              type="button"
-            >
-              <span>{index + 1}</span>
-              {title}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={`wizard-body ${step === 1 ? "wizard-body-wide" : ""}`}>
-        {editRecord && showWarning && (
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              alignItems: "flex-start",
-              padding: "12px 16px",
-              marginBottom: 16,
-              border: "1px solid var(--warning, #f0a030)",
-              borderRadius: 6,
-              background: "rgba(240, 160, 48, 0.1)",
-              color: "var(--warning, #f0a030)",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <strong>⚠️ Sandbox will be recreated.</strong> Any changes made inside the
-              container outside of Arcypelabox (installed packages, modified files, etc.)
-              will be lost. Your mounted project folder <code>/workspace</code> will not be
-              affected.
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowWarning(false)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--warning, #f0a030)",
-                cursor: "pointer",
-                fontSize: 18,
-                lineHeight: 1,
-                padding: 0,
-                opacity: 0.7,
-              }}
-              aria-label="Close warning"
-            >
-              ×
-            </button>
+      <div className="wizard-shell">
+        <div className="wizard-header">
+          <div className="wizard-steps">
+            {STEP_TITLES.map((title, index) => (
+              <button
+                key={title}
+                className={`wizard-step ${step === index ? "active" : ""}`}
+                onClick={() => setStep(index as Step)}
+                type="button"
+              >
+                <span>{index + 1}</span>
+                {title}
+              </button>
+            ))}
           </div>
-        )}
-        {step === 0 && (
-          <div className="wizard-panel">
-            <div className="wizard-step-intro">
-              <h2>{editRecord ? "Edit Sandbox" : "Create Sandbox"}</h2>
-              <p>
-                {editRecord
-                  ? "Modify the sandbox configuration. The container will be rebuilt from scratch."
-                  : "Start from a minimal OpenCode-ready template, then layer runtimes, tools and services."}
-              </p>
+        </div>
+
+        <div className={`wizard-body ${step === 0 ? "wizard-body-small" : step === 1 ? "wizard-body-wide" : ""}`}>
+          {editRecord && showWarning && (
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: "flex-start",
+                padding: "12px 16px",
+                marginBottom: 16,
+                border: "1px solid var(--warning, #f0a030)",
+                borderRadius: 6,
+                background: "rgba(240, 160, 48, 0.1)",
+                color: "var(--warning, #f0a030)",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <strong>⚠️ Sandbox will be recreated.</strong> Any changes made inside the
+                container outside of Arcypelabox (installed packages, modified files, etc.)
+                will be lost. Your mounted project folder <code>/workspace</code> will not be
+                affected.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWarning(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--warning, #f0a030)",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 0,
+                  opacity: 0.7,
+                }}
+                aria-label="Close warning"
+              >
+                ×
+              </button>
             </div>
+          )}
+          {step === 0 && (
+            <div className="wizard-panel">
+              <div className="wizard-step-intro">
+                <h2>{editRecord ? "Edit Sandbox" : "Create Sandbox"}</h2>
+                <p>
+                  {editRecord
+                    ? "Modify the sandbox configuration. The container will be rebuilt from scratch."
+                    : "Start from a minimal OpenCode-ready template, then layer runtimes, tools and services."}
+                </p>
+              </div>
 
-            <div className="template-card selected">
-              <div className="template-card-badge">Base template</div>
-              <h3>OpenCode Minimal</h3>
-              <p>
-                Debian slim with Node.js, OpenCode CLI, workspace folders and room for optional
-                tooling.
-              </p>
-              <ul className="template-list">
-                <li>OpenCode preinstalled</li>
-                <li>Node.js included as part of the base</li>
-                <li>Ready for mounted local projects</li>
-              </ul>
-            </div>
+              <div className="template-card selected">
+                <div className="template-card-badge">Base template</div>
+                <h3>OpenCode Minimal</h3>
+                <p>
+                  Debian slim with Node.js, OpenCode CLI, workspace folders and room for optional
+                  tooling.
+                </p>
+                <ul className="template-list">
+                  <li>OpenCode preinstalled</li>
+                  <li>Node.js included as part of the base</li>
+                  <li>Ready for mounted local projects</li>
+                </ul>
+              </div>
 
-            <div className="wizard-divider" aria-hidden="true" />
+              <div className="wizard-divider" aria-hidden="true" />
 
-            <div className="wizard-form-block">
-              <div className="form-stack-half">
-                <div className="form-group form-group-inline">
-                  <label>Sandbox Name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
-                </div>
+              <div className="wizard-form-block">
+                <div className="form-stack-half">
+                  <div className="form-group form-group-inline">
+                    <label>Sandbox Name</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
+                  </div>
 
-                <div className="form-group form-group-inline">
-                  <label>Image Tag</label>
-                  <div className="image-tag-input">
-                    <span className="image-tag-prefix">{IMAGE_NAME}:</span>
+                  <div className="form-group form-group-inline">
+                    <label>Image Tag</label>
+                    <div className="image-tag-input">
+                      <span className="image-tag-prefix">{IMAGE_NAME}:</span>
+                      <input
+                        value={imageTag}
+                        onChange={(e) => setImageTag(e.target.value)}
+                        placeholder="latest"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group form-group-inline">
+                    <label>OpenCode Port</label>
                     <input
-                      value={imageTag}
-                      onChange={(e) => setImageTag(e.target.value)}
-                      placeholder="latest"
+                      type="number"
+                      min={1024}
+                      max={65535}
+                      value={opencodePort}
+                      onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
+                    />
+                  </div>
+
+                  <div className="form-group form-group-inline">
+                    <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
+                    <input
+                      value={projectMount}
+                      onChange={(e) => setProjectMount(e.target.value)}
+                      placeholder="C:\Users\emapa\Desktop\my-project"
                     />
                   </div>
                 </div>
-
-                <div className="form-group form-group-inline">
-                  <label>OpenCode Port</label>
-                  <input
-                    type="number"
-                    min={1024}
-                    max={65535}
-                    value={opencodePort}
-                    onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
-                  />
-                </div>
-
-                <div className="form-group form-group-inline">
-                  <label>Project Path to Mount <span style={{ color: "var(--text-secondary)" }}>(required)</span></label>
-                  <input
-                    value={projectMount}
-                    onChange={(e) => setProjectMount(e.target.value)}
-                    placeholder="C:\Users\emapa\Desktop\my-project"
-                  />
-                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 1 && (
-          <div className="wizard-panel technology-panel">
-            <div className="technology-column-header">
-              <h3>Runtimes</h3>
-              <p className="wizard-muted">Language runtimes let agents compile, run and debug project code in the languages you select. Node.js is always included in the base image.</p>
-              <input
-                className="technology-filter-input"
-                type="text"
-                placeholder="Filter runtimes…"
-                value={runtimeFilter}
-                onChange={(e) => setRuntimeFilter(e.target.value)}
-              />
-            </div>
-            <div className="technology-column-header">
-              <h3>Common Tools</h3>
-              <p className="wizard-muted">CLI utilities that agents can use inside the sandbox for editing, building, searching, compression and version control. Git is always included in the base image.</p>
-              <input
-                className="technology-filter-input"
-                type="text"
-                placeholder="Filter tools…"
-                value={toolFilter}
-                onChange={(e) => setToolFilter(e.target.value)}
-              />
-            </div>
-            <div className="technology-column-header">
-              <h3>Services</h3>
-              <p className="wizard-muted">Infrastructure services that run as separate sidecar containers on the sandbox network. Agents connect to them via the container hostname — no port mapping needed.</p>
-              <input
-                className="technology-filter-input"
-                type="text"
-                placeholder="Filter services…"
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-              />
-            </div>
-            <div className="technology-column-body compact-option-list compact-option-list-grid">
-              {SANDBOX_RUNTIMES.filter((runtime) => {
-                if (runtime === "node") return true
-                if (!runtimeFilter) return true
-                const q = runtimeFilter.toLowerCase()
-                return RUNTIME_LABELS[runtime].toLowerCase().includes(q)
-              }).map((runtime) => {
-                const selected = runtimes.includes(runtime)
-                const locked = runtime === "node"
-                return (
-                  <button
-                    key={runtime}
-                    type="button"
-                    className={`compact-option-row ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
-                    onClick={() => {
-                      if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
-                    }}
-                  >
-                    <div className="compact-option-copy">
+          {step === 1 && (
+            <div className="wizard-panel technology-panel">
+              <div className="technology-column-header">
+                <h3>Runtimes</h3>
+                <p className="wizard-muted">Language runtimes let agents compile, run and debug project code in the languages you select. Node.js is always included in the base image.</p>
+                <input
+                  className="technology-filter-input"
+                  type="text"
+                  placeholder="Filter runtimes…"
+                  value={runtimeFilter}
+                  onChange={(e) => setRuntimeFilter(e.target.value)}
+                />
+              </div>
+              <div className="technology-column-header">
+                <h3>Common Tools</h3>
+                <p className="wizard-muted">CLI utilities that agents can use inside the sandbox for editing, building, searching, compression and version control. Git is always included in the base image.</p>
+                <input
+                  className="technology-filter-input"
+                  type="text"
+                  placeholder="Filter tools…"
+                  value={toolFilter}
+                  onChange={(e) => setToolFilter(e.target.value)}
+                />
+              </div>
+              <div className="technology-column-header">
+                <h3>Services</h3>
+                <p className="wizard-muted">Infrastructure services that run as separate sidecar containers on the sandbox network. Agents connect to them via the container hostname — no port mapping needed.</p>
+                <input
+                  className="technology-filter-input"
+                  type="text"
+                  placeholder="Filter services…"
+                  value={serviceFilter}
+                  onChange={(e) => setServiceFilter(e.target.value)}
+                />
+              </div>
+              <div className="technology-column-body compact-option-list compact-option-list-grid">
+                {SANDBOX_RUNTIMES.filter((runtime) => {
+                  if (runtime === "node") return true
+                  if (!runtimeFilter) return true
+                  const q = runtimeFilter.toLowerCase()
+                  return RUNTIME_LABELS[runtime].toLowerCase().includes(q)
+                }).map((runtime) => {
+                  const selected = runtimes.includes(runtime)
+                  const locked = runtime === "node"
+                  return (
+                    <button
+                      key={runtime}
+                      type="button"
+                      className={`compact-option-row ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
+                      onClick={() => {
+                        if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
+                      }}
+                    >
+                      <div className="compact-option-copy">
+                        <div className="compact-option-title">
+                          <strong>{RUNTIME_LABELS[runtime]}</strong>
+                          {locked && <span className="option-inline-tag">Included</span>}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="technology-column-body dense-option-grid technology-tool-grid">
+                {SANDBOX_TOOLS.filter((tool) => {
+                  if (tool === "git") return true
+                  if (!toolFilter) return true
+                  const q = toolFilter.toLowerCase()
+                  return TOOL_LABELS[tool].toLowerCase().includes(q)
+                }).map((tool) => {
+                  const selected = tools.includes(tool)
+                  const locked = tool === "git"
+                  return (
+                    <button
+                      key={tool}
+                      type="button"
+                      className={`option-card dense-option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
+                      onClick={() => {
+                        if (!locked) setTools((prev) => toggleValue(prev, tool))
+                      }}
+                    >
                       <div className="compact-option-title">
-                        <strong>{RUNTIME_LABELS[runtime]}</strong>
+                        <strong>{TOOL_LABELS[tool]}</strong>
                         {locked && <span className="option-inline-tag">Included</span>}
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="technology-column-body dense-option-grid technology-tool-grid">
-              {SANDBOX_TOOLS.filter((tool) => {
-                if (tool === "git") return true
-                if (!toolFilter) return true
-                const q = toolFilter.toLowerCase()
-                return TOOL_LABELS[tool].toLowerCase().includes(q)
-              }).map((tool) => {
-                const selected = tools.includes(tool)
-                const locked = tool === "git"
-                return (
-                  <button
-                    key={tool}
-                    type="button"
-                    className={`option-card dense-option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
-                    onClick={() => {
-                      if (!locked) setTools((prev) => toggleValue(prev, tool))
-                    }}
-                  >
-                    <div className="compact-option-title">
-                      <strong>{TOOL_LABELS[tool]}</strong>
-                      {locked && <span className="option-inline-tag">Included</span>}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="technology-column-body compact-option-list compact-option-list-grid compact-option-list-services">
-              {SANDBOX_SERVICES.filter((service) => {
-                if (!serviceFilter) return true
-                const q = serviceFilter.toLowerCase()
-                return SERVICE_LABELS[service].toLowerCase().includes(q)
-              }).map((service) => {
-                const selected = services.includes(service)
-                return (
-                  <button
-                    key={service}
-                    type="button"
-                    className={`compact-option-row ${selected ? "selected" : ""}`}
-                    onClick={() => setServices((prev) => toggleValue(prev, service))}
-                  >
-                    <strong>{SERVICE_LABELS[service]}</strong>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="wizard-panel">
-            <div className="wizard-review-grid">
-              <div className="review-card">
-                <h3>Sandbox Plan</h3>
-                <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+                    </button>
+                  )
+                })}
               </div>
-              <div className="review-card">
-                <h3>Generated Dockerfile</h3>
-                <pre className="code-preview">{generatedDockerfile}</pre>
+              <div className="technology-column-body compact-option-list compact-option-list-grid compact-option-list-services">
+                {SANDBOX_SERVICES.filter((service) => {
+                  if (!serviceFilter) return true
+                  const q = serviceFilter.toLowerCase()
+                  return SERVICE_LABELS[service].toLowerCase().includes(q)
+                }).map((service) => {
+                  const selected = services.includes(service)
+                  return (
+                    <button
+                      key={service}
+                      type="button"
+                      className={`compact-option-row ${selected ? "selected" : ""}`}
+                      onClick={() => setServices((prev) => toggleValue(prev, service))}
+                    >
+                      <strong>{SERVICE_LABELS[service]}</strong>
+                    </button>
+                  )
+                })}
               </div>
             </div>
+          )}
 
-            <div style={{ marginTop: 16 }}>
-              <button
-                className="collapsible-header"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-              >
-                <span className={`collapsible-chevron ${showAdvanced ? "open" : ""}`}>&#9654;</span>
-                Advanced: Custom Dockerfile commands
-              </button>
-              {showAdvanced && (
-                <>
-                  {showDockerWarning && (
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--warning, #f0a030)", marginTop: 8, marginBottom: 8, padding: "6px 10px", border: "1px solid var(--warning, #f0a030)", borderRadius: 6, background: "rgba(240, 160, 48, 0.1)" }}>
-                      <div style={{ flex: 1 }}>
-                        ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
-                        You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
-                        or compromise your system.
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowDockerWarning(false)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "var(--warning, #f0a030)",
-                          cursor: "pointer",
-                          fontSize: 16,
-                          lineHeight: 1,
-                          padding: 0,
-                          opacity: 0.7,
-                        }}
-                        aria-label="Close warning"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )}
-                  <textarea
-                    value={customCommands}
-                    onChange={(e) => setCustomCommands(e.target.value)}
-                    placeholder={`# Example: install a specific tool version\nRUN curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz\nENV PATH=/usr/local/go/bin:$PATH`}
-                    style={{
-                      width: "100%",
-                      minHeight: 80,
-                      fontFamily: "var(--font-mono, monospace)",
-                      fontSize: 12,
-                      padding: 8,
-                      border: "1px solid var(--border)",
-                      borderRadius: 4,
-                      background: "var(--bg-secondary)",
-                      color: "var(--text-primary)",
-                      resize: "vertical",
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="wizard-panel">
-            <div className="workspace-layout">
-              <div className="wizard-section workspace-card workspace-permissions">
-                <h3>OpenCode Permissions</h3>
-                <div className="permission-grid">
-                  {PERMISSION_KEYS.map((key) => (
-                    <div key={key} className="permission-row">
-                      <label>{key}</label>
-                      <select
-                        value={permissions[key] ?? "ask"}
-                        onChange={(e) => updatePermission(key, e.target.value)}
-                      >
-                        {PERMISSION_ACTIONS.map((action) => (
-                          <option key={action} value={action}>
-                            {action}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+          {step === 3 && (
+            <div className="wizard-panel">
+              <div className="wizard-review-grid">
+                <div className="review-card">
+                  <h3>Sandbox Plan</h3>
+                  <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+                </div>
+                <div className="review-card">
+                  <h3>Generated Dockerfile</h3>
+                  <pre className="code-preview">{generatedDockerfile}</pre>
                 </div>
               </div>
 
-              <div className="wizard-section workspace-card workspace-providers">
-                <div className="section-title-row">
-                  <h3>LLM Providers</h3>
-                  <InfoPopover label="Show provider info">
-                    Add one or more AI providers. API keys are injected securely via the OpenCode API after container start - never stored in env vars or image layers.
-                  </InfoPopover>
-                </div>
-                {providers.map((p, i) => (
-                  <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-                    {(() => {
-                      const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
-                        id.toLowerCase().includes(p.id.toLowerCase()),
-                      )
-                      return (
-                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                      <label>Provider</label>
-                      <div className="provider-combobox">
-                        <input
-                          className="provider-combobox-input"
-                          value={p.id}
-                          onFocus={() => {
-                            setOpenProviderIndex(i)
-                            setHighlightedProviderOption(0)
-                          }}
-                          onBlur={() => setTimeout(() => setOpenProviderIndex((current) => (current === i ? null : current)), 120)}
-                          onChange={(e) =>
-                            {
-                              setProviders((prev) =>
-                                prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
-                              )
-                              setOpenProviderIndex(i)
-                              setHighlightedProviderOption(0)
-                            }
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "ArrowDown") {
-                              e.preventDefault()
-                              setOpenProviderIndex(i)
-                              setHighlightedProviderOption((current) =>
-                                Math.min(current + 1, Math.max(filteredProviders.length - 1, 0)),
-                              )
-                            }
-                            if (e.key === "ArrowUp") {
-                              e.preventDefault()
-                              setOpenProviderIndex(i)
-                              setHighlightedProviderOption((current) => Math.max(current - 1, 0))
-                            }
-                            if (e.key === "Enter" && openProviderIndex === i && filteredProviders[highlightedProviderOption]) {
-                              e.preventDefault()
-                              const id = filteredProviders[highlightedProviderOption]
-                              setProviders((prev) =>
-                                prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
-                              )
-                              setOpenProviderIndex(null)
-                            }
-                            if (e.key === "Escape") {
-                              setOpenProviderIndex(null)
-                            }
-                          }}
-                          placeholder="Select provider..."
-                        />
+              <div style={{ marginTop: 16 }}>
+                <button
+                  className="collapsible-header"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  <span className={`collapsible-chevron ${showAdvanced ? "open" : ""}`}>&#9654;</span>
+                  Advanced: Custom Dockerfile commands
+                </button>
+                {showAdvanced && (
+                  <>
+                    {showDockerWarning && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--warning, #f0a030)", marginTop: 8, marginBottom: 8, padding: "6px 10px", border: "1px solid var(--warning, #f0a030)", borderRadius: 6, background: "rgba(240, 160, 48, 0.1)" }}>
+                        <div style={{ flex: 1 }}>
+                          ⚠️ <strong>Warning:</strong> These commands run as <code>RUN</code> instructions during <code>docker build</code>.
+                          You are responsible for what you paste here. Malformed or malicious commands can break your sandbox
+                          or compromise your system.
+                        </div>
                         <button
                           type="button"
-                          className="provider-combobox-toggle"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setOpenProviderIndex((current) => (current === i ? null : i))
-                            setHighlightedProviderOption(0)
+                          onClick={() => setShowDockerWarning(false)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--warning, #f0a030)",
+                            cursor: "pointer",
+                            fontSize: 16,
+                            lineHeight: 1,
+                            padding: 0,
+                            opacity: 0.7,
                           }}
-                          aria-label="Toggle provider list"
+                          aria-label="Close warning"
                         >
-                          <span className="provider-combobox-caret" />
+                          ×
                         </button>
-                        {openProviderIndex === i && (
-                          <div className="provider-combobox-menu">
-                            {filteredProviders.map((id, optionIndex) => (
-                              <button
-                                key={id}
-                                type="button"
-                                className={`provider-combobox-option ${optionIndex === highlightedProviderOption || id === p.id ? "selected" : ""}`}
-                                onMouseDown={(e) => {
-                                  e.preventDefault()
-                                  setProviders((prev) =>
-                                    prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
-                                  )
-                                  setOpenProviderIndex(null)
-                                }}
-                                onMouseEnter={() => setHighlightedProviderOption(optionIndex)}
-                              >
-                                {id}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
-                    </div>
-                      )
-                    })()}
-                    <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
-                      <label>API Key</label>
-                      <input
-                        type="password"
-                        value={p.apiKey}
-                        onChange={(e) =>
-                          setProviders((prev) =>
-                            prev.map((pp, ii) => (ii === i ? { ...pp, apiKey: e.target.value } : pp)),
-                          )
-                        }
-                        placeholder="sk-..."
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label style={{ visibility: "hidden" }}>Remove</label>
-                      <button
-                        className="btn icon-btn"
-                        type="button"
-                        onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
-                        title="Remove"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
-                  style={{ marginTop: 4 }}
-                >
-                  + Add Provider
-                </button>
+                    )}
+                    <textarea
+                      value={customCommands}
+                      onChange={(e) => setCustomCommands(e.target.value)}
+                      placeholder={`# Example: install a specific tool version\nRUN curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz\nENV PATH=/usr/local/go/bin:$PATH`}
+                      style={{
+                        width: "100%",
+                        minHeight: 80,
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 12,
+                        padding: 8,
+                        border: "1px solid var(--border)",
+                        borderRadius: 4,
+                        background: "var(--bg-secondary)",
+                        color: "var(--text-primary)",
+                        resize: "vertical",
+                      }}
+                    />
+                  </>
+                )}
               </div>
             </div>
+          )}
 
-            {tools.includes("git") && (
-              <div className="wizard-section" style={{ marginTop: 16 }}>
-                <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
-                <p className="wizard-muted" style={{ fontSize: 12 }}>
-                  These credentials are embedded via <code>git config --global</code> in the sandbox image.
-                </p>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Git User Name</label>
-                    <input value={gitUserName} onChange={(e) => setGitUserName(e.target.value)} placeholder="Your Name (sandbox)" />
-                  </div>
-                  <div className="form-group">
-                    <label>Git User Email</label>
-                    <input value={gitUserEmail} onChange={(e) => setGitUserEmail(e.target.value)} placeholder="your@email.com" />
+          {step === 2 && (
+            <div className="wizard-panel">
+              <div className="workspace-layout">
+                <div className="wizard-section workspace-card workspace-permissions">
+                  <h3>OpenCode Permissions</h3>
+                  <div className="permission-grid">
+                    {PERMISSION_KEYS.map((key) => (
+                      <div key={key} className="permission-row">
+                        <label>{key}</label>
+                        <select
+                          value={permissions[key] ?? "ask"}
+                          onChange={(e) => updatePermission(key, e.target.value)}
+                        >
+                          {PERMISSION_ACTIONS.map((action) => (
+                            <option key={action} value={action}>
+                              {action}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>core.autocrlf</label>
-                  <select value={gitAutocrlf} onChange={(e) => setGitAutocrlf(e.target.value as "input" | "true" | "false")}>
-                    <option value="input">input (recommended for Linux/macOS)</option>
-                    <option value="true">true (recommended for Windows)</option>
-                    <option value="false">false (disabled)</option>
-                  </select>
+                <div>
+                  <div className="wizard-section workspace-card workspace-providers">
+                    <div className="section-title-row">
+                      <h3>LLM Providers</h3>
+                      <InfoPopover label="Show provider info">
+                        Add one or more AI providers. API keys are injected securely via the OpenCode API after container start - never stored in env vars or image layers.
+                      </InfoPopover>
+                    </div>
+                    {providers.map((p, i) => (
+                      <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                        {(() => {
+                          const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
+                            id.toLowerCase().includes(p.id.toLowerCase()),
+                          )
+                          return (
+                            <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                              <label>Provider</label>
+                              <div className="provider-combobox">
+                                <input
+                                  className="provider-combobox-input"
+                                  value={p.id}
+                                  onFocus={() => {
+                                    setOpenProviderIndex(i)
+                                    setHighlightedProviderOption(0)
+                                  }}
+                                  onBlur={() => setTimeout(() => setOpenProviderIndex((current) => (current === i ? null : current)), 120)}
+                                  onChange={(e) => {
+                                    setProviders((prev) =>
+                                      prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
+                                    )
+                                    setOpenProviderIndex(i)
+                                    setHighlightedProviderOption(0)
+                                  }
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "ArrowDown") {
+                                      e.preventDefault()
+                                      setOpenProviderIndex(i)
+                                      setHighlightedProviderOption((current) =>
+                                        Math.min(current + 1, Math.max(filteredProviders.length - 1, 0)),
+                                      )
+                                    }
+                                    if (e.key === "ArrowUp") {
+                                      e.preventDefault()
+                                      setOpenProviderIndex(i)
+                                      setHighlightedProviderOption((current) => Math.max(current - 1, 0))
+                                    }
+                                    if (e.key === "Enter" && openProviderIndex === i && filteredProviders[highlightedProviderOption]) {
+                                      e.preventDefault()
+                                      const id = filteredProviders[highlightedProviderOption]
+                                      setProviders((prev) =>
+                                        prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                                      )
+                                      setOpenProviderIndex(null)
+                                    }
+                                    if (e.key === "Escape") {
+                                      setOpenProviderIndex(null)
+                                    }
+                                  }}
+                                  placeholder="Select provider..."
+                                />
+                                <button
+                                  type="button"
+                                  className="provider-combobox-toggle"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    setOpenProviderIndex((current) => (current === i ? null : i))
+                                    setHighlightedProviderOption(0)
+                                  }}
+                                  aria-label="Toggle provider list"
+                                >
+                                  <span className="provider-combobox-caret" />
+                                </button>
+                                {openProviderIndex === i && (
+                                  <div className="provider-combobox-menu">
+                                    {filteredProviders.map((id, optionIndex) => (
+                                      <button
+                                        key={id}
+                                        type="button"
+                                        className={`provider-combobox-option ${optionIndex === highlightedProviderOption || id === p.id ? "selected" : ""}`}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault()
+                                          setProviders((prev) =>
+                                            prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                                          )
+                                          setOpenProviderIndex(null)
+                                        }}
+                                        onMouseEnter={() => setHighlightedProviderOption(optionIndex)}
+                                      >
+                                        {id}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
+                          <label>API Key</label>
+                          <input
+                            type="password"
+                            value={p.apiKey}
+                            onChange={(e) =>
+                              setProviders((prev) =>
+                                prev.map((pp, ii) => (ii === i ? { ...pp, apiKey: e.target.value } : pp)),
+                              )
+                            }
+                            placeholder="sk-..."
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ visibility: "hidden" }}>Remove</label>
+                          <button
+                            className="btn icon-btn"
+                            type="button"
+                            onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
+                            title="Remove"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12" /><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4" /><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4" /><path d="M6 7v4" /><path d="M10 7v4" /></svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
+                      style={{ marginTop: 4 }}
+                    >
+                      + Add Provider
+                    </button>
+                  </div>
+                  {tools.includes("git") && (
+                    <div className="wizard-section" style={{ marginTop: 16 }}>
+                      <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
+                      <p className="wizard-muted" style={{ fontSize: 12 }}>
+                        These credentials are embedded via <code>git config --global</code> in the sandbox image.
+                      </p>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Git User Name</label>
+                          <input value={gitUserName} onChange={(e) => setGitUserName(e.target.value)} placeholder="Your Name (sandbox)" />
+                        </div>
+                        <div className="form-group">
+                          <label>Git User Email</label>
+                          <input value={gitUserEmail} onChange={(e) => setGitUserEmail(e.target.value)} placeholder="your@email.com" />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>core.autocrlf</label>
+                        <select value={gitAutocrlf} onChange={(e) => setGitAutocrlf(e.target.value as "input" | "true" | "false")}>
+                          <option value="input">input (recommended for Linux/macOS)</option>
+                          <option value="true">true (recommended for Windows)</option>
+                          <option value="false">false (disabled)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  
                 </div>
+
               </div>
-            )}
-          </div>
-        )}
 
-        {error && <div style={{ color: "var(--danger)", marginTop: 12, fontSize: 13 }}>{error}</div>}
-      </div>
 
-      <div className="modal-actions wizard-actions">
-        <button className="btn" onClick={onCancel} disabled={buildStatus !== "idle"}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8"/><path d="M12 4l-8 8"/></svg>
-          Cancel
-        </button>
-        <button className="btn" onClick={() => setStep((prev) => Math.max(0, prev - 1) as Step)} disabled={buildStatus !== "idle" || step === 0}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4L6 8l4 4"/></svg>
-          Back
-        </button>
-        {step < 3 ? (
-          <button className="btn btn-primary" onClick={() => setStep((prev) => Math.min(3, prev + 1) as Step)} disabled={buildStatus !== "idle"}>
-            Next
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+            </div>
+          )}
+
+          {error && <div style={{ color: "var(--danger)", marginTop: 12, fontSize: 13 }}>{error}</div>}
+        </div>
+
+        <div className="modal-actions wizard-actions">
+          <button className="btn" onClick={onCancel} disabled={buildStatus !== "idle"}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4l8 8" /><path d="M12 4l-8 8" /></svg>
+            Cancel
           </button>
-        ) : (
-          <button className="btn btn-build" onClick={handleSubmit} disabled={buildStatus !== "idle"}>
-            {buildStatus === "building" ? (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="spinner-icon"><path d="M8 2v3"/><path d="M8 11v3"/><path d="M3.5 3.5l2 2"/><path d="M10.5 10.5l2 2"/><path d="M2 8h3"/><path d="M11 8h3"/><path d="M3.5 12.5l2-2"/><path d="M10.5 5.5l2-2"/></svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor"/></svg>
-            )}
-            {buildStatus === "building" ? "Building sandbox..." : editRecord ? "Build and Update Sandbox" : "Build and Create Sandbox"}
+          <button className="btn" onClick={() => setStep((prev) => Math.max(0, prev - 1) as Step)} disabled={buildStatus !== "idle" || step === 0}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4L6 8l4 4" /></svg>
+            Back
           </button>
-        )}
+          {step < 3 ? (
+            <button className="btn btn-primary" onClick={() => setStep((prev) => Math.min(3, prev + 1) as Step)} disabled={buildStatus !== "idle"}>
+              Next
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4l4 4-4 4" /></svg>
+            </button>
+          ) : (
+            <button className="btn btn-build" onClick={handleSubmit} disabled={buildStatus !== "idle"}>
+              {buildStatus === "building" ? (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="spinner-icon"><path d="M8 2v3" /><path d="M8 11v3" /><path d="M3.5 3.5l2 2" /><path d="M10.5 10.5l2 2" /><path d="M2 8h3" /><path d="M11 8h3" /><path d="M3.5 12.5l2-2" /><path d="M10.5 5.5l2-2" /></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3,2 14,8 3,14" fill="currentColor" /></svg>
+              )}
+              {buildStatus === "building" ? "Building sandbox..." : editRecord ? "Build and Update Sandbox" : "Build and Create Sandbox"}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
       {buildStatus !== "idle" && <BuildProgressModal status={buildStatus} logs={buildLogs} />}
     </>
   )

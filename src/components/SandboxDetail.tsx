@@ -184,6 +184,40 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
             </div>
           </div>
 
+          <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+            <h3 className="section-title">Workspace</h3>
+            <div className="info-grid">
+              <div><span className="info-label">OpenCode Port</span><span className="info-value">{sandbox.opencodePort}</span></div>
+              <div><span className="info-label">Mount</span><span className="info-value">{sandbox.projectMount || "None"}</span></div>
+              {fullRecord?.git_config && Object.keys(fullRecord.git_config).length > 0 && (
+                <div style={{ gridColumn: "span 2" }}><span className="info-label">Git Config</span><span className="info-value">{Object.entries(fullRecord.git_config).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
+              )}
+              {fullRecord?.permissions && Object.keys(fullRecord.permissions).length > 0 && (
+                <div style={{ gridColumn: "span 2" }}><span className="info-label">OpenCode Permissions</span><span className="info-value">{Object.entries(fullRecord.permissions).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
+              )}
+            </div>
+          </div>
+
+          {fullRecord && (fullRecord.runtimes.length > 0 || fullRecord.tools.length > 0 || fullRecord.services.length > 0 || (fullRecord.providers && fullRecord.providers.length > 0)) && (
+            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+              <h3 className="section-title">Technology</h3>
+              <div className="info-grid">
+                {fullRecord.runtimes.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Runtimes</span><span className="info-value">{fullRecord.runtimes.join(", ")}</span></div>
+                )}
+                {fullRecord.tools.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Tools</span><span className="info-value">{fullRecord.tools.join(", ")}</span></div>
+                )}
+                {fullRecord.services.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Services</span><span className="info-value">{fullRecord.services.join(", ")}</span></div>
+                )}
+                {fullRecord.providers && fullRecord.providers.length > 0 && (
+                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Providers</span><span className="info-value">{fullRecord.providers.map((p) => p.id).join(", ")}</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
           {fullRecord?.docker_container_id && (
             <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
               <h3 className="section-title">Docker</h3>
@@ -214,40 +248,6 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
                 </button>
                 {showCompose && (
                   <pre className="collapsible-content">{generateCompose()}</pre>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
-            <h3 className="section-title">Workspace</h3>
-            <div className="info-grid">
-              <div><span className="info-label">OpenCode Port</span><span className="info-value">{sandbox.opencodePort}</span></div>
-              <div><span className="info-label">Mount</span><span className="info-value">{sandbox.projectMount || "None"}</span></div>
-              {fullRecord?.git_config && Object.keys(fullRecord.git_config).length > 0 && (
-                <div style={{ gridColumn: "span 2" }}><span className="info-label">Git Config</span><span className="info-value">{Object.entries(fullRecord.git_config).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
-              )}
-              {fullRecord?.permissions && Object.keys(fullRecord.permissions).length > 0 && (
-                <div style={{ gridColumn: "span 2" }}><span className="info-label">OpenCode Permissions</span><span className="info-value">{Object.entries(fullRecord.permissions).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
-              )}
-            </div>
-          </div>
-
-          {fullRecord && (fullRecord.runtimes.length > 0 || fullRecord.tools.length > 0 || fullRecord.services.length > 0 || (fullRecord.providers && fullRecord.providers.length > 0)) && (
-            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
-              <h3 className="section-title">Technology</h3>
-              <div className="info-grid">
-                {fullRecord.runtimes.length > 0 && (
-                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Runtimes</span><span className="info-value">{fullRecord.runtimes.join(", ")}</span></div>
-                )}
-                {fullRecord.tools.length > 0 && (
-                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Tools</span><span className="info-value">{fullRecord.tools.join(", ")}</span></div>
-                )}
-                {fullRecord.services.length > 0 && (
-                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Services</span><span className="info-value">{fullRecord.services.join(", ")}</span></div>
-                )}
-                {fullRecord.providers && fullRecord.providers.length > 0 && (
-                  <div style={{ gridColumn: "span 2" }}><span className="info-label">Providers</span><span className="info-value">{fullRecord.providers.map((p) => p.id).join(", ")}</span></div>
                 )}
               </div>
             </div>

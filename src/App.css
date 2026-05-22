@@ -498,6 +498,10 @@
   overflow: hidden;
 }
 
+.wizard-body-small {
+  max-width: 800px;
+}
+
 .wizard-header {
   max-width: 1000px;
   margin: 0 auto;
@@ -572,7 +576,7 @@
 
 .workspace-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+  grid-template-columns: auto 1fr;
   gap: 16px;
   align-items: start;
 }
@@ -586,10 +590,10 @@
 }
 
 .workspace-permissions {
-  max-width: fit-content;
-  min-height: 44vh;
-  max-height: 70vh;
-  overflow-y: auto;
+ max-width: fit-content;
+    max-height: 47vh;
+    overflow-y: auto;
+
 }
 
 .workspace-providers .provider-row {

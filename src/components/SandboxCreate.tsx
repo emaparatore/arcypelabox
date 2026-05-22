@@ -84,6 +84,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
   const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
+  const [showProvidersInfo, setShowProvidersInfo] = useState(false)
   const [permissions, setPermissions] = useState<Record<string, string>>({
     read: "allow",
     edit: "allow",
@@ -114,6 +115,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [runtimeFilter, setRuntimeFilter] = useState("")
   const [toolFilter, setToolFilter] = useState("")
   const [serviceFilter, setServiceFilter] = useState("")
+  const providersInfoRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!editRecord) return
@@ -169,6 +171,19 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return () => clearTimeout(timer)
     }
   }, [buildStatus, buildResult, onCreated])
+
+  useEffect(() => {
+    if (!showProvidersInfo) return
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!providersInfoRef.current?.contains(event.target as Node)) {
+        setShowProvidersInfo(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [showProvidersInfo])
 
   const fullImage = `${IMAGE_NAME}:${imageTag}`
   const configPreview = useMemo(
@@ -589,154 +604,177 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
 
         {step === 2 && (
           <div className="wizard-panel">
-            <div className="wizard-section">
-              <h3>LLM Providers</h3>
-              <p className="wizard-muted">Add one or more AI providers. API keys are injected securely via the OpenCode API after container start — never stored in env vars or image layers.</p>
-              {providers.map((p, i) => (
-                <div key={i} className="form-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-                  {(() => {
-                    const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
-                      id.toLowerCase().includes(p.id.toLowerCase()),
-                    )
-                    return (
-                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label>Provider</label>
-                    <div className="provider-combobox">
-                      <input
-                        className="provider-combobox-input"
-                        value={p.id}
-                        onFocus={() => {
-                          setOpenProviderIndex(i)
-                          setHighlightedProviderOption(0)
-                        }}
-                        onBlur={() => setTimeout(() => setOpenProviderIndex((current) => (current === i ? null : current)), 120)}
-                        onChange={(e) =>
-                          {
-                            setProviders((prev) =>
-                              prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
-                            )
-                            setOpenProviderIndex(i)
-                            setHighlightedProviderOption(0)
-                          }
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault()
-                            setOpenProviderIndex(i)
-                            setHighlightedProviderOption((current) =>
-                              Math.min(current + 1, Math.max(filteredProviders.length - 1, 0)),
-                            )
-                          }
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault()
-                            setOpenProviderIndex(i)
-                            setHighlightedProviderOption((current) => Math.max(current - 1, 0))
-                          }
-                          if (e.key === "Enter" && openProviderIndex === i && filteredProviders[highlightedProviderOption]) {
-                            e.preventDefault()
-                            const id = filteredProviders[highlightedProviderOption]
-                            setProviders((prev) =>
-                              prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
-                            )
-                            setOpenProviderIndex(null)
-                          }
-                          if (e.key === "Escape") {
-                            setOpenProviderIndex(null)
-                          }
-                        }}
-                        placeholder="Select provider..."
-                      />
-                      <button
-                        type="button"
-                        className="provider-combobox-toggle"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setOpenProviderIndex((current) => (current === i ? null : i))
-                          setHighlightedProviderOption(0)
-                        }}
-                        aria-label="Toggle provider list"
+            <div className="workspace-layout">
+              <div className="wizard-section workspace-card workspace-permissions">
+                <h3>OpenCode Permissions</h3>
+                <div className="permission-grid">
+                  {PERMISSION_KEYS.map((key) => (
+                    <div key={key} className="permission-row">
+                      <label>{key}</label>
+                      <select
+                        value={permissions[key] ?? "ask"}
+                        onChange={(e) => updatePermission(key, e.target.value)}
                       >
-                        <span className="provider-combobox-caret" />
-                      </button>
-                      {openProviderIndex === i && (
-                        <div className="provider-combobox-menu">
-                          {filteredProviders.map((id, optionIndex) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className={`provider-combobox-option ${optionIndex === highlightedProviderOption || id === p.id ? "selected" : ""}`}
-                              onMouseDown={(e) => {
-                                e.preventDefault()
-                                setProviders((prev) =>
-                                  prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
-                                )
-                                setOpenProviderIndex(null)
-                              }}
-                              onMouseEnter={() => setHighlightedProviderOption(optionIndex)}
-                            >
-                              {id}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                        {PERMISSION_ACTIONS.map((action) => (
+                          <option key={action} value={action}>
+                            {action}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-                    )
-                  })()}
-                  <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
-                    <label>API Key</label>
-                    <input
-                      type="password"
-                      value={p.apiKey}
-                      onChange={(e) =>
-                        setProviders((prev) =>
-                          prev.map((pp, ii) => (ii === i ? { ...pp, apiKey: e.target.value } : pp)),
-                        )
-                      }
-                      placeholder="sk-..."
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ visibility: "hidden" }}>Remove</label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="wizard-section workspace-card workspace-providers">
+                <div className="section-title-row">
+                  <h3>LLM Providers</h3>
+                  <div className="section-info" ref={providersInfoRef}>
                     <button
-                      className="btn icon-btn"
                       type="button"
-                      onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
-                      title="Remove"
+                      className="section-info-btn"
+                      aria-label="Show provider info"
+                      aria-expanded={showProvidersInfo}
+                      onClick={() => setShowProvidersInfo((current) => !current)}
                     >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="8" cy="8" r="5.5" />
+                        <path d="M8 7.25v3.5" />
+                        <path d="M8 4.75h.01" />
+                      </svg>
                     </button>
+                    {showProvidersInfo && (
+                      <div className="section-info-popover">
+                        Add one or more AI providers. API keys are injected securely via the OpenCode API after container start - never stored in env vars or image layers.
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-              <button
-                className="btn"
-                type="button"
-                onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
-                style={{ marginTop: 4 }}
-              >
-                + Add Provider
-              </button>
-            </div>
-
-            <div className="wizard-section">
-              <h3>OpenCode Permissions</h3>
-              <div className="permission-grid">
-                {PERMISSION_KEYS.map((key) => (
-                  <div key={key} className="permission-row">
-                    <label>{key}</label>
-                    <select
-                      value={permissions[key] ?? "ask"}
-                      onChange={(e) => updatePermission(key, e.target.value)}
-                    >
-                      {PERMISSION_ACTIONS.map((action) => (
-                        <option key={action} value={action}>
-                          {action}
-                        </option>
-                      ))}
-                    </select>
+                {providers.map((p, i) => (
+                  <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                    {(() => {
+                      const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
+                        id.toLowerCase().includes(p.id.toLowerCase()),
+                      )
+                      return (
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label>Provider</label>
+                      <div className="provider-combobox">
+                        <input
+                          className="provider-combobox-input"
+                          value={p.id}
+                          onFocus={() => {
+                            setOpenProviderIndex(i)
+                            setHighlightedProviderOption(0)
+                          }}
+                          onBlur={() => setTimeout(() => setOpenProviderIndex((current) => (current === i ? null : current)), 120)}
+                          onChange={(e) =>
+                            {
+                              setProviders((prev) =>
+                                prev.map((pp, ii) => (ii === i ? { ...pp, id: e.target.value } : pp)),
+                              )
+                              setOpenProviderIndex(i)
+                              setHighlightedProviderOption(0)
+                            }
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault()
+                              setOpenProviderIndex(i)
+                              setHighlightedProviderOption((current) =>
+                                Math.min(current + 1, Math.max(filteredProviders.length - 1, 0)),
+                              )
+                            }
+                            if (e.key === "ArrowUp") {
+                              e.preventDefault()
+                              setOpenProviderIndex(i)
+                              setHighlightedProviderOption((current) => Math.max(current - 1, 0))
+                            }
+                            if (e.key === "Enter" && openProviderIndex === i && filteredProviders[highlightedProviderOption]) {
+                              e.preventDefault()
+                              const id = filteredProviders[highlightedProviderOption]
+                              setProviders((prev) =>
+                                prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                              )
+                              setOpenProviderIndex(null)
+                            }
+                            if (e.key === "Escape") {
+                              setOpenProviderIndex(null)
+                            }
+                          }}
+                          placeholder="Select provider..."
+                        />
+                        <button
+                          type="button"
+                          className="provider-combobox-toggle"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setOpenProviderIndex((current) => (current === i ? null : i))
+                            setHighlightedProviderOption(0)
+                          }}
+                          aria-label="Toggle provider list"
+                        >
+                          <span className="provider-combobox-caret" />
+                        </button>
+                        {openProviderIndex === i && (
+                          <div className="provider-combobox-menu">
+                            {filteredProviders.map((id, optionIndex) => (
+                              <button
+                                key={id}
+                                type="button"
+                                className={`provider-combobox-option ${optionIndex === highlightedProviderOption || id === p.id ? "selected" : ""}`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  setProviders((prev) =>
+                                    prev.map((pp, ii) => (ii === i ? { ...pp, id } : pp)),
+                                  )
+                                  setOpenProviderIndex(null)
+                                }}
+                                onMouseEnter={() => setHighlightedProviderOption(optionIndex)}
+                              >
+                                {id}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                      )
+                    })()}
+                    <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
+                      <label>API Key</label>
+                      <input
+                        type="password"
+                        value={p.apiKey}
+                        onChange={(e) =>
+                          setProviders((prev) =>
+                            prev.map((pp, ii) => (ii === i ? { ...pp, apiKey: e.target.value } : pp)),
+                          )
+                        }
+                        placeholder="sk-..."
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ visibility: "hidden" }}>Remove</label>
+                      <button
+                        className="btn icon-btn"
+                        type="button"
+                        onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
+                        title="Remove"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
+                  style={{ marginTop: 4 }}
+                >
+                  + Add Provider
+                </button>
               </div>
             </div>
 

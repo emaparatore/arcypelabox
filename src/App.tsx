@@ -8,7 +8,7 @@ import brandLogo from "../imgs/arcypelabox-logo-round.png"
 import "./App.css"
 
 type View = "list" | "create"
-const COMPACT_SIDEBAR_BREAKPOINT = 900
+const COMPACT_SIDEBAR_BREAKPOINT = 1200
 
 export default function App() {
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([])

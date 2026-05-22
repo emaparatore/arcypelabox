@@ -284,7 +284,8 @@
   margin-bottom: 24px;
 }
 
-.sandbox-detail-section h3 {
+.sandbox-detail-section h3,
+.section-title {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;

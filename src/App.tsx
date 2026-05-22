@@ -144,6 +144,9 @@ export default function App() {
                   setSelectedId(id)
                   setSelectedSandboxId(sandboxId)
                   setView("list")
+                  if (isCompactSidebarMode) {
+                    setIsSidebarCollapsed(true)
+                  }
                 }
                 if (view === "create") {
                   setConfirmAction(() => go)

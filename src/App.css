@@ -199,7 +199,8 @@
 }
 
 .sandbox-detail {
-  max-width: 800px;
+      margin: auto;
+    max-width: 900px;
 }
 
 .collapsible-header {

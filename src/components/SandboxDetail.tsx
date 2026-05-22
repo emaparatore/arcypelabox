@@ -132,6 +132,27 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>{sandbox.name}</h2>
         <span className={`sandbox-card-status ${sandbox.status}`}>{sandbox.status}</span>
+        <div className="sandbox-detail-actions" style={{ marginLeft: "auto" }}>
+          {isRunning ? (
+            <button className="btn btn-danger icon-btn" onClick={() => setConfirming("stop")} disabled={loading} title="Stop">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+            </button>
+          ) : (
+            <button className="btn btn-success icon-btn" onClick={handleStart} disabled={loading} title="Start">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 14,8 3,14"/></svg>
+            </button>
+          )}
+          {isRunning && <OpenCodeCLIButton port={sandbox.opencodePort} />}
+          <button className="btn icon-btn" onClick={onRefresh} title="Refresh">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
+          </button>
+          <button className="btn icon-btn" onClick={() => onEdit?.()} disabled={loading} title="Edit">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 1.5l3 3L5 14H2v-3l9.5-9.5z"/><path d="M9.5 3.5l3 3"/></svg>
+          </button>
+          <button className="btn btn-danger icon-btn" onClick={() => setConfirming("delete")} disabled={loading} title="Delete">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
+          </button>
+        </div>
       </div>
 
       <div className="tabs">
@@ -220,30 +241,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
             </div>
           )}
 
-          <div className="sandbox-detail-section">
-            <h3 style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Actions</h3>
-            <div className="sandbox-detail-actions">
-              {isRunning ? (
-                <button className="btn btn-danger icon-btn" onClick={() => setConfirming("stop")} disabled={loading} title="Stop">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
-                </button>
-              ) : (
-                <button className="btn btn-success icon-btn" onClick={handleStart} disabled={loading} title="Start">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 14,8 3,14"/></svg>
-                </button>
-              )}
-              {isRunning && <OpenCodeCLIButton port={sandbox.opencodePort} />}
-              <button className="btn icon-btn" onClick={onRefresh} title="Refresh">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
-              </button>
-              <button className="btn icon-btn" onClick={() => onEdit?.()} disabled={loading} title="Edit">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 1.5l3 3L5 14H2v-3l9.5-9.5z"/><path d="M9.5 3.5l3 3"/></svg>
-              </button>
-              <button className="btn btn-danger icon-btn" onClick={() => setConfirming("delete")} disabled={loading} title="Delete">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4h12"/><path d="M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4"/><path d="M3 4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4"/><path d="M6 7v4"/><path d="M10 7v4"/></svg>
-              </button>
-            </div>
-          </div>
+
 
           {error && (
             <div style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{error}</div>

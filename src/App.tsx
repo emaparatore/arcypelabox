@@ -13,6 +13,7 @@ export default function App() {
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [view, setView] = useState<View>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,26 +88,54 @@ export default function App() {
       </header>
 
       <div className="app-body">
-        <aside className="app-sidebar">
-          <SandboxList
-            sandboxes={sandboxes}
-            selectedId={selectedId}
-            loading={loading}
-            error={error}
-            onSelect={(id, sandboxId) => {
-              const go = () => {
-                setSelectedId(id)
-                setSelectedSandboxId(sandboxId)
-                setView("list")
-              }
-              if (view === "create") {
-                setConfirmAction(() => go)
-              } else {
-                go()
-              }
-            }}
-            onRefresh={refresh}
-          />
+        <aside className={`app-sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
+          <div className="app-sidebar-toggle-row">
+            <button
+              className="btn btn-sm icon-btn"
+              type="button"
+              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              title={isSidebarCollapsed ? "Expand sandboxes" : "Collapse sandboxes"}
+              aria-label={isSidebarCollapsed ? "Expand sandboxes" : "Collapse sandboxes"}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+                <path d="M6 2.5v11" />
+                {isSidebarCollapsed ? (
+                  <>
+                    <path d="M8.5 8h3" />
+                    <path d="M10 6.5 11.5 8 10 9.5" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M11.5 8h-3" />
+                    <path d="M10 6.5 8.5 8 10 9.5" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
+
+          {!isSidebarCollapsed && (
+            <SandboxList
+              sandboxes={sandboxes}
+              selectedId={selectedId}
+              loading={loading}
+              error={error}
+              onSelect={(id, sandboxId) => {
+                const go = () => {
+                  setSelectedId(id)
+                  setSelectedSandboxId(sandboxId)
+                  setView("list")
+                }
+                if (view === "create") {
+                  setConfirmAction(() => go)
+                } else {
+                  go()
+                }
+              }}
+              onRefresh={refresh}
+            />
+          )}
         </aside>
 
         <main className="app-main">

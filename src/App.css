@@ -68,6 +68,24 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.18s ease, min-width 0.18s ease;
+}
+
+.app-sidebar.collapsed {
+  width: 54px;
+  min-width: 54px;
+}
+
+.app-sidebar-toggle-row {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-sidebar.collapsed .app-sidebar-toggle-row {
+  justify-content: center;
 }
 
 .app-main {

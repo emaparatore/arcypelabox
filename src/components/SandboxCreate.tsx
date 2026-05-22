@@ -293,7 +293,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
           </div>
         </div>
 
-        <div className={`wizard-body ${step === 0 ? "wizard-body-small" : step === 1 ? "wizard-body-wide" : ""}`}>
+        <div className={`wizard-body ${step === 0 ? "wizard-body-small" : step === 1 ? "wizard-body-small" : ""}`}>
           {editRecord && showWarning && (
             <div
               style={{
@@ -355,7 +355,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                 </p>
                 <ul className="template-list">
                   <li>OpenCode preinstalled</li>
-                  <li>Node.js included as part of the base</li>
+                  <li>Node.js and Git included as part of the base</li>
                   <li>Ready for mounted local projects</li>
                 </ul>
               </div>
@@ -408,8 +408,12 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
           {step === 1 && (
             <div className="wizard-panel technology-panel">
               <div className="technology-column-header">
-                <h3>Runtimes</h3>
-                <p className="wizard-muted">Language runtimes let agents compile, run and debug project code in the languages you select. Node.js is always included in the base image.</p>
+                <div className="section-title-row">
+                  <h3>Runtimes</h3>
+                  <InfoPopover label="Show runtimes info">
+                    Language runtimes let agents compile, run and debug project code in the languages you select. Node.js is always included in the base image.
+                  </InfoPopover>
+                </div>
                 <input
                   className="technology-filter-input"
                   type="text"
@@ -419,8 +423,12 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                 />
               </div>
               <div className="technology-column-header">
-                <h3>Common Tools</h3>
-                <p className="wizard-muted">CLI utilities that agents can use inside the sandbox for editing, building, searching, compression and version control. Git is always included in the base image.</p>
+                <div className="section-title-row">
+                  <h3>Common Tools</h3>
+                  <InfoPopover label="Show common tools info">
+                    CLI utilities that agents can use inside the sandbox for editing, building, searching, compression and version control. Git is always included in the base image.
+                  </InfoPopover>
+                </div>
                 <input
                   className="technology-filter-input"
                   type="text"
@@ -430,8 +438,12 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                 />
               </div>
               <div className="technology-column-header">
-                <h3>Services</h3>
-                <p className="wizard-muted">Infrastructure services that run as separate sidecar containers on the sandbox network. Agents connect to them via the container hostname — no port mapping needed.</p>
+                <div className="section-title-row">
+                  <h3>Services</h3>
+                  <InfoPopover label="Show services info">
+                    Infrastructure services that run as separate sidecar containers on the sandbox network. Agents connect to them via the container hostname — no port mapping needed.
+                  </InfoPopover>
+                </div>
                 <input
                   className="technology-filter-input"
                   type="text"

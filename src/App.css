@@ -919,7 +919,7 @@
   padding: 12px;
   font-family: var(--font-mono);
   font-size: 12px;
-  max-height: 300px;
+  height: 70vh;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
@@ -985,7 +985,7 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  height: 500px;
+  height: 70vh;
 }
 
 .permission-banner {

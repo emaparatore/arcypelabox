@@ -39,18 +39,6 @@ const RUNTIME_LABELS: Record<SandboxRuntime, string> = {
   zig: "Zig",
 }
 
-const RUNTIME_DESCRIPTIONS: Record<SandboxRuntime, string> = {
-  node: "JavaScript runtime and package tooling required by the OpenCode base image.",
-  python: "Python runtime for scripts, tooling and backend services.",
-  dotnet: ".NET SDK for C#, ASP.NET and CLI builds.",
-  go: "Go toolchain for compiling services and CLIs.",
-  java: "JDK for JVM applications, Gradle and Maven builds.",
-  ruby: "Ruby runtime for scripts, gems and Rails-style apps.",
-  php: "PHP runtime for web apps, CLI scripts and Composer workflows.",
-  rust: "Rust compiler and Cargo for native binaries and libraries.",
-  zig: "Zig compiler for low-level tooling and native builds.",
-}
-
 const TOOL_LABELS: Record<SandboxTool, string> = {
   git: "git",
   curl: "curl",
@@ -73,30 +61,6 @@ const TOOL_LABELS: Record<SandboxTool, string> = {
 const SERVICE_LABELS: Record<SandboxService, string> = {
   postgres: "Postgres",
   redis: "Redis",
-}
-
-const TOOL_DESCRIPTIONS: Record<SandboxTool, string> = {
-  git: "Repository operations inside the sandbox",
-  curl: "Quick HTTP checks and downloads",
-  vim: "Terminal editor for quick changes",
-  "build-essential": "gcc, g++, make and native build headers",
-  sqlite: "Local sqlite3 database tooling",
-  pnpm: "Fast package manager for Node projects",
-  bun: "Bun runtime and package manager",
-  nvm: "Switch Node.js versions with `n` (installato via npm)",
-  jq: "Command-line JSON processor for API responses",
-  gh: "GitHub CLI: issues, PRs, repos from the terminal",
-  unzip: "Extract archive files",
-  tree: "Directory structure visualization",
-  make: "Build automation (Makefile tasks)",
-  zip: "Archive compression",
-  ripgrep: "Fast recursive grep (rg)",
-  cmake: "Cross-platform build system generator",
-}
-
-const SERVICE_DESCRIPTIONS: Record<SandboxService, string> = {
-  postgres: "Separate Postgres container on the sandbox network",
-  redis: "Separate Redis container on the sandbox network",
 }
 
 function toggleValue<T extends string>(values: T[], value: T) {
@@ -442,148 +406,111 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
 
         {step === 1 && (
           <div className="wizard-panel technology-panel">
-            <div className="wizard-section compact-option-section technology-column">
-              <div>
-                <h3>Runtimes</h3>
-                <p className="wizard-muted">Node.js is already included in the base image.</p>
-                <input
-                  className="technology-filter-input"
-                  type="text"
-                  placeholder="Filter runtimes…"
-                  value={runtimeFilter}
-                  onChange={(e) => setRuntimeFilter(e.target.value)}
-                />
-              </div>
-              <div className="technology-column-body compact-option-list compact-option-list-grid">
-                {SANDBOX_RUNTIMES.filter((runtime) => {
-                  if (runtime === "node") return true
-                  if (!runtimeFilter) return true
-                  const q = runtimeFilter.toLowerCase()
-                  return (
-                    RUNTIME_LABELS[runtime].toLowerCase().includes(q) ||
-                    RUNTIME_DESCRIPTIONS[runtime].toLowerCase().includes(q)
-                  )
-                }).map((runtime) => {
-                  const selected = runtimes.includes(runtime)
-                  const locked = runtime === "node"
-                  return (
-                    <button
-                      key={runtime}
-                      type="button"
-                      className={`compact-option-row ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
-                      onClick={() => {
-                        if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
-                      }}
-                    >
-                      <div className="compact-option-copy">
-                        <div className="compact-option-title">
-                          <strong>{RUNTIME_LABELS[runtime]}</strong>
-                          {locked && (
-                            <span
-                              className="option-inline-tag"
-                              title="Included because the base OpenCode template already ships with Node.js and relies on it."
-                            >
-                              Included
-                            </span>
-                          )}
-                        </div>
-                        <span>{RUNTIME_DESCRIPTIONS[runtime]}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+            <div className="technology-column-header">
+              <h3>Runtimes</h3>
+              <p className="wizard-muted">Language runtimes let agents compile, run and debug project code in the languages you select. Node.js is always included in the base image.</p>
+              <input
+                className="technology-filter-input"
+                type="text"
+                placeholder="Filter runtimes…"
+                value={runtimeFilter}
+                onChange={(e) => setRuntimeFilter(e.target.value)}
+              />
             </div>
-
-            <div className="wizard-section compact-option-section technology-column">
-              <div>
-                <h3>Common Tools</h3>
-                <p className="wizard-muted">Frequently useful terminal tooling for day-to-day development work.</p>
-                <input
-                  className="technology-filter-input"
-                  type="text"
-                  placeholder="Filter tools…"
-                  value={toolFilter}
-                  onChange={(e) => setToolFilter(e.target.value)}
-                />
-              </div>
-              <div className="technology-column-body dense-option-grid technology-tool-grid">
-                {SANDBOX_TOOLS.filter((tool) => {
-                  if (tool === "git") return true
-                  if (!toolFilter) return true
-                  const q = toolFilter.toLowerCase()
-                  return (
-                    TOOL_LABELS[tool].toLowerCase().includes(q) ||
-                    TOOL_DESCRIPTIONS[tool].toLowerCase().includes(q)
-                  )
-                }).map((tool) => {
-                  const selected = tools.includes(tool)
-                  const locked = tool === "git"
-                  return (
-                    <button
-                      key={tool}
-                      type="button"
-                      className={`option-card dense-option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
-                      onClick={() => {
-                        if (!locked) setTools((prev) => toggleValue(prev, tool))
-                      }}
-                      title={TOOL_DESCRIPTIONS[tool]}
-                    >
+            <div className="technology-column-header">
+              <h3>Common Tools</h3>
+              <p className="wizard-muted">CLI utilities that agents can use inside the sandbox for editing, building, searching, compression and version control. Git is always included in the base image.</p>
+              <input
+                className="technology-filter-input"
+                type="text"
+                placeholder="Filter tools…"
+                value={toolFilter}
+                onChange={(e) => setToolFilter(e.target.value)}
+              />
+            </div>
+            <div className="technology-column-header">
+              <h3>Services</h3>
+              <p className="wizard-muted">Infrastructure services that run as separate sidecar containers on the sandbox network. Agents connect to them via the container hostname — no port mapping needed.</p>
+              <input
+                className="technology-filter-input"
+                type="text"
+                placeholder="Filter services…"
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+              />
+            </div>
+            <div className="technology-column-body compact-option-list compact-option-list-grid">
+              {SANDBOX_RUNTIMES.filter((runtime) => {
+                if (runtime === "node") return true
+                if (!runtimeFilter) return true
+                const q = runtimeFilter.toLowerCase()
+                return RUNTIME_LABELS[runtime].toLowerCase().includes(q)
+              }).map((runtime) => {
+                const selected = runtimes.includes(runtime)
+                const locked = runtime === "node"
+                return (
+                  <button
+                    key={runtime}
+                    type="button"
+                    className={`compact-option-row ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
+                    onClick={() => {
+                      if (!locked) setRuntimes((prev) => toggleValue(prev, runtime))
+                    }}
+                  >
+                    <div className="compact-option-copy">
                       <div className="compact-option-title">
-                        <strong>{TOOL_LABELS[tool]}</strong>
-                        {locked && (
-                          <span
-                            className="option-inline-tag"
-                            title="Git is required by OpenCode for version control, session tracking and project operations."
-                          >
-                            Included
-                          </span>
-                        )}
+                        <strong>{RUNTIME_LABELS[runtime]}</strong>
+                        {locked && <span className="option-inline-tag">Included</span>}
                       </div>
-                      <span>{TOOL_DESCRIPTIONS[tool]}</span>
-                    </button>
-                  )
-                })}
-              </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-
-            <div className="wizard-section compact-option-section technology-column">
-              <div>
-                <h3>Services</h3>
-                <p className="wizard-muted">Run as sidecars on the same sandbox network.</p>
-                <input
-                  className="technology-filter-input"
-                  type="text"
-                  placeholder="Filter services…"
-                  value={serviceFilter}
-                  onChange={(e) => setServiceFilter(e.target.value)}
-                />
-              </div>
-              <div className="technology-column-body compact-option-list compact-option-list-grid compact-option-list-services">
-                {SANDBOX_SERVICES.filter((service) => {
-                  if (!serviceFilter) return true
-                  const q = serviceFilter.toLowerCase()
-                  return (
-                    SERVICE_LABELS[service].toLowerCase().includes(q) ||
-                    SERVICE_DESCRIPTIONS[service].toLowerCase().includes(q)
-                  )
-                }).map((service) => {
-                  const selected = services.includes(service)
-                  return (
-                    <button
-                      key={service}
-                      type="button"
-                      className={`compact-option-row ${selected ? "selected" : ""}`}
-                      onClick={() => setServices((prev) => toggleValue(prev, service))}
-                    >
-                      <div className="compact-option-copy">
-                        <strong>{SERVICE_LABELS[service]}</strong>
-                        <span>{SERVICE_DESCRIPTIONS[service]}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+            <div className="technology-column-body dense-option-grid technology-tool-grid">
+              {SANDBOX_TOOLS.filter((tool) => {
+                if (tool === "git") return true
+                if (!toolFilter) return true
+                const q = toolFilter.toLowerCase()
+                return TOOL_LABELS[tool].toLowerCase().includes(q)
+              }).map((tool) => {
+                const selected = tools.includes(tool)
+                const locked = tool === "git"
+                return (
+                  <button
+                    key={tool}
+                    type="button"
+                    className={`option-card dense-option-card ${selected ? "selected" : ""} ${locked ? "locked" : ""}`}
+                    onClick={() => {
+                      if (!locked) setTools((prev) => toggleValue(prev, tool))
+                    }}
+                  >
+                    <div className="compact-option-title">
+                      <strong>{TOOL_LABELS[tool]}</strong>
+                      {locked && <span className="option-inline-tag">Included</span>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="technology-column-body compact-option-list compact-option-list-grid compact-option-list-services">
+              {SANDBOX_SERVICES.filter((service) => {
+                if (!serviceFilter) return true
+                const q = serviceFilter.toLowerCase()
+                return SERVICE_LABELS[service].toLowerCase().includes(q)
+              }).map((service) => {
+                const selected = services.includes(service)
+                return (
+                  <button
+                    key={service}
+                    type="button"
+                    className={`compact-option-row ${selected ? "selected" : ""}`}
+                    onClick={() => setServices((prev) => toggleValue(prev, service))}
+                  >
+                    <strong>{SERVICE_LABELS[service]}</strong>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

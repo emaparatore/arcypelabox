@@ -8,12 +8,14 @@ import brandLogo from "../imgs/arcypelabox-logo-round.png"
 import "./App.css"
 
 type View = "list" | "create"
+const COMPACT_SIDEBAR_BREAKPOINT = 900
 
 export default function App() {
   const [sandboxes, setSandboxes] = useState<SandboxInfo[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isCompactSidebarMode, setIsCompactSidebarMode] = useState(() => window.innerWidth <= COMPACT_SIDEBAR_BREAKPOINT)
   const [view, setView] = useState<View>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +53,23 @@ export default function App() {
     }
   }, [editingRecord])
 
+  useEffect(() => {
+    const handleResize = () => {
+      const compact = window.innerWidth <= COMPACT_SIDEBAR_BREAKPOINT
+      setIsCompactSidebarMode(compact)
+      if (compact) {
+        setIsSidebarCollapsed(true)
+      }
+    }
+
+    window.addEventListener("resize", handleResize)
+    handleResize()
+
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
   const selected = sandboxes.find((s) => s.id === selectedId) ?? null
+  const isSidebarOverlayOpen = isCompactSidebarMode && !isSidebarCollapsed
 
   return (
     <div className="app">
@@ -87,8 +105,8 @@ export default function App() {
         </div>
       </header>
 
-      <div className="app-body">
-        <aside className={`app-sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
+      <div className={`app-body ${isCompactSidebarMode ? "compact-sidebar-mode" : ""}`}>
+        <aside className={`app-sidebar ${isSidebarCollapsed ? "collapsed" : ""} ${isSidebarOverlayOpen ? "overlay-open" : ""}`}>
           <div className="app-sidebar-toggle-row">
             <button
               className="btn btn-sm icon-btn"
@@ -138,7 +156,9 @@ export default function App() {
           )}
         </aside>
 
-        <main className="app-main">
+        {isSidebarOverlayOpen && <div className="app-sidebar-overlay" onClick={() => setIsSidebarCollapsed(true)} />}
+
+        <main className={`app-main ${isCompactSidebarMode ? "compact-sidebar-main" : ""}`}>
           {view === "create" ? (
             <SandboxCreate
               editRecord={editingRecord}

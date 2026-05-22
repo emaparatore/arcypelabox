@@ -58,6 +58,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
 .app-sidebar {
@@ -74,6 +75,10 @@
 .app-sidebar.collapsed {
   width: 54px;
   min-width: 54px;
+}
+
+.app-sidebar.overlay-open {
+  box-shadow: 0 10px 30px rgba(var(--black-rgb), 0.35);
 }
 
 .app-sidebar-toggle-row {
@@ -93,6 +98,25 @@
   min-width: 0;
   overflow-y: auto;
   padding: 20px;
+}
+
+.app-sidebar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--black-rgb), 0.5);
+  z-index: 2;
+}
+
+.compact-sidebar-mode .app-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 3;
+}
+
+.compact-sidebar-mode .app-main {
+  margin-left: 54px;
 }
 
 .sandbox-list-header {

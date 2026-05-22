@@ -16,6 +16,7 @@ import {
   SANDBOX_TOOLS,
 } from "../types"
 import { BuildProgressModal } from "./BuildProgressModal"
+import { InfoPopover } from "./InfoPopover"
 
 interface Props {
   onCreated: (sandboxId: string, containerId: string) => void
@@ -84,7 +85,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
   const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
-  const [showProvidersInfo, setShowProvidersInfo] = useState(false)
   const [permissions, setPermissions] = useState<Record<string, string>>({
     read: "allow",
     edit: "allow",
@@ -115,7 +115,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [runtimeFilter, setRuntimeFilter] = useState("")
   const [toolFilter, setToolFilter] = useState("")
   const [serviceFilter, setServiceFilter] = useState("")
-  const providersInfoRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!editRecord) return
@@ -171,19 +170,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return () => clearTimeout(timer)
     }
   }, [buildStatus, buildResult, onCreated])
-
-  useEffect(() => {
-    if (!showProvidersInfo) return
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!providersInfoRef.current?.contains(event.target as Node)) {
-        setShowProvidersInfo(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown)
-    return () => document.removeEventListener("mousedown", handlePointerDown)
-  }, [showProvidersInfo])
 
   const fullImage = `${IMAGE_NAME}:${imageTag}`
   const configPreview = useMemo(
@@ -629,26 +615,9 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               <div className="wizard-section workspace-card workspace-providers">
                 <div className="section-title-row">
                   <h3>LLM Providers</h3>
-                  <div className="section-info" ref={providersInfoRef}>
-                    <button
-                      type="button"
-                      className="section-info-btn"
-                      aria-label="Show provider info"
-                      aria-expanded={showProvidersInfo}
-                      onClick={() => setShowProvidersInfo((current) => !current)}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <circle cx="8" cy="8" r="5.5" />
-                        <path d="M8 7.25v3.5" />
-                        <path d="M8 4.75h.01" />
-                      </svg>
-                    </button>
-                    {showProvidersInfo && (
-                      <div className="section-info-popover">
-                        Add one or more AI providers. API keys are injected securely via the OpenCode API after container start - never stored in env vars or image layers.
-                      </div>
-                    )}
-                  </div>
+                  <InfoPopover label="Show provider info">
+                    Add one or more AI providers. API keys are injected securely via the OpenCode API after container start - never stored in env vars or image layers.
+                  </InfoPopover>
                 </div>
                 {providers.map((p, i) => (
                   <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>

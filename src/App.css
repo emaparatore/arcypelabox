@@ -487,7 +487,7 @@
 .wizard-body {
   margin: 0 auto;
   width: 100%;
-  max-width: 1150px;
+  max-width: 1400px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -786,11 +786,11 @@
   gap: 6px;
 }
 
-.section-info {
+.info-popover {
   position: relative;
 }
 
-.section-info-btn {
+.info-popover-btn {
   width: 18px;
   height: 18px;
   padding: 0;
@@ -803,12 +803,12 @@
   color: var(--text-secondary);
 }
 
-.section-info-btn:hover {
+.info-popover-btn:hover {
   color: var(--text);
   border-color: var(--accent);
 }
 
-.section-info-popover {
+.info-popover-content {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;

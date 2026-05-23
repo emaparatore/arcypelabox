@@ -465,7 +465,7 @@
 
 .provider-combobox-option {
   width: 100%;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -590,10 +590,25 @@
 
 .workspace-card {
   min-width: 0;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-secondary);
+}
+
+.workspace-card .form-group {
+  margin-bottom: 8px;
+}
+
+.workspace-card .form-group label {
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.workspace-card .form-group input,
+.workspace-card .form-group select {
+  padding: 5px 10px;
+  font-size: 13px;
 }
 
 .workspace-permissions {

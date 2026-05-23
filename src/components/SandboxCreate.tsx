@@ -632,7 +632,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     </InfoPopover>
                   </div>
                   {providers.map((p, i) => (
-                    <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+                    <div key={i} className="form-row provider-row" style={{ display: "flex", gap: 8, marginBottom: 4 }}>
                       {(() => {
                         const filteredProviders = OPENCODE_PROVIDERS.filter((id) =>
                           id.toLowerCase().includes(p.id.toLowerCase()),
@@ -751,7 +751,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     className="btn"
                     type="button"
                     onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
-                    style={{ marginTop: 4 }}
+                    style={{ marginTop: 2 }}
                   >
                     + Add Provider
                   </button>
@@ -759,7 +759,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               </div>
 
               {tools.includes("git") && (
-                    <div className="wizard-section workspace-card " style={{ marginTop: 16 }}>
+                    <div className="wizard-section workspace-card " style={{ marginTop: 10 }}>
                       <div className="section-title-row">
                         <h3 style={{ marginTop: 0 }}>Git Configuration</h3>
                         <InfoPopover label="Show git config info">

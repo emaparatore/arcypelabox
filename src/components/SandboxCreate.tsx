@@ -533,7 +533,74 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
               <div className="wizard-review-grid">
                 <div className="review-card">
                   <h3>Sandbox Plan</h3>
-                  <pre className="code-preview">{JSON.stringify(configPreview, null, 2)}</pre>
+                  <div className="code-preview" style={{ padding: "12px 14px" }}>
+                    <div className="plan-row">
+                      <span className="plan-label">Image</span>
+                      <span>{configPreview.image}</span>
+                    </div>
+                    <div className="plan-row" style={{ alignItems: "center" }}>
+                      <span className="plan-label">Port</span>
+                      <span>{configPreview.opencodePort}</span>
+                    </div>
+                    <div className="plan-row" style={{ alignItems: "center" }}>
+                      <span className="plan-label">Mount</span>
+                      <span style={{ color: configPreview.projectMount ? undefined : "var(--text-secondary)" }}>
+                        {configPreview.projectMount || "\u2014"}
+                      </span>
+                    </div>
+                    <div className="plan-row">
+                      <span className="plan-label" style={{ alignSelf: "flex-start", paddingTop: 1 }}>Runtimes</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {configPreview.runtimes.map((r) => (
+                          <span key={r} className="plan-chip" style={{ background: "rgba(var(--accent-rgb), 0.12)", color: "var(--accent)" }}>
+                            {RUNTIME_LABELS[r] || r}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="plan-row">
+                      <span className="plan-label" style={{ alignSelf: "flex-start", paddingTop: 1 }}>Tools</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {configPreview.tools.map((t) => (
+                          <span key={t} className="plan-chip" style={{ background: "rgba(var(--white-rgb), 0.07)", color: "var(--text-secondary)" }}>
+                            {TOOL_LABELS[t] || t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {configPreview.services.length > 0 && (
+                      <div className="plan-row">
+                        <span className="plan-label" style={{ alignSelf: "flex-start", paddingTop: 1 }}>Services</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {configPreview.services.map((s) => (
+                            <span key={s} className="plan-chip" style={{ background: "rgba(var(--success-rgb), 0.12)", color: "var(--success)" }}>
+                              {SERVICE_LABELS[s] || s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {configPreview.providers && configPreview.providers.length > 0 && (
+                      <div className="plan-row" style={{ alignItems: "center" }}>
+                        <span className="plan-label">Providers</span>
+                        <span>
+                          {configPreview.providers.map((p) => `${p.id} (\u2605\u2605\u2605\u2605)`).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {configPreview.gitConfig && (
+                      <div className="plan-row" style={{ alignItems: "center" }}>
+                        <span className="plan-label">Git</span>
+                        <span>
+                          {[
+                            configPreview.gitConfig.userName,
+                            configPreview.gitConfig.userEmail,
+                            configPreview.gitConfig.autocrlf,
+                          ].filter(Boolean).join(" \u00b7 ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="review-card">
                   <h3>Generated Dockerfile</h3>

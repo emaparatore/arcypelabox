@@ -982,6 +982,33 @@
   max-height: 460px;
 }
 
+.plan-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.plan-row + .plan-row {
+  margin-top: 4px;
+}
+
+.plan-label {
+  color: var(--text-secondary);
+  min-width: 68px;
+  flex-shrink: 0;
+}
+
+.plan-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .wizard-actions {
   max-width: 1000px;
   margin: 0 auto;

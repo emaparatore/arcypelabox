@@ -55,7 +55,7 @@ import {
 import { createIpcServer } from "./ipc-server.js"
 import { registerRoutes, getErrorMessage } from "./api.js"
 import { SandboxProxy, setProxy } from "./proxy.js"
-import { registerExistingSandboxes } from "./docker.js"
+import { registerExistingSandboxes, startDockerWatcher, stopDockerWatcher } from "./docker.js"
 
 let mainWindow: BrowserWindow | null = null
 
@@ -154,6 +154,7 @@ app.whenReady().then(async () => {
   await proxy.start()
   setProxy(proxy)
   await registerExistingSandboxes()
+  startDockerWatcher()
 
   createWindow()
 
@@ -644,6 +645,7 @@ app.whenReady().then(async () => {
       abortController.abort()
     }
     opencodeSubscriptions.clear()
+    stopDockerWatcher()
     proxy.stop()
     ipcServer.stop()
   })

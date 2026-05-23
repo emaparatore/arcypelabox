@@ -170,6 +170,118 @@ export async function registerExistingSandboxes(): Promise<void> {
   console.log(`[docker] Registered ${registered} existing sandboxes with proxy`)
 }
 
+async function getContainerHostPort(containerId: string): Promise<number | null> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const ports = info.NetworkSettings?.Ports
+    const entry = ports ? Object.entries(ports).find(
+      ([, bindings]) => bindings && bindings.length > 0 && bindings[0]?.HostPort
+    ) : null
+    if (entry) return parseInt(entry[1][0].HostPort, 10)
+    const labelPort = parseInt(info.Config.Labels?.["sandobox.host.port"] ?? "", 10)
+    if (labelPort) return labelPort
+  } catch { }
+  return null
+}
+
+async function registerContainerWithProxy(containerId: string): Promise<boolean> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"]
+    if (!sandboxId) return false
+    const hostPort = await getContainerHostPort(containerId)
+    if (!hostPort) return false
+    getProxy().register(sandboxId, { host: "127.0.0.1", port: hostPort })
+    spawn("docker", ["container", "update", "--label-add", `sandobox.host.port=${hostPort}`, containerId], {
+      windowsHide: true,
+      stdio: "ignore",
+    })
+    console.log(`[docker] Auto-registered sandbox ${sandboxId} → 127.0.0.1:${hostPort}`)
+    return true
+  } catch { return false }
+}
+
+async function unregisterContainerFromProxy(containerId: string): Promise<void> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"]
+    if (sandboxId) {
+      getProxy().unregister(sandboxId)
+      console.log(`[docker] Auto-unregistered sandbox ${sandboxId}`)
+    }
+  } catch { }
+}
+
+let watcherCleanup: (() => void) | null = null
+
+export function startDockerWatcher(): void {
+  const SYNC_INTERVAL = 30_000
+
+  const sync = async () => {
+    const containers = await docker.listContainers({ all: true })
+    for (const c of containers) {
+      if (c.Labels?.["sandobox.manager"] !== "true") continue
+      if (c.State !== "running") continue
+      await registerContainerWithProxy(c.Id)
+    }
+  }
+
+  const syncTimer = setInterval(sync, SYNC_INTERVAL)
+
+  let reconnectTimer: NodeJS.Timeout | null = null
+
+  const watch = async () => {
+    try {
+      const stream = await docker.getEvents({
+        filters: JSON.stringify({ label: ["sandobox.manager=true"] }),
+      })
+
+      stream.on("data", (chunk: Buffer) => {
+        try {
+          const event = JSON.parse(chunk.toString())
+          if (event.Type !== "container") return
+          const containerId = event.Actor?.ID
+          if (!containerId) return
+          if (event.Action === "start" || event.Action === "unpause") {
+            registerContainerWithProxy(containerId)
+          } else if (event.Action === "destroy") {
+            const sandboxId = event.Actor?.Attributes?.["sandobox.id"]
+            if (sandboxId) {
+              getProxy().unregister(sandboxId)
+              console.log(`[docker] Sandbox destroyed, unregistered: ${sandboxId}`)
+            }
+          }
+        } catch { }
+      })
+
+      stream.on("end", () => {
+        reconnectTimer = setTimeout(watch, 5000)
+      })
+
+      stream.on("error", () => {
+        reconnectTimer = setTimeout(watch, 5000)
+      })
+    } catch {
+      reconnectTimer = setTimeout(watch, 5000)
+    }
+  }
+
+  watch()
+
+  watcherCleanup = () => {
+    clearInterval(syncTimer)
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+  }
+}
+
+export function stopDockerWatcher(): void {
+  watcherCleanup?.()
+  watcherCleanup = null
+}
+
 export async function listSandboxes(): Promise<SandboxInfo[]> {
   const containers = await docker.listContainers({ all: true })
   return containers

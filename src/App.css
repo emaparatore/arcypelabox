@@ -1145,6 +1145,16 @@
   }
 }
 
+@media (max-width: 700px) {
+  .wizard-shell {
+    overflow-x: auto;
+  }
+  .wizard-body {
+    width: 700px;
+    max-width: none;
+  }
+}
+
 .opencode-panel {
   border: 1px solid var(--border);
   border-radius: 8px;

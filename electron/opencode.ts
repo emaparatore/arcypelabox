@@ -1,20 +1,15 @@
-function validatePort(port: number): void {
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error("Port must be an integer between 1024 and 65535")
-  }
-}
+import { getProxy } from "./proxy.js"
 
-async function getClient(port: number) {
-  validatePort(port)
+async function getClient(sandboxId: string) {
   const { createOpencodeClient } = await import("@opencode-ai/sdk/v2")
   return createOpencodeClient({
-    baseUrl: `http://localhost:${port}`,
+    baseUrl: getProxy().getUrl(sandboxId),
   })
 }
 
-export async function checkHealth(port: number): Promise<boolean> {
+export async function checkHealth(sandboxId: string): Promise<boolean> {
   try {
-    const client = await getClient(port)
+    const client = await getClient(sandboxId)
     await client.global.health()
     return true
   } catch {
@@ -22,8 +17,8 @@ export async function checkHealth(port: number): Promise<boolean> {
   }
 }
 
-export async function sendPrompt(port: number, text: string, sessionId: string): Promise<string> {
-  const client = await getClient(port)
+export async function sendPrompt(sandboxId: string, text: string, sessionId: string): Promise<string> {
+  const client = await getClient(sandboxId)
   const result = await client.session.prompt({
     sessionID: sessionId,
     parts: [{ type: "text", text }],
@@ -37,8 +32,8 @@ export async function sendPrompt(port: number, text: string, sessionId: string):
   return textParts
 }
 
-export async function sessionPromptAsync(port: number, text: string, sessionId: string): Promise<boolean> {
-  const client = await getClient(port)
+export async function sessionPromptAsync(sandboxId: string, text: string, sessionId: string): Promise<boolean> {
+  const client = await getClient(sandboxId)
   await client.session.promptAsync({
     sessionID: sessionId,
     parts: [{ type: "text", text }],
@@ -46,8 +41,8 @@ export async function sessionPromptAsync(port: number, text: string, sessionId: 
   return true
 }
 
-export async function listProviders(port: number) {
-  const client = await getClient(port)
+export async function listProviders(sandboxId: string) {
+  const client = await getClient(sandboxId)
   const result: any = await client.provider.list()
   const data = result.data ?? {}
   const all: any[] = data.all ?? []
@@ -66,8 +61,8 @@ export async function listProviders(port: number) {
     }))
 }
 
-export async function listSessions(port: number) {
-  const client = await getClient(port)
+export async function listSessions(sandboxId: string) {
+  const client = await getClient(sandboxId)
   const [listResult, statusResult] = await Promise.all([
     client.session.list(),
     client.session.status(),
@@ -83,8 +78,8 @@ export async function listSessions(port: number) {
   }))
 }
 
-export async function createSession(port: number, params: { title?: string; model?: { providerID: string; id: string; variant?: string } }) {
-  const client = await getClient(port)
+export async function createSession(sandboxId: string, params: { title?: string; model?: { providerID: string; id: string; variant?: string } }) {
+  const client = await getClient(sandboxId)
   const result = await client.session.create({
     title: params.title ?? "Sandbox Chat",
     model: params.model,
@@ -97,18 +92,18 @@ export async function createSession(port: number, params: { title?: string; mode
   }
 }
 
-export async function deleteSession(port: number, sessionId: string) {
-  const client = await getClient(port)
+export async function deleteSession(sandboxId: string, sessionId: string) {
+  const client = await getClient(sandboxId)
   await client.session.delete({ sessionID: sessionId })
 }
 
-export async function abortOpenCodeSession(port: number, sessionId: string) {
-  const client = await getClient(port)
+export async function abortOpenCodeSession(sandboxId: string, sessionId: string) {
+  const client = await getClient(sandboxId)
   await client.session.abort({ sessionID: sessionId })
 }
 
-export async function listPendingPermissions(port: number) {
-  const client = await getClient(port)
+export async function listPendingPermissions(sandboxId: string) {
+  const client = await getClient(sandboxId)
   const result = await client.permission.list()
   return (result.data ?? []).map((req: any) => ({
     id: req.id,
@@ -118,14 +113,14 @@ export async function listPendingPermissions(port: number) {
   }))
 }
 
-export async function replyPermission(port: number, requestId: string, reply: "once" | "always" | "reject") {
-  const client = await getClient(port)
+export async function replyPermission(sandboxId: string, requestId: string, reply: "once" | "always" | "reject") {
+  const client = await getClient(sandboxId)
   await client.permission.reply({ requestID: requestId, reply })
   return true
 }
 
-export async function listPendingQuestions(port: number) {
-  const client = await getClient(port)
+export async function listPendingQuestions(sandboxId: string) {
+  const client = await getClient(sandboxId)
   const result = await client.question.list()
   return (result.data ?? []).map((req: any) => ({
     id: req.id,
@@ -142,14 +137,14 @@ export async function listPendingQuestions(port: number) {
   }))
 }
 
-export async function replyQuestion(port: number, requestId: string, answers: string[][]) {
-  const client = await getClient(port)
+export async function replyQuestion(sandboxId: string, requestId: string, answers: string[][]) {
+  const client = await getClient(sandboxId)
   await client.question.reply({ requestID: requestId, answers })
   return true
 }
 
-export async function getSessionMessages(port: number, sessionId: string) {
-  const client = await getClient(port)
+export async function getSessionMessages(sandboxId: string, sessionId: string) {
+  const client = await getClient(sandboxId)
   const result: any = await client.session.messages({ sessionID: sessionId })
   const msgs = Array.isArray(result.data) ? result.data : []
   return msgs.map((msg: any) => ({
@@ -170,8 +165,8 @@ export async function getSessionMessages(port: number, sessionId: string) {
   }))
 }
 
-export async function getOpenCodeSessionDebug(port: number, sessionId: string) {
-  const client = await getClient(port)
+export async function getOpenCodeSessionDebug(sandboxId: string, sessionId: string) {
+  const client = await getClient(sandboxId)
   const result: any = await client.session.messages({ sessionID: sessionId })
   const msgs = Array.isArray(result.data) ? result.data : []
   const latest = msgs[msgs.length - 1]
@@ -201,11 +196,11 @@ export async function getOpenCodeSessionDebug(port: number, sessionId: string) {
   }
 }
 
-export async function getAvailableSessionId(port: number): Promise<string> {
-  const sessions = await listSessions(port)
+export async function getAvailableSessionId(sandboxId: string): Promise<string> {
+  const sessions = await listSessions(sandboxId)
   const idleSession = sessions.find((s: any) => s.status !== "busy")
   if (idleSession) return idleSession.id
-  const created = await createSession(port, { title: "Sandbox Chat" })
+  const created = await createSession(sandboxId, { title: "Sandbox Chat" })
   return created.id
 }
 
@@ -222,17 +217,16 @@ const maxRetryAttempts = 10
 let retryDelay = 1000
 
 export async function subscribeToEvents(
-  port: number,
+  sandboxId: string,
   onEvent: (event: any) => void,
   onError?: (error: any) => void
 ): Promise<AbortController> {
-  validatePort(port)
   const abortController = new AbortController()
   const maxDelay = 30000
 
   const connect = async (attempt = 0) => {
     try {
-      const response = await fetch(`http://localhost:${port}/event`, {
+      const response = await fetch(`${getProxy().getUrl(sandboxId)}/event`, {
         signal: abortController.signal,
       })
       if (!response.ok || !response.body) {
@@ -274,9 +268,9 @@ export async function subscribeToEvents(
   return abortController
 }
 
-export async function runShell(port: number, command: string): Promise<string> {
-  const client = await getClient(port)
-  const sessionId = await getAvailableSessionId(port)
+export async function runShell(sandboxId: string, command: string): Promise<string> {
+  const client = await getClient(sandboxId)
+  const sessionId = await getAvailableSessionId(sandboxId)
   const result = await client.session.shell({ sessionID: sessionId, command })
   return JSON.stringify(result.data)
 }

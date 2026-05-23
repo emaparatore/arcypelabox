@@ -124,7 +124,7 @@ export function createSandboxRecord(config: SandboxConfig, dockerContainerId: st
     id,
     config.name,
     config.image,
-    config.opencodePort,
+    0, // opencode_port — kept for backward compat, always 0 for new sandboxes
     config.projectMount ?? null,
     JSON.stringify(config.runtimes),
     JSON.stringify(config.tools),
@@ -201,7 +201,7 @@ export function updateSandboxRecord(
   `).run(
     config.name,
     config.image,
-    config.opencodePort,
+    0, // opencode_port — kept for backward compat
     config.projectMount ?? null,
     JSON.stringify(config.runtimes),
     JSON.stringify(config.tools),

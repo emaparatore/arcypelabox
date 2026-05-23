@@ -12,6 +12,7 @@ import {
   buildGeneratedDockerfile,
 } from "./docker.js"
 import { createSandboxRecord, deleteSandboxByContainerId, getSandboxRecord, listSandboxRecords } from "./database.js"
+import { getProxy } from "./proxy.js"
 
 export function getErrorMessage(err: unknown) {
   const message = err instanceof Error ? err.message : String(err)
@@ -155,15 +156,22 @@ export function registerRoutes(server: IpcServerHandle) {
     }
   })
 
+  server.register("GET", "/api/sandboxes/:id/proxy-url", async (req) => {
+    try {
+      const sandboxId = req.params!.id
+      const proxyUrl = getProxy().getUrl(sandboxId)
+      return { status: 200, body: { proxyUrl } }
+    } catch (err) {
+      return { status: 500, body: { error: getErrorMessage(err) } }
+    }
+  })
+
+  // Deprecated — kept for backward compat
   server.register("GET", "/api/sandboxes/:id/opencode-port", async (req) => {
     try {
       const sandboxId = req.params!.id
-      const containerId = resolveContainerId(sandboxId)
-      const info = await getSandboxInfo(containerId)
-      if (!info) {
-        return { status: 404, body: { error: "Sandbox not found" } }
-      }
-      return { status: 200, body: { opencodePort: info.opencodePort } }
+      const proxyUrl = getProxy().getUrl(sandboxId)
+      return { status: 200, body: { opencodePort: 0, proxyUrl } }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
     }

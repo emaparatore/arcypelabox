@@ -3,7 +3,6 @@ export interface SandboxInfo {
   sandboxId: string
   name: string
   image: string
-  opencodePort: number
   status: string
   projectMount?: string
   createdAt: string
@@ -23,7 +22,6 @@ export interface GitConfig {
 export interface SandboxConfig {
   name: string
   image: string
-  opencodePort: number
   generatedDockerfile: string
   projectMount?: string
   permissions: Record<string, string>
@@ -259,39 +257,39 @@ export interface SandboxWindowApi {
   getSandboxLogs: (id: string) => Promise<ContainerLog[] | { error: string }>
   getSandboxInfo: (id: string) => Promise<SandboxInfo | null | { error: string }>
   execInSandbox: (id: string, command: string) => Promise<string | { error: string }>
-  listPendingPermissions: (port: number) => Promise<PermissionRequestInfo[] | { error: string }>
+  listPendingPermissions: (sandboxId: string) => Promise<PermissionRequestInfo[] | { error: string }>
   replyPermission: (
-    port: number,
+    sandboxId: string,
     requestId: string,
     reply: "once" | "always" | "reject"
   ) => Promise<boolean | { error: string }>
-  listPendingQuestions: (port: number) => Promise<OpenCodeQuestionRequest[] | { error: string }>
+  listPendingQuestions: (sandboxId: string) => Promise<OpenCodeQuestionRequest[] | { error: string }>
   replyQuestion: (
-    port: number,
+    sandboxId: string,
     requestId: string,
     answers: string[][]
   ) => Promise<boolean | { error: string }>
-  getOpenCodeSessions: (port: number) => Promise<OpenCodeSessionInfo[] | { error: string }>
-  createOpenCodeSession: (port: number, params?: { title?: string; model?: { providerID: string; id: string; variant?: string } }) => Promise<OpenCodeSessionInfo | { error: string }>
-  deleteOpenCodeSession: (port: number, sessionId: string) => Promise<{ success: boolean } | { error: string }>
-  abortOpenCodeSession: (port: number, sessionId: string) => Promise<boolean | { error: string }>
+  getOpenCodeSessions: (sandboxId: string) => Promise<OpenCodeSessionInfo[] | { error: string }>
+  createOpenCodeSession: (sandboxId: string, params?: { title?: string; model?: { providerID: string; id: string; variant?: string } }) => Promise<OpenCodeSessionInfo | { error: string }>
+  deleteOpenCodeSession: (sandboxId: string, sessionId: string) => Promise<{ success: boolean } | { error: string }>
+  abortOpenCodeSession: (sandboxId: string, sessionId: string) => Promise<boolean | { error: string }>
   getOpenCodeSessionDebug: (
-    port: number,
+    sandboxId: string,
     sessionId: string
   ) => Promise<OpenCodeSessionDebugInfo | { error: string }>
-  getAvailableSessionId: (port: number) => Promise<string | { error: string }>
-  getSessionMessages: (port: number, sessionId: string) => Promise<SandboxMessage[] | { error: string }>
+  getAvailableSessionId: (sandboxId: string) => Promise<string | { error: string }>
+  getSessionMessages: (sandboxId: string, sessionId: string) => Promise<SandboxMessage[] | { error: string }>
   opencode: {
-    checkHealth: (port: number) => Promise<boolean>
-    sendPrompt: (port: number, sessionId: string, text: string) => Promise<string>
-    sendPromptAsync: (port: number, sessionId: string, text: string) => Promise<boolean | { error: string }>
-    runShell: (port: number, command: string) => Promise<string>
-    listProviders: (port: number) => Promise<OpenCodeProviderInfo[] | { error: string }>
-    subscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
-    openCLI: (port: number, sessionId?: string) => Promise<{ success: boolean } | { error: string }>
-    unsubscribeEvents: (port: number) => Promise<{ success: boolean } | { error: string }>
-    onEvent: (callback: (port: number, event: any) => void) => () => void
-    onState: (callback: (port: number, state: OpenCodeEventState) => void) => () => void
+    checkHealth: (sandboxId: string) => Promise<boolean>
+    sendPrompt: (sandboxId: string, sessionId: string, text: string) => Promise<string>
+    sendPromptAsync: (sandboxId: string, sessionId: string, text: string) => Promise<boolean | { error: string }>
+    runShell: (sandboxId: string, command: string) => Promise<string>
+    listProviders: (sandboxId: string) => Promise<OpenCodeProviderInfo[] | { error: string }>
+    subscribeEvents: (sandboxId: string) => Promise<{ success: boolean } | { error: string }>
+    openCLI: (sandboxId: string, sessionId?: string) => Promise<{ success: boolean } | { error: string }>
+    unsubscribeEvents: (sandboxId: string) => Promise<{ success: boolean } | { error: string }>
+    onEvent: (callback: (sandboxId: string, event: any) => void) => () => void
+    onState: (callback: (sandboxId: string, state: OpenCodeEventState) => void) => () => void
   }
   onBuildProgress: (callback: (event: { type: "step" | "log"; text: string }) => void) => () => void,
   db: {

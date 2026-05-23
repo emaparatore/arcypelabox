@@ -97,13 +97,13 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
     lines.push(`    image: ${fullRecord.image_tag}`)
     lines.push(`    container_name: ${fullRecord.name || "sandbox"}`)
     lines.push(`    ports:`)
-    lines.push(`      - "${fullRecord.opencode_port}:${fullRecord.opencode_port}"`)
+    lines.push(`      - "4096:4096"`)
     if (fullRecord.project_mount) {
       lines.push(`    volumes:`)
       lines.push(`      - ${fullRecord.project_mount}:/workspace`)
     }
     lines.push(`    environment:`)
-    lines.push(`      - OPENCODE_PORT=${fullRecord.opencode_port}`)
+    lines.push(`      - OPENCODE_PORT=4096`)
     if (fullRecord.services.includes("postgres")) {
       lines.push("")
       lines.push(`  postgres:`)
@@ -142,7 +142,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 14,8 3,14"/></svg>
             </button>
           )}
-          {isRunning && <OpenCodeCLIButton port={sandbox.opencodePort} />}
+          {isRunning && <OpenCodeCLIButton sandboxId={sandbox.sandboxId} />}
           <button className="btn icon-btn" onClick={onRefresh} title="Refresh">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
           </button>
@@ -187,7 +187,6 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">Workspace</h3>
             <div className="info-grid">
-              <div><span className="info-label">OpenCode Port</span><span className="info-value">{sandbox.opencodePort}</span></div>
               <div><span className="info-label">Mount</span><span className="info-value">{sandbox.projectMount || "None"}</span></div>
               {fullRecord?.git_config && Object.keys(fullRecord.git_config).length > 0 && (
                 <div style={{ gridColumn: "span 2" }}><span className="info-label">Git Config</span><span className="info-value">{Object.entries(fullRecord.git_config).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
@@ -272,7 +271,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               }}
             >
               Sandbox is running. OpenCode server available at{" "}
-              <code>http://localhost:{sandbox.opencodePort}</code>.
+              <code>http://localhost:4096/{sandbox.sandboxId}</code>.
               Use the OpenCode SDK to connect from external apps.
             </div>
           )}
@@ -303,7 +302,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
       )}
 
       {tab === "opencode" && isRunning && (
-        <OpenCodePanel sandboxId={sandboxId} containerId={sandbox.id} port={sandbox.opencodePort} />
+        <OpenCodePanel sandboxId={sandboxId} containerId={sandbox.id} />
       )}
 
       {tab === "opencode" && !isRunning && (

@@ -11,7 +11,7 @@ import type {
 
 const HEARTBEAT_INTERVAL = 15000
 
-export function useOpenCode(sandboxPort?: number) {
+export function useOpenCode(sandboxId?: string) {
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [providers, setProviders] = useState<OpenCodeProviderInfo[]>([])
@@ -38,9 +38,9 @@ export function useOpenCode(sandboxPort?: number) {
   }, [messages, scrollToBottom])
 
   useEffect(() => {
-    if (!sandboxPort || !selectedSessionId) return
+    if (!sandboxId || !selectedSessionId) return
     let cancelled = false
-    window.sandobox.getSessionMessages(sandboxPort, selectedSessionId).then((result) => {
+    window.sandobox.getSessionMessages(sandboxId, selectedSessionId).then((result) => {
       if (cancelled) return
       if (Array.isArray(result)) {
         setMessagesBySession((prev) => ({
@@ -50,16 +50,16 @@ export function useOpenCode(sandboxPort?: number) {
       }
     })
     return () => { cancelled = true }
-  }, [sandboxPort, selectedSessionId])
+  }, [sandboxId, selectedSessionId])
 
   useEffect(() => {
-    if (!sandboxPort) return
+    if (!sandboxId) return
 
     let mounted = true
     const cleanupFns: (() => void)[] = []
 
     const unsubState = window.sandobox.opencode.onState((port, state: OpenCodeEventState) => {
-      if (port !== sandboxPort || !mounted) return
+      if (port !== sandboxId || !mounted) return
 
       if (state.sessions) {
         setSessions(state.sessions)
@@ -76,14 +76,14 @@ export function useOpenCode(sandboxPort?: number) {
     cleanupFns.push(unsubState)
 
     const unsubEvent = window.sandobox.opencode.onEvent((port, event: any) => {
-      if (port !== sandboxPort || !mounted) return
+      if (port !== sandboxId || !mounted) return
       if (event?.type === "session.status" || event?.type === "session.created" || event?.type === "session.deleted") {
         setDiagnostic(null)
       }
     })
     cleanupFns.push(unsubEvent)
 
-    window.sandobox.opencode.subscribeEvents(sandboxPort).then((result) => {
+    window.sandobox.opencode.subscribeEvents(sandboxId).then((result) => {
       if (!mounted) return
       if ("error" in result) {
         setConnected(false)
@@ -95,9 +95,9 @@ export function useOpenCode(sandboxPort?: number) {
     })
 
     const heartbeat = setInterval(async () => {
-      if (!sandboxPort) return
+      if (!sandboxId) return
       try {
-        const healthy = await window.sandobox.opencode.checkHealth(sandboxPort)
+        const healthy = await window.sandobox.opencode.checkHealth(sandboxId)
         if (mounted) setConnected(healthy)
       } catch {
         if (mounted) setConnected(false)
@@ -105,16 +105,16 @@ export function useOpenCode(sandboxPort?: number) {
     }, HEARTBEAT_INTERVAL)
     cleanupFns.push(() => clearInterval(heartbeat))
 
-    if (sandboxPort) {
+    if (sandboxId) {
       const refreshInterval = setInterval(async () => {
-        if (!mounted || !sandboxPort) return
-        const sessionsResult = await window.sandobox.getOpenCodeSessions(sandboxPort)
+        if (!mounted || !sandboxId) return
+        const sessionsResult = await window.sandobox.getOpenCodeSessions(sandboxId)
         if (!Array.isArray(sessionsResult) || !mounted) return
         setSessions(sessionsResult)
 
         const currentSid = selectedSessionIdRef.current
         if (currentSid) {
-          const msgsResult = await window.sandobox.getSessionMessages(sandboxPort, currentSid)
+          const msgsResult = await window.sandobox.getSessionMessages(sandboxId, currentSid)
           if (Array.isArray(msgsResult) && mounted) {
             setMessagesBySession((prev) => {
               const existing = prev[currentSid]
@@ -135,13 +135,13 @@ export function useOpenCode(sandboxPort?: number) {
     return () => {
       mounted = false
       cleanupFns.forEach((fn) => fn())
-      window.sandobox.opencode.unsubscribeEvents(sandboxPort)
+      window.sandobox.opencode.unsubscribeEvents(sandboxId)
     }
-  }, [sandboxPort])
+  }, [sandboxId])
 
   const sendPrompt = useCallback(
     async (text: string) => {
-      if (!sandboxPort || !selectedSessionId) return
+      if (!sandboxId || !selectedSessionId) return
 
       setMessagesBySession((prev) => {
         const sessionMessages = prev[selectedSessionId] ?? []
@@ -158,7 +158,7 @@ export function useOpenCode(sandboxPort?: number) {
 
       try {
         const response = await window.sandobox.opencode.sendPrompt(
-          sandboxPort,
+          sandboxId,
           selectedSessionId,
           text,
         )
@@ -192,12 +192,12 @@ export function useOpenCode(sandboxPort?: number) {
         setLoading(false)
       }
     },
-    [sandboxPort, selectedSessionId],
+    [sandboxId, selectedSessionId],
   )
 
   const refreshSessions = useCallback(async () => {
-    if (!sandboxPort) return
-    const result = await window.sandobox.getOpenCodeSessions(sandboxPort)
+    if (!sandboxId) return
+    const result = await window.sandobox.getOpenCodeSessions(sandboxId)
     if (Array.isArray(result)) {
       setSessions(result)
       setSelectedSessionId((prev) => {
@@ -206,12 +206,12 @@ export function useOpenCode(sandboxPort?: number) {
         return null
       })
     }
-  }, [sandboxPort])
+  }, [sandboxId])
 
   const createSession = useCallback(
     async (params?: { title?: string; model?: { providerID: string; id: string; variant?: string } }) => {
-      if (!sandboxPort) return null
-      const result = await window.sandobox.createOpenCodeSession(sandboxPort, params)
+      if (!sandboxId) return null
+      const result = await window.sandobox.createOpenCodeSession(sandboxId, params)
       if ("error" in result) {
         setDiagnostic(result.error)
         return null
@@ -220,13 +220,13 @@ export function useOpenCode(sandboxPort?: number) {
       await refreshSessions()
       return result
     },
-    [sandboxPort, refreshSessions],
+    [sandboxId, refreshSessions],
   )
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
-      if (!sandboxPort) return
-      const result = await window.sandobox.deleteOpenCodeSession(sandboxPort, sessionId)
+      if (!sandboxId) return
+      const result = await window.sandobox.deleteOpenCodeSession(sandboxId, sessionId)
       if ("error" in result) {
         setDiagnostic(result.error)
       }
@@ -237,47 +237,47 @@ export function useOpenCode(sandboxPort?: number) {
         return next
       })
     },
-    [sandboxPort],
+    [sandboxId],
   )
 
   const abortSession = useCallback(
     async (sessionId: string) => {
-      if (!sandboxPort) return
-      const result = await window.sandobox.abortOpenCodeSession(sandboxPort, sessionId)
+      if (!sandboxId) return
+      const result = await window.sandobox.abortOpenCodeSession(sandboxId, sessionId)
       if (typeof result === "object" && "error" in result) {
         setDiagnostic(result.error)
       }
     },
-    [sandboxPort],
+    [sandboxId],
   )
 
   const replyQuestion = useCallback(
     async (requestId: string, answers: string[][]) => {
-      if (!sandboxPort) return
-      const result = await window.sandobox.replyQuestion(sandboxPort, requestId, answers)
+      if (!sandboxId) return
+      const result = await window.sandobox.replyQuestion(sandboxId, requestId, answers)
       if (typeof result !== "boolean") {
         throw new Error(result.error ?? "Failed to reply to question")
       }
     },
-    [sandboxPort],
+    [sandboxId],
   )
 
   const replyPermission = useCallback(
     async (requestId: string, reply: "once" | "always" | "reject") => {
-      if (!sandboxPort) return
-      const result = await window.sandobox.replyPermission(sandboxPort, requestId, reply)
+      if (!sandboxId) return
+      const result = await window.sandobox.replyPermission(sandboxId, requestId, reply)
       if (typeof result !== "boolean") {
         throw new Error(result.error ?? "Failed to reply to permission")
       }
     },
-    [sandboxPort],
+    [sandboxId],
   )
 
   const refreshSessionDebug = useCallback(
     async (sessionId: string) => {
-      if (!sandboxPort) return
+      if (!sandboxId) return
       try {
-        const result = await window.sandobox.getOpenCodeSessionDebug(sandboxPort, sessionId)
+        const result = await window.sandobox.getOpenCodeSessionDebug(sandboxId, sessionId)
         if ("error" in result) {
           setSessionDebug({
             sessionId,
@@ -290,15 +290,15 @@ export function useOpenCode(sandboxPort?: number) {
         setSessionDebug({ sessionId, error: "Failed to inspect the session." })
       }
     },
-    [sandboxPort],
+    [sandboxId],
   )
 
   const refreshAll = useCallback(async () => {
-    if (!sandboxPort) return
+    if (!sandboxId) return
     const [sessionsResult, permissionsResult, questionsResult] = await Promise.all([
-      window.sandobox.getOpenCodeSessions(sandboxPort),
-      window.sandobox.listPendingPermissions(sandboxPort),
-      window.sandobox.listPendingQuestions(sandboxPort),
+      window.sandobox.getOpenCodeSessions(sandboxId),
+      window.sandobox.listPendingPermissions(sandboxId),
+      window.sandobox.listPendingQuestions(sandboxId),
     ])
     if (Array.isArray(sessionsResult)) {
       setSessions(sessionsResult)
@@ -313,12 +313,12 @@ export function useOpenCode(sandboxPort?: number) {
 
     const sid = selectedSessionIdRef.current
     if (sid) {
-      const msgsResult = await window.sandobox.getSessionMessages(sandboxPort, sid)
+      const msgsResult = await window.sandobox.getSessionMessages(sandboxId, sid)
       if (Array.isArray(msgsResult)) {
         setMessagesBySession((prev) => ({ ...prev, [sid]: msgsResult }))
       }
     }
-  }, [sandboxPort])
+  }, [sandboxId])
 
   return {
     messages,

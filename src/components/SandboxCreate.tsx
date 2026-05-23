@@ -74,7 +74,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
   const [imageTag, setImageTag] = useState("latest")
-  const [opencodePort, setOpencodePort] = useState(4096)
   const [projectMount, setProjectMount] = useState("")
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git"])
@@ -122,7 +121,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     setName(editRecord.name)
     const colonIdx = (editRecord.image_tag ?? "").lastIndexOf(":")
     setImageTag(colonIdx >= 0 ? editRecord.image_tag.slice(colonIdx + 1) : editRecord.image_tag || "latest")
-    setOpencodePort(editRecord.opencode_port)
     setProjectMount(editRecord.project_mount ?? "")
     setRuntimes(editRecord.runtimes)
     setTools(editRecord.tools)
@@ -175,7 +173,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const configPreview = useMemo(
     () => ({
       image: fullImage,
-      opencodePort,
       projectMount: projectMount || null,
       runtimes,
       tools,
@@ -188,7 +185,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         .filter(([, v]) => v === "allow")
         .map(([k]) => k),
     }),
-    [fullImage, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig, permissions]
+    [fullImage, projectMount, providers, runtimes, services, tools, gitConfig, permissions]
   )
 
   const handleSubmit = async () => {
@@ -205,11 +202,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     }
     if (trimmedName.length > 64) {
       setError("Name must be 64 characters or fewer")
-      return
-    }
-
-    if (!Number.isInteger(opencodePort) || opencodePort < 1024 || opencodePort > 65535) {
-      setError("OpenCode port must be an integer between 1024 and 65535")
       return
     }
 
@@ -243,7 +235,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     const config: SandboxConfig = {
       name: trimmedName,
       image: fullImage,
-      opencodePort,
       generatedDockerfile,
       permissions,
       runtimes,
@@ -382,17 +373,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                         placeholder="latest"
                       />
                     </div>
-                  </div>
-
-                  <div className="form-group form-group-inline">
-                    <label>OpenCode Port</label>
-                    <input
-                      type="number"
-                      min={1024}
-                      max={65535}
-                      value={opencodePort}
-                      onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
-                    />
                   </div>
 
                   <div className="form-group form-group-inline">
@@ -540,10 +520,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     <div className="plan-row">
                       <span className="plan-label">Image</span>
                       <span>{configPreview.image}</span>
-                    </div>
-                    <div className="plan-row" style={{ alignItems: "center" }}>
-                      <span className="plan-label">Port</span>
-                      <span>{configPreview.opencodePort}</span>
                     </div>
                     <div className="plan-row" style={{ alignItems: "center" }}>
                       <span className="plan-label">Mount</span>

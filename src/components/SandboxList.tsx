@@ -51,7 +51,7 @@ export function SandboxList({ sandboxes, selectedId, loading, error, onSelect, o
                 <span className={`sandbox-card-status ${s.status}`}>{s.status}</span>
               </div>
               <div className="sandbox-card-detail">
-                Port: {s.opencodePort} &middot; Image: {s.image}
+                Image: {s.image}
               </div>
             </div>
           ))

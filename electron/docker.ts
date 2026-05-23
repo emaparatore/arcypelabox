@@ -345,7 +345,24 @@ export async function startSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
   const info = await container.inspect()
   const group = info.Config.Labels?.["sandobox.group"]
+  const sandboxId = info.Config.Labels?.["sandobox.id"]
   await startGroupContainers(group ?? id)
+  if (sandboxId) {
+    const freshInfo = await container.inspect()
+    const ports = freshInfo.NetworkSettings?.Ports
+    const entry = ports ? Object.entries(ports).find(
+      ([, bindings]) => bindings && bindings.length > 0 && bindings[0]?.HostPort
+    ) : null
+    if (entry) {
+      const hostPort = parseInt(entry[1][0].HostPort, 10)
+      getProxy().register(sandboxId, { host: "127.0.0.1", port: hostPort })
+      spawn("docker", ["container", "update", "--label-add", `sandobox.host.port=${hostPort}`, id], {
+        windowsHide: true,
+        stdio: "ignore",
+      })
+      console.log(`[docker] Re-registered sandbox ${sandboxId} → 127.0.0.1:${hostPort}`)
+    }
+  }
 }
 
 export async function stopSandbox(id: string): Promise<void> {

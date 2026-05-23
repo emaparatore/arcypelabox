@@ -213,55 +213,54 @@ function stringifyToolInput(input: unknown) {
   }
 }
 
-const maxRetryAttempts = 10
-let retryDelay = 1000
-
 export async function subscribeToEvents(
   sandboxId: string,
   onEvent: (event: any) => void,
-  onError?: (error: any) => void
+  onError?: (error: any) => void,
+  onReconnect?: () => void,
 ): Promise<AbortController> {
   const abortController = new AbortController()
   const maxDelay = 30000
+  let retryDelay = 1000
 
-  const connect = async (attempt = 0) => {
-    try {
-      const response = await fetch(`${getProxy().getUrl(sandboxId)}/event`, {
-        signal: abortController.signal,
-      })
-      if (!response.ok || !response.body) {
-        throw new Error(`SSE connection failed: ${response.status}`)
-      }
-      retryDelay = 1000
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              onEvent(data)
-            } catch {
-              // ignore parse errors
+  const connect = async () => {
+    while (!abortController.signal.aborted) {
+      try {
+        const response = await fetch(`${getProxy().getUrl(sandboxId)}/event`, {
+          signal: abortController.signal,
+        })
+        if (!response.ok || !response.body) {
+          throw new Error(`SSE connection failed: ${response.status}`)
+        }
+        retryDelay = 1000
+        onReconnect?.()
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() || ""
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                onEvent(data)
+              } catch {
+                // ignore parse errors
+              }
             }
           }
         }
-      }
-    } catch (err: any) {
-      if (err.name === "AbortError") return
-      if (attempt < maxRetryAttempts) {
-        await new Promise((r) => setTimeout(r, retryDelay))
-        retryDelay = Math.min(retryDelay * 2, maxDelay)
-        connect(attempt + 1)
-      } else {
+      } catch (err: any) {
+        if (err.name === "AbortError") return
         onError?.(err)
       }
+      await new Promise((r) => setTimeout(r, retryDelay))
+      retryDelay = Math.min(retryDelay * 2, maxDelay)
     }
   }
   connect()

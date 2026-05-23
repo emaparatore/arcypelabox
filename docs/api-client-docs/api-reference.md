@@ -73,7 +73,6 @@ GET /api/sandboxes
     "sandboxId": "99168509-...",
     "name": "my-sandbox",
     "image": "node:20",
-    "opencodePort": 4096,
     "status": "running",
     "projectMount": "C:\\progetti\\mio-progetto",
     "createdAt": "1700000000"
@@ -98,7 +97,6 @@ GET /api/sandboxes/:id/info
   "sandboxId": "99168509-...",
   "name": "my-sandbox",
   "image": "node:20",
-  "opencodePort": 4096,
   "status": "running",
   "projectMount": "C:\\progetti\\mio-progetto",
   "createdAt": "1700000000"
@@ -124,18 +122,20 @@ I valori possibili di `status` sono quelli di Docker: `running`, `exited`, `paus
 
 ---
 
-### Porta OpenCode
+### Proxy URL
 
 ```
-GET /api/sandboxes/:id/opencode-port
+GET /api/sandboxes/:id/proxy-url
 ```
 
 **Richiesta:** body non richiesto. `:id` è il sandbox UUID.
 
 **Risposta:**
 ```json
-{"status":200,"body":{"opencodePort":4096}}
+{"status":200,"body":{"proxyUrl":"http://localhost:4096/99168509-..."}}
 ```
+
+L'URL del proxy è il punto d'ingresso unico per comunicare con OpenCode dentro la sandbox. Tutte le sandbox passano dallo stesso proxy su `http://localhost:<porta>` con il sandboxId nel path.
 
 ---
 
@@ -190,7 +190,6 @@ POST /api/sandboxes
 {"id":"<uuid>","method":"POST","path":"/api/sandboxes","body":{
   "name": "my-sandbox",
   "image": "node:20",
-  "opencodePort": 4096,
   "projectMount": "C:\\progetti\\mio-progetto",
   "runtimes": ["node","python"],
   "tools": ["git","curl"],
@@ -207,7 +206,6 @@ POST /api/sandboxes
 |---|---|---|---|
 | `name` | string | sì | Nome della sandbox |
 | `image` | string | sì | Tag immagine Docker base |
-| `opencodePort` | number | sì | Porta OpenCode |
 | `projectMount` | string | **sì** | Path assoluto del progetto da montare in `/workspace` |
 | `runtimes` | string[] | no | Runtime da installare (`node`, `python`, `go`, `java`, `ruby`, `php`, `rust`, `dotnet`, `zig`) |
 | `tools` | string[] | no | Tool da installare (`git`, `curl`, `vim`, `jq`, `gh`, `pnpm`, `bun`, ...) |
@@ -366,16 +364,16 @@ print(resp)  # {"status": 200, "body": {"pong": true}}
 resp = request("GET", "/api/sandboxes/{id}/status")
 print(resp["body"]["status"])
 
-resp = request("GET", "/api/sandboxes/{id}/opencode-port")
-port = resp["body"]["opencodePort"]
+resp = request("GET", "/api/sandboxes/{id}/proxy-url")
+proxyUrl = resp["body"]["proxyUrl"]
 ```
 
-Poi usa `http://localhost:{port}` per parlare direttamente con OpenCode.
+Poi usa `proxyUrl` (es. `http://localhost:4096/{sandboxId}`) per parlare con OpenCode tramite il reverse proxy integrato.
 
 ---
 
 ## Flusso tipico per un'app esterna
 
 1. **Trova la sandbox** → `GET /api/sandboxes/by-mount`
-2. **Leggi la porta** → `GET /api/sandboxes/:id/opencode-port`
-3. **Connettiti a OpenCode** → `http://localhost:<port>` con l'SDK OpenCode o HTTP diretto
+2. **Ottieni l'URL del proxy** → `GET /api/sandboxes/:id/proxy-url`
+3. **Connettiti a OpenCode** → usa l'URL restituito (es. `http://localhost:4096/<sandboxId>`) con l'SDK OpenCode o HTTP diretto

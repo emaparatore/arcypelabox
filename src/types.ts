@@ -218,7 +218,6 @@ export interface SandboxRecord {
   id: string
   name: string
   image_tag: string
-  opencode_port: number
   project_mount: string | null
   runtimes: SandboxRuntime[]
   tools: SandboxTool[]

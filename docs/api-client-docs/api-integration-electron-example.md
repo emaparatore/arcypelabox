@@ -123,7 +123,6 @@ await client.post("/api/sandboxes", {
   tools: ["git", "curl", "jq"],
   services: [],
   projectMount: "C:\\progetti\\mio-progetto",
-  opencodePort: 4096,
   permissions: {},
   providers: [
     { id: "anthropic", apiKey: "sk-ant-..." },
@@ -136,12 +135,12 @@ await client.post("/api/sandboxes/start", { id: "sandbox-id" })
 await client.post("/api/sandboxes/stop", { id: "sandbox-id" })
 await client.delete("/api/sandboxes", { id: "sandbox-id" })
 
-// Ottieni stato e porta OpenCode di una sandbox
+// Ottieni stato e proxy URL di una sandbox
 const { body: stato } = await client.get("/api/sandboxes/:id/status")
 console.log(stato) // { status: "running" }
 
-const { body: porta } = await client.get("/api/sandboxes/:id/opencode-port")
-console.log(porta) // { opencodePort: 4096 }
+const { body: proxy } = await client.get("/api/sandboxes/:id/proxy-url")
+console.log(proxy) // { proxyUrl: "http://localhost:4096/sandbox-uuid" }
 ```
 
 ## 3. Esponilo al renderer (preload)
@@ -183,7 +182,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 |--------|------|-------------|----------------|
 | `GET` | `/api/ping` | Verifica se Arcypelabox è raggiungibile | — |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox | — |
-| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, runtimes, tools, services, opencodePort, projectMount, ... }` |
+| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, runtimes, tools, services, projectMount, ... }` |
 | `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount | `{ mountPath }` |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox | `{ id }` |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |
@@ -191,7 +190,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 | `GET` | `/api/sandboxes/logs` | Log di una sandbox | `{ id }` |
 | `GET` | `/api/sandboxes/:id/info` | Info complete di una sandbox | — |
 | `GET` | `/api/sandboxes/:id/status` | Stato della sandbox (`{ status }`) | — |
-| `GET` | `/api/sandboxes/:id/opencode-port` | Porta OpenCode (`{ opencodePort }`) | — |
+| `GET` | `/api/sandboxes/:id/proxy-url` | URL del proxy (`{ proxyUrl }`) | — |
 | `POST` | `/api/sandboxes/exec` | Esegue un comando | `{ id, command }` |
 
 > **Nota:** `id` nei path e nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.

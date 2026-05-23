@@ -166,17 +166,6 @@ export function registerRoutes(server: IpcServerHandle) {
     }
   })
 
-  // Deprecated — kept for backward compat
-  server.register("GET", "/api/sandboxes/:id/opencode-port", async (req) => {
-    try {
-      const sandboxId = req.params!.id
-      const proxyUrl = getProxy().getUrl(sandboxId)
-      return { status: 200, body: { opencodePort: 0, proxyUrl } }
-    } catch (err) {
-      return { status: 500, body: { error: getErrorMessage(err) } }
-    }
-  })
-
   server.register("POST", "/api/sandboxes/exec", async (req) => {
     try {
       const sandboxId = (req.body as { id: string })?.id

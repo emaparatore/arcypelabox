@@ -179,6 +179,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
               <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
+              <div><span className="info-label">Proxy URL</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>http://localhost:4096/{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Created</span><span className="info-value">{new Date(sandbox.createdAt).toLocaleString()}</span></div>
               {fullRecord && <div><span className="info-label">Updated</span><span className="info-value">{new Date(fullRecord.updated_at).toLocaleString()}</span></div>}
             </div>

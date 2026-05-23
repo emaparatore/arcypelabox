@@ -432,6 +432,16 @@ app.whenReady().then(async () => {
         }
       }
 
+      const reloadFullState = async () => {
+        const [sessions, permissions, questions, providers] = await Promise.all([
+          listSessions(sandboxId),
+          listPendingPermissions(sandboxId),
+          listPendingQuestions(sandboxId),
+          listProviders(sandboxId),
+        ])
+        sendToRenderer("sandobox:opencode:state", sandboxId, { sessions, permissions, questions, providers })
+      }
+
       const abortController = await subscribeToEvents(
         sandboxId,
         (event: any) => {
@@ -449,6 +459,10 @@ app.whenReady().then(async () => {
         },
         (error) => {
           console.error(`[SSE] Error on sandbox ${sandboxId}:`, error)
+        },
+        () => {
+          console.log(`[SSE] Reconnected to sandbox ${sandboxId}, reloading state`)
+          reloadFullState()
         }
       )
       opencodeSubscriptions.set(sandboxId, abortController)

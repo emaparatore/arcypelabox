@@ -69,6 +69,7 @@ npm run electron:build
 - `electron/docker.ts`: Docker image build, container lifecycle, sidecar management
 - `electron/opencode.ts`: OpenCode health, prompt, session, permission, and question handling
 - `electron/ipc-server.ts` / `electron/ipc-client.ts`: [Local REST API via named pipe](docs/ipc-named-pipe.md) for inter-app communication
+- [`docs/api-client-docs/`](docs/api-client-docs/): API reference and integration examples for external apps to consume the named-pipe API
 
 ## Important Behavior
 

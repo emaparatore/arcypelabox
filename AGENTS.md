@@ -16,6 +16,7 @@
 - Docker lifecycle and image creation are implemented in `electron/docker.ts`.
 - OpenCode HTTP/SDK integration is implemented in `electron/opencode.ts`.
 - Local inter-app communication via named pipe is implemented in `electron/ipc-server.ts` and `electron/ipc-client.ts`. Routes are registered in `electron/api.ts`. See [docs/ipc-named-pipe.md](docs/ipc-named-pipe.md).
+- External API reference and integration examples are in [docs/api-client-docs/](docs/api-client-docs/).
 
 ## Sandbox Flow
 

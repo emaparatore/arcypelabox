@@ -426,9 +426,8 @@
 }
 
 .provider-combobox {
-    width: fit-content;
+    width: 150px;
     position: relative;
-    max-width: 150px;
 }
 
 .provider-combobox-input {
@@ -501,7 +500,9 @@
   width: 100%;
   max-width: 1000px;
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   min-height: 0;
 }
 
@@ -572,6 +573,9 @@
   flex-direction: column;
   gap: 20px;
   padding: 20px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .wizard-divider {
@@ -586,16 +590,21 @@
   gap: 10px;
 }
 
-.workspace-panel
-  {
-    gap: 0px;
-  }
+.workspace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
 
 .workspace-layout {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 16px;
-  align-items: start;
+  min-height: 0;
+  flex: 1;
 }
 
 .workspace-card {
@@ -622,10 +631,14 @@
 }
 
 .workspace-permissions {
- max-width: fit-content;
-    max-height: 47vh;
-    overflow-y: auto;
+  max-width: fit-content;
+  overflow-y: auto;
+  min-height: 0;
+}
 
+.workspace-providers {
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .workspace-providers .provider-row {

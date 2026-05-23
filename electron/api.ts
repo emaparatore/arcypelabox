@@ -127,12 +127,43 @@ export function registerRoutes(server: IpcServerHandle) {
     }
   })
 
-  server.register("GET", "/api/sandboxes/info", async (req) => {
+  server.register("GET", "/api/sandboxes/:id/info", async (req) => {
     try {
-      const sandboxId = (req.body as Record<string, unknown>)?.id as string
+      const sandboxId = req.params!.id
       const containerId = resolveContainerId(sandboxId)
       const info = await getSandboxInfo(containerId)
+      if (!info) {
+        return { status: 404, body: { error: "Sandbox not found" } }
+      }
       return { status: 200, body: info }
+    } catch (err) {
+      return { status: 500, body: { error: getErrorMessage(err) } }
+    }
+  })
+
+  server.register("GET", "/api/sandboxes/:id/status", async (req) => {
+    try {
+      const sandboxId = req.params!.id
+      const containerId = resolveContainerId(sandboxId)
+      const info = await getSandboxInfo(containerId)
+      if (!info) {
+        return { status: 404, body: { error: "Sandbox not found" } }
+      }
+      return { status: 200, body: { status: info.status } }
+    } catch (err) {
+      return { status: 500, body: { error: getErrorMessage(err) } }
+    }
+  })
+
+  server.register("GET", "/api/sandboxes/:id/opencode-port", async (req) => {
+    try {
+      const sandboxId = req.params!.id
+      const containerId = resolveContainerId(sandboxId)
+      const info = await getSandboxInfo(containerId)
+      if (!info) {
+        return { status: 404, body: { error: "Sandbox not found" } }
+      }
+      return { status: 200, body: { opencodePort: info.opencodePort } }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }
     }

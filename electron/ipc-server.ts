@@ -6,6 +6,7 @@ export interface IpcRequest {
   method: "GET" | "POST" | "PUT" | "DELETE"
   path: string
   body?: unknown
+  params?: Record<string, string>
 }
 
 export interface IpcResponse {
@@ -28,8 +29,25 @@ function getPipePath(name: string): string {
   return `/tmp/${name}.sock`
 }
 
+function pathToRegex(pattern: string): { regex: RegExp; paramNames: string[] } {
+  const paramNames: string[] = []
+  const regexStr = pattern.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, name) => {
+    paramNames.push(name)
+    return "([^/]+)"
+  })
+  return { regex: new RegExp(`^${regexStr}$`), paramNames }
+}
+
+interface PatternRoute {
+  method: string
+  regex: RegExp
+  paramNames: string[]
+  handler: RequestHandler
+}
+
 export function createIpcServer(serviceName: string) {
   const handlers = new Map<string, RequestHandler>()
+  const patternRoutes: PatternRoute[] = []
   const pipePath = getPipePath(serviceName)
 
   const server = net.createServer((socket) => {
@@ -48,7 +66,22 @@ export function createIpcServer(serviceName: string) {
       }
 
       const key = `${request.method}:${request.path}`
-      const handler = handlers.get(key)
+      let handler = handlers.get(key)
+
+      if (!handler) {
+        for (const route of patternRoutes) {
+          if (route.method !== request.method) continue
+          const match = request.path.match(route.regex)
+          if (match) {
+            request.params = {}
+            route.paramNames.forEach((name, i) => {
+              request.params![name] = decodeURIComponent(match[i + 1])
+            })
+            handler = route.handler
+            break
+          }
+        }
+      }
 
       if (!handler) {
         const resp: IpcResponse = {
@@ -89,7 +122,12 @@ export function createIpcServer(serviceName: string) {
 
   const api = {
     register(method: IpcRequest["method"], path: string, handler: RequestHandler) {
-      handlers.set(`${method}:${path}`, handler)
+      if (path.includes(":")) {
+        const { regex, paramNames } = pathToRegex(path)
+        patternRoutes.push({ method, regex, paramNames, handler })
+      } else {
+        handlers.set(`${method}:${path}`, handler)
+      }
     },
 
     start(): Promise<void> {

@@ -22,10 +22,12 @@ Arcypelabox espone un server **REST-like su named pipe** (Windows) o **Unix sock
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox (body: `{ id }`) |
 | `DELETE` | `/api/sandboxes` | Rimuove una sandbox (body: `{ id }`) |
 | `GET` | `/api/sandboxes/logs` | Log di una sandbox (body: `{ id }`) |
-| `GET` | `/api/sandboxes/info` | Info di una sandbox (body: `{ id }`) |
+| `GET` | `/api/sandboxes/:id/info` | Info complete di una sandbox |
+| `GET` | `/api/sandboxes/:id/status` | Stato di una sandbox (`{ status }`) |
+| `GET` | `/api/sandboxes/:id/opencode-port` | Porta OpenCode di una sandbox (`{ opencodePort }`) |
 | `POST` | `/api/sandboxes/exec` | Esegue un comando (body: `{ id, command }`) |
 
-> **Nota:** `id` si riferisce sempre al **sandbox UUID** (chiave primaria del database), non al Docker container ID. La risoluzione avviene automaticamente lato server.
+> **Nota:** `id` nei path e nei body si riferisce sempre al **sandbox UUID** (chiave primaria del database), non al Docker container ID. La risoluzione avviene automaticamente lato server.
 >
 > **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount` nel body; `generatedDockerfile` è opzionale — se omesso viene generato automaticamente da `runtimes`, `tools` e `services`.
 

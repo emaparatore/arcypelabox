@@ -1,17 +1,104 @@
-# Connettere un'app Electron ad Arcypelabox tramite Named Pipe
+# Connettere un'app ad Arcypelabox tramite Named Pipe (esempio con Electron/Node.js)
 
-Questa guida spiega come far comunicare un'altra applicazione Electron con Arcypelabox usando il named pipe locale.
+Questa guida spiega come far comunicare un'altra applicazione con Arcypelabox usando il named pipe locale. Il codice d'esempio è per **Electron / Node.js**, ma il protocollo (JSON su named pipe) è accessibile da qualsiasi linguaggio.
 
 ## Prerequisiti
 
 - Arcypelabox deve essere in esecuzione sulla stessa macchina
 - La tua app deve essere un'app Electron (o qualsiasi app Node.js)
 
-## 1. Copia il client
+## 1. Crea il client
 
-Prendi il file `electron/ipc-client.ts` da Arcypelabox e copialo nel tuo progetto (nella cartella del processo main, ad esempio `src/ipc-client.ts` o `electron/ipc-client.ts`).
+Crea un file `ipc-client.ts` (o `ipc-client.js`) nel tuo progetto, nella cartella del processo main (`electron/` o `src/`), con questo contenuto — non ha dipendenze esterne, usa solo `net` e `crypto` di Node.js:
 
-Non ha dipendenze esterne, usa solo `net` e `crypto` di Node.js.
+```ts
+import net from "net"
+import { randomUUID } from "node:crypto"
+import os from "os"
+
+function getPipePath(name: string): string {
+  if (os.platform() === "win32") {
+    return `//./pipe/${name}`
+  }
+  return `/tmp/${name}.sock`
+}
+
+export function createIpcClient(serviceName: string) {
+  const pipePath = getPipePath(serviceName)
+
+  function request(method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: unknown, timeoutMs = 30000): Promise<{ status: number; body?: unknown }> {
+    return new Promise((resolve, reject) => {
+      const id = randomUUID()
+      const client = net.connect(pipePath)
+      let buffer = ""
+      let done = false
+
+      const cleanup = () => {
+        done = true
+        client.removeAllListeners()
+        client.end()
+        client.destroy()
+      }
+
+      client.on("connect", () => {
+        client.write(JSON.stringify({ id, method, path, body }) + "\n")
+      })
+
+      client.on("data", (chunk) => {
+        if (done) return
+        buffer += chunk.toString()
+        const lines = buffer.split("\n")
+        buffer = lines.pop() ?? ""
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const resp = JSON.parse(line)
+            if (resp.id === id) {
+              cleanup()
+              resolve({ status: resp.status, body: resp.body })
+              return
+            }
+          } catch {
+            // skip malformed lines
+          }
+        }
+      })
+
+      client.on("error", (err) => {
+        if (!done) {
+          cleanup()
+          reject(err)
+        }
+      })
+
+      client.on("end", () => {
+        if (!done) {
+          cleanup()
+          reject(new Error("Connection closed without response"))
+        }
+      })
+
+      if (timeoutMs > 0) {
+        setTimeout(() => {
+          if (!done) {
+            cleanup()
+            reject(new Error(`Request timeout after ${timeoutMs}ms`))
+          }
+        }, timeoutMs)
+      }
+    })
+  }
+
+  return {
+    get: (path: string, body?: unknown) => request("GET", path, body),
+    post: (path: string, body?: unknown) => request("POST", path, body),
+    put: (path: string, body?: unknown) => request("PUT", path, body),
+    delete: (path: string, body?: unknown) => request("DELETE", path, body),
+    request,
+  }
+}
+```
 
 ## 2. Usalo nel tuo processo main
 
@@ -48,6 +135,13 @@ await client.post("/api/sandboxes", {
 await client.post("/api/sandboxes/start", { id: "sandbox-id" })
 await client.post("/api/sandboxes/stop", { id: "sandbox-id" })
 await client.delete("/api/sandboxes", { id: "sandbox-id" })
+
+// Ottieni stato e porta OpenCode di una sandbox
+const { body: stato } = await client.get("/api/sandboxes/:id/status")
+console.log(stato) // { status: "running" }
+
+const { body: porta } = await client.get("/api/sandboxes/:id/opencode-port")
+console.log(porta) // { opencodePort: 4096 }
 ```
 
 ## 3. Esponilo al renderer (preload)
@@ -95,10 +189,12 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |
 | `DELETE` | `/api/sandboxes` | Rimuove una sandbox | `{ id }` |
 | `GET` | `/api/sandboxes/logs` | Log di una sandbox | `{ id }` |
-| `GET` | `/api/sandboxes/info` | Info di una sandbox | `{ id }` |
+| `GET` | `/api/sandboxes/:id/info` | Info complete di una sandbox | — |
+| `GET` | `/api/sandboxes/:id/status` | Stato della sandbox (`{ status }`) | — |
+| `GET` | `/api/sandboxes/:id/opencode-port` | Porta OpenCode (`{ opencodePort }`) | — |
 | `POST` | `/api/sandboxes/exec` | Esegue un comando | `{ id, command }` |
 
-> **Nota:** `id` nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.
+> **Nota:** `id` nei path e nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.
 >
 > **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount`. `generatedDockerfile` e `customCommands` **non sono accettati** via named pipe per ragioni di sicurezza; il Dockerfile viene sempre generato automaticamente da `runtimes`, `tools` e `services`.
 

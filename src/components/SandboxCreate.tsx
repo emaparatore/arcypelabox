@@ -737,7 +737,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <label style={{ visibility: "hidden" }}>Remove</label>
                         <button
-                          className="btn icon-btn"
+                          className="btn icon-btn btn-small"
                           type="button"
                           onClick={() => setProviders((prev) => prev.filter((_, ii) => ii !== i))}
                           title="Remove"
@@ -748,7 +748,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     </div>
                   ))}
                   <button
-                    className="btn"
+                    className="btn btn-small"
                     type="button"
                     onClick={() => setProviders((prev) => [...prev, { id: "", apiKey: "" }])}
                     style={{ marginTop: 2 }}

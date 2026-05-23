@@ -372,6 +372,16 @@
   height: 30px;
 }
 
+.btn-small {
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.btn.btn-small.icon-btn {
+  width: 28px;
+  height: 28px;
+}
+
 .btn.icon-btn {
   width: 36px;
   height: 36px;

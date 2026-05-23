@@ -184,8 +184,11 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         ? providers.map((p) => ({ id: p.id, apiKey: "****" }))
         : null,
       ...(gitConfig ? { gitConfig } : {}),
+      allowedPermissions: Object.entries(permissions)
+        .filter(([, v]) => v === "allow")
+        .map(([k]) => k),
     }),
-    [fullImage, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig]
+    [fullImage, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig, permissions]
   )
 
   const handleSubmit = async () => {
@@ -531,7 +534,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
           {step === 3 && (
             <div className="wizard-panel">
               <div className="wizard-review-grid">
-                <div className="review-card">
+                <div className="review-card" style={{ maxWidth: 400 }}>
                   <h3>Sandbox Plan</h3>
                   <div className="code-preview" style={{ padding: "12px 14px" }}>
                     <div className="plan-row">
@@ -544,7 +547,17 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     </div>
                     <div className="plan-row" style={{ alignItems: "center" }}>
                       <span className="plan-label">Mount</span>
-                      <span style={{ color: configPreview.projectMount ? undefined : "var(--text-secondary)" }}>
+                      <span
+                        title={configPreview.projectMount || undefined}
+                        style={{
+                          color: configPreview.projectMount ? undefined : "var(--text-secondary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: "1",
+                          minWidth: 0,
+                        }}
+                      >
                         {configPreview.projectMount || "\u2014"}
                       </span>
                     </div>
@@ -568,9 +581,9 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                         ))}
                       </div>
                     </div>
-                    {configPreview.services.length > 0 && (
-                      <div className="plan-row">
-                        <span className="plan-label" style={{ alignSelf: "flex-start", paddingTop: 1 }}>Services</span>
+                    <div className="plan-row">
+                      <span className="plan-label" style={{ alignSelf: "flex-start", paddingTop: 1 }}>Services</span>
+                      {configPreview.services.length > 0 ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                           {configPreview.services.map((s) => (
                             <span key={s} className="plan-chip" style={{ background: "rgba(var(--success-rgb), 0.12)", color: "var(--success)" }}>
@@ -578,28 +591,49 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                             </span>
                           ))}
                         </div>
-                      </div>
-                    )}
-                    {configPreview.providers && configPreview.providers.length > 0 && (
-                      <div className="plan-row" style={{ alignItems: "center" }}>
-                        <span className="plan-label">Providers</span>
+                      ) : (
+                        <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>
+                      )}
+                    </div>
+                    <div className="plan-row" style={{ alignItems: "center" }}>
+                      <span className="plan-label">Providers</span>
+                      {configPreview.providers && configPreview.providers.length > 0 ? (
                         <span>
-                          {configPreview.providers.map((p) => `${p.id} (\u2605\u2605\u2605\u2605)`).join(", ")}
+                          {configPreview.providers.map((p) => p.id).join(", ")}
                         </span>
+                      ) : (
+                        <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>
+                      )}
+                    </div>
+                    <div className="plan-row" style={{ alignItems: "flex-start" }}>
+                      <span className="plan-label">Git</span>
+                      {configPreview.gitConfig ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                          {configPreview.gitConfig.userName && (
+                            <span style={{ fontSize: 12 }}>user.name: {configPreview.gitConfig.userName}</span>
+                          )}
+                          {configPreview.gitConfig.userEmail && (
+                            <span style={{ fontSize: 12 }}>user.email: {configPreview.gitConfig.userEmail}</span>
+                          )}
+                          {configPreview.gitConfig.autocrlf && (
+                            <span style={{ fontSize: 12 }}>autocrlf: {configPreview.gitConfig.autocrlf}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>
+                      )}
+                    </div>
+                    <div className="plan-row" style={{ alignItems: "flex-start" }}>
+                      <span className="plan-label">Permissions</span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {configPreview.allowedPermissions.length === PERMISSION_KEYS.length
+                          ? <span className="plan-chip" style={{ background: "rgba(var(--success-rgb), 0.12)", color: "var(--success)" }}>All</span>
+                          : configPreview.allowedPermissions.map((k) => (
+                            <span key={k} className="plan-chip" style={{ background: "rgba(var(--accent-rgb), 0.12)", color: "var(--accent)" }}>{k}</span>
+                          ))
+                        }
                       </div>
-                    )}
-                    {configPreview.gitConfig && (
-                      <div className="plan-row" style={{ alignItems: "center" }}>
-                        <span className="plan-label">Git</span>
-                        <span>
-                          {[
-                            configPreview.gitConfig.userName,
-                            configPreview.gitConfig.userEmail,
-                            configPreview.gitConfig.autocrlf,
-                          ].filter(Boolean).join(" \u00b7 ")}
-                        </span>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
                 <div className="review-card">

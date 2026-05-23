@@ -492,7 +492,7 @@
   gap: 5px;
   height: 97%;
   min-height: 0;
-  max-height: 670px;
+  max-height: 735px;
 }
 
 .wizard-body {
@@ -979,7 +979,7 @@
   line-height: 1.6;
   white-space: pre-wrap;
   overflow: auto;
-  max-height: 460px;
+  max-height: 30vh;
 }
 
 .plan-row {

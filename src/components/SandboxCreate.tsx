@@ -604,7 +604,14 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
             <div className="wizard-panel workspace-panel">
               <div className="workspace-layout">
                 <div className="wizard-section workspace-card workspace-permissions">
-                  <h3>OpenCode Permissions</h3>
+                  <div className="section-title-row">
+                    <h3>OpenCode Permissions</h3>
+                    <InfoPopover label="Show permissions info">
+                      Controls which OpenCode actions the sandbox can perform without asking.
+                      Each permission can be set to <em>allow</em> (auto-approve), <em>deny</em> (block),
+                      or <em>ask</em> (prompt the user).
+                    </InfoPopover>
+                  </div>
                   <div className="permission-grid">
                     {PERMISSION_KEYS.map((key) => (
                       <div key={key} className="permission-row">

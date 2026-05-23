@@ -416,7 +416,9 @@
 }
 
 .provider-combobox {
-  position: relative;
+    width: fit-content;
+    position: relative;
+    max-width: 150px;
 }
 
 .provider-combobox-input {
@@ -481,13 +483,13 @@
   gap: 5px;
   height: 97%;
   min-height: 0;
-  /* max-height: 671px; */
+  max-height: 670px;
 }
 
 .wizard-body {
   margin: 0 auto;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1000px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -573,6 +575,11 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.workspace-panel
+  {
+    gap: 0px;
+  }
 
 .workspace-layout {
   display: grid;
@@ -1008,7 +1015,7 @@
   padding: 12px;
   font-family: var(--font-mono);
   font-size: 12px;
-  height: 70vh;
+  height: 60vh;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;

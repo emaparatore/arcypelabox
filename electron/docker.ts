@@ -293,7 +293,7 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
       image: c.Image,
       status: c.State ?? "unknown",
       projectMount: c.Labels?.["sandobox.project.mount"],
-      createdAt: c.Created?.toString() ?? "",
+      createdAt: c.Created ? new Date(c.Created * 1000).toISOString() : "",
     }))
 }
 

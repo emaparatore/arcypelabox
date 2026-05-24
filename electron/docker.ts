@@ -125,6 +125,7 @@ export interface SandboxInfo {
   status: string
   projectMount?: string
   createdAt: string
+  proxyUrl: string
 }
 
 export interface ContainerLog {
@@ -286,15 +287,19 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
   const containers = await docker.listContainers({ all: true })
   return containers
     .filter((c) => c.Labels?.["sandobox.manager"] === "true")
-    .map((c) => ({
-      id: c.Id,
-      sandboxId: c.Labels?.["sandobox.id"] ?? c.Id,
-      name: (c.Names?.[0] ?? "").replace(/^\//, ""),
-      image: c.Image,
-      status: c.State ?? "unknown",
-      projectMount: c.Labels?.["sandobox.project.mount"],
-      createdAt: c.Created ? new Date(c.Created * 1000).toISOString() : "",
-    }))
+    .map((c) => {
+      const sandboxId = c.Labels?.["sandobox.id"] ?? c.Id
+      return {
+        id: c.Id,
+        sandboxId,
+        name: (c.Names?.[0] ?? "").replace(/^\//, ""),
+        image: c.Image,
+        status: c.State ?? "unknown",
+        projectMount: c.Labels?.["sandobox.project.mount"],
+        createdAt: c.Created ? new Date(c.Created * 1000).toISOString() : "",
+        proxyUrl: getProxy().getUrl(sandboxId),
+      }
+    })
 }
 
 function sanitizeError(text: string): string {
@@ -583,14 +588,16 @@ export async function getSandboxInfo(id: string): Promise<SandboxInfo | null> {
   try {
     const container = docker.getContainer(id)
     const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"] ?? info.Id
     return {
       id: info.Id,
-      sandboxId: info.Config.Labels?.["sandobox.id"] ?? info.Id,
+      sandboxId,
       name: info.Name.replace(/^\//, ""),
       image: info.Config.Image,
       status: info.State.Status,
       projectMount: info.Config.Labels?.["sandobox.project.mount"],
       createdAt: info.Created,
+      proxyUrl: getProxy().getUrl(sandboxId),
     }
   } catch {
     return null

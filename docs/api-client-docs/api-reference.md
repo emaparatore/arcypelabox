@@ -75,7 +75,8 @@ GET /api/sandboxes
     "image": "node:20",
     "status": "running",
     "projectMount": "C:\\progetti\\mio-progetto",
-    "createdAt": "1700000000"
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "proxyUrl": "http://127.0.0.1:4096/99168509-..."
   }
 ]}
 ```
@@ -98,8 +99,9 @@ GET /api/sandboxes/:id/info
   "name": "my-sandbox",
   "image": "node:20",
   "status": "running",
-  "projectMount": "C:\\progetti\\mio-progetto",
-  "createdAt": "1700000000"
+    "projectMount": "C:\\progetti\\mio-progetto",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "proxyUrl": "http://127.0.0.1:4096/99168509-..."
 }}
 ```
 
@@ -119,23 +121,6 @@ GET /api/sandboxes/:id/status
 ```
 
 I valori possibili di `status` sono quelli di Docker: `running`, `exited`, `paused`, `created`, `restarting`, `removing`, `dead`.
-
----
-
-### Proxy URL
-
-```
-GET /api/sandboxes/:id/proxy-url
-```
-
-**Richiesta:** body non richiesto. `:id` è il sandbox UUID.
-
-**Risposta:**
-```json
-{"status":200,"body":{"proxyUrl":"http://localhost:4096/99168509-..."}}
-```
-
-L'URL del proxy è il punto d'ingresso unico per comunicare con OpenCode dentro la sandbox. Tutte le sandbox passano dallo stesso proxy su `http://localhost:<porta>` con il sandboxId nel path.
 
 ---
 
@@ -291,7 +276,7 @@ GET /api/sandboxes/by-mount
 **Risposta:**
 ```json
 {"status":200,"body":[
-  {"id":"99168509-...","name":"my-sandbox"}
+  {"id":"99168509-...","name":"my-sandbox","proxyUrl":"http://127.0.0.1:4096/99168509-..."}
 ]}
 ```
 
@@ -308,8 +293,8 @@ Tutti gli errori restituiscono un body con campo `error`:
 | Status | Quando |
 |---|---|
 | `400` | Body richiesta invalido o campo obbligatorio mancante |
-| `404` | Sandbox o endpoint non trovato |
-| `500` | Errore interno (es. Docker Engine non disponibile) |
+| `404` | Endpoint non trovato |
+| `500` | Sandbox non trovata o errore interno (es. Docker Engine non disponibile) |
 
 ## Esempi
 
@@ -360,20 +345,21 @@ def request(method, path, body=None):
 resp = request("GET", "/api/ping")
 print(resp)  # {"status": 200, "body": {"pong": true}}
 
-# Ottieni stato e porta
+# Ottieni stato
 resp = request("GET", "/api/sandboxes/{id}/status")
 print(resp["body"]["status"])
 
-resp = request("GET", "/api/sandboxes/{id}/proxy-url")
+# Ottieni info sandbox (include proxyUrl)
+resp = request("GET", "/api/sandboxes/{id}/info")
 proxyUrl = resp["body"]["proxyUrl"]
 ```
 
-Poi usa `proxyUrl` (es. `http://localhost:4096/{sandboxId}`) per parlare con OpenCode tramite il reverse proxy integrato.
+Poi usa `proxyUrl` (es. `http://127.0.0.1:4096/{sandboxId}`) per parlare con OpenCode tramite il reverse proxy integrato.
 
 ---
 
 ## Flusso tipico per un'app esterna
 
-1. **Trova la sandbox** → `GET /api/sandboxes/by-mount`
-2. **Ottieni l'URL del proxy** → `GET /api/sandboxes/:id/proxy-url`
-3. **Connettiti a OpenCode** → usa l'URL restituito (es. `http://localhost:4096/<sandboxId>`) con l'SDK OpenCode o HTTP diretto
+1. **Trova la sandbox** → `GET /api/sandboxes/by-mount` restituisce un array di `{ id, name, proxyUrl }` (una sandbox per progetto, ma possono essercene più d'una). Prendi l'entry che ti interessa.
+2. **Verifica che sia running** → `GET /api/sandboxes/:id/status` restituisce `{ status }`. Se non è `"running"`, puoi usare `POST /api/sandboxes/start`.
+3. **Connettiti a OpenCode** → usa `proxyUrl` (es. `http://127.0.0.1:4096/<sandboxId>`) come base URL per raggiungere l'API HTTP del server OpenCode in esecuzione dentro la sandbox. Puoi usare l'SDK ufficiale di OpenCode oppure chiamare direttamente le sue API REST via fetch/axios — entrambi passano attraverso il proxy che inoltra alla sandbox.

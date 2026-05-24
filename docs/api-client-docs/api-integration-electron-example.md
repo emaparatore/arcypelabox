@@ -135,12 +135,12 @@ await client.post("/api/sandboxes/start", { id: "sandbox-id" })
 await client.post("/api/sandboxes/stop", { id: "sandbox-id" })
 await client.delete("/api/sandboxes", { id: "sandbox-id" })
 
-// Ottieni stato e proxy URL di una sandbox
+// Ottieni stato e info di una sandbox (include proxyUrl)
 const { body: stato } = await client.get("/api/sandboxes/:id/status")
 console.log(stato) // { status: "running" }
 
-const { body: proxy } = await client.get("/api/sandboxes/:id/proxy-url")
-console.log(proxy) // { proxyUrl: "http://localhost:4096/sandbox-uuid" }
+const { body: info } = await client.get("/api/sandboxes/:id/info")
+console.log(info.proxyUrl) // "http://127.0.0.1:4096/sandbox-uuid"
 ```
 
 ## 3. Esponilo al renderer (preload)
@@ -183,19 +183,20 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 | `GET` | `/api/ping` | Verifica se Arcypelabox è raggiungibile | — |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox | — |
 | `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, runtimes, tools, services, projectMount, ... }` |
-| `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount | `{ mountPath }` |
+| `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount (restituisce `{ id, name, proxyUrl }`) | `{ mountPath }` |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox | `{ id }` |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |
 | `DELETE` | `/api/sandboxes` | Rimuove una sandbox | `{ id }` |
 | `GET` | `/api/sandboxes/logs` | Log di una sandbox | `{ id }` |
 | `GET` | `/api/sandboxes/:id/info` | Info complete di una sandbox | — |
 | `GET` | `/api/sandboxes/:id/status` | Stato della sandbox (`{ status }`) | — |
-| `GET` | `/api/sandboxes/:id/proxy-url` | URL del proxy (`{ proxyUrl }`) | — |
 | `POST` | `/api/sandboxes/exec` | Esegue un comando | `{ id, command }` |
 
 > **Nota:** `id` nei path e nei body richiesta è sempre il **sandbox UUID** (es. `99168509-e4a7-4b94-b422-374c76019051`), non il Docker container ID. La risoluzione avviene automaticamente lato server.
 >
 > **Nota:** `POST /api/sandboxes` richiede obbligatoriamente `projectMount`. `generatedDockerfile` e `customCommands` **non sono accettati** via named pipe per ragioni di sicurezza; il Dockerfile viene sempre generato automaticamente da `runtimes`, `tools` e `services`.
+>
+> **Nota:** `proxyUrl` è incluso automaticamente nelle risposte di `GET /api/sandboxes`, `GET /api/sandboxes/:id/info` e `GET /api/sandboxes/by-mount`. Non è più necessario un endpoint dedicato.
 
 ## 5. Gestione errori
 

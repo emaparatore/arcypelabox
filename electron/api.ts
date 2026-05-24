@@ -156,16 +156,6 @@ export function registerRoutes(server: IpcServerHandle) {
     }
   })
 
-  server.register("GET", "/api/sandboxes/:id/proxy-url", async (req) => {
-    try {
-      const sandboxId = req.params!.id
-      const proxyUrl = getProxy().getUrl(sandboxId)
-      return { status: 200, body: { proxyUrl } }
-    } catch (err) {
-      return { status: 500, body: { error: getErrorMessage(err) } }
-    }
-  })
-
   server.register("POST", "/api/sandboxes/exec", async (req) => {
     try {
       const sandboxId = (req.body as { id: string })?.id
@@ -187,7 +177,7 @@ export function registerRoutes(server: IpcServerHandle) {
       const all = listSandboxRecords()
       const sandboxes = all
         .filter((r) => r.project_mount === mountPath)
-        .map((r) => ({ id: r.id, name: r.name }))
+        .map((r) => ({ id: r.id as string, name: r.name as string, proxyUrl: getProxy().getUrl(r.id as string) }))
       return { status: 200, body: sandboxes }
     } catch (err) {
       return { status: 500, body: { error: getErrorMessage(err) } }

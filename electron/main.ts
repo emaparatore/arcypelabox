@@ -51,6 +51,7 @@ import {
   clearChatMessages,
   getSetting,
   setSetting,
+  findNameConflict,
 } from "./database.js"
 import { createIpcServer } from "./ipc-server.js"
 import { registerRoutes, getErrorMessage } from "./api.js"
@@ -614,6 +615,14 @@ app.whenReady().then(async () => {
       validateString(sandboxId, "sandboxId")
       clearChatMessages(sandboxId)
       return { success: true }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:db:sandbox:name-exists", async (_event, name, excludeId) => {
+    try {
+      return findNameConflict(name, excludeId || undefined)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

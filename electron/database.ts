@@ -276,6 +276,15 @@ export function clearChatMessages(sandboxId: string): void {
   db.prepare("DELETE FROM chat_messages WHERE sandbox_id = ?").run(sandboxId)
 }
 
+export function findNameConflict(name: string, excludeId?: string): boolean {
+  if (excludeId) {
+    const row = db.prepare("SELECT id FROM sandboxes WHERE name = ? AND id != ?").get(name, excludeId)
+    return !!row
+  }
+  const row = db.prepare("SELECT id FROM sandboxes WHERE name = ?").get(name)
+  return !!row
+}
+
 export function getSetting(key: string): string | null {
   const row = db.prepare("SELECT value FROM app_settings WHERE key = ?").get(key) as { value: string } | undefined
   return row?.value ?? null

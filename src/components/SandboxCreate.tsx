@@ -73,7 +73,7 @@ const IMAGE_NAME = "arcypelabox-base"
 export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
-  const [imageTag, setImageTag] = useState("latest")
+
   const [projectMount, setProjectMount] = useState("")
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git"])
@@ -119,8 +119,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     if (!editRecord) return
     setShowWarning(true)
     setName(editRecord.name)
-    const colonIdx = (editRecord.image_tag ?? "").lastIndexOf(":")
-    setImageTag(colonIdx >= 0 ? editRecord.image_tag.slice(colonIdx + 1) : editRecord.image_tag || "latest")
     setProjectMount(editRecord.project_mount ?? "")
     setRuntimes(editRecord.runtimes)
     setTools(editRecord.tools)
@@ -169,7 +167,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     }
   }, [buildStatus, buildResult, onCreated])
 
-  const fullImage = `${IMAGE_NAME}:${imageTag}`
+  const fullImage = name.trim() ? `${IMAGE_NAME}:${name.trim().toLowerCase()}` : IMAGE_NAME
   const configPreview = useMemo(
     () => ({
       image: fullImage,
@@ -205,29 +203,22 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return
     }
 
-    const trimmedTag = imageTag.trim()
-    if (!trimmedTag) {
-      setError("Image tag is required")
-      return
-    }
-
     if (!projectMount.trim()) {
       setError("Project path to mount is required")
       return
     }
 
-    const fullImage = `${IMAGE_NAME}:${trimmedTag}`
     try {
-      const exists = await window.sandobox.checkImage(fullImage)
-      if (typeof exists === "object" && "error" in exists) {
-        // check itself failed — continue, docker build will surface the real issue
-      } else if (exists) {
-        setError(`An image with tag "${trimmedTag}" already exists in Docker. Please use a different tag.`)
+      const nameExists = await window.sandobox.checkSandboxName(trimmedName, editRecord?.id)
+      if (nameExists) {
+        setError(`A sandbox with the name "${trimmedName}" already exists. Please use a different name.`)
         return
       }
     } catch {
       // fall through
     }
+
+    const fullImage = `${IMAGE_NAME}:${trimmedName.toLowerCase()}`
 
     setBuildStatus("building")
     setError(null)
@@ -361,18 +352,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                   <div className="form-group form-group-inline">
                     <label>Sandbox Name</label>
                     <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
-                  </div>
-
-                  <div className="form-group form-group-inline">
-                    <label>Image Tag</label>
-                    <div className="image-tag-input">
-                      <span className="image-tag-prefix">{IMAGE_NAME}:</span>
-                      <input
-                        value={imageTag}
-                        onChange={(e) => setImageTag(e.target.value)}
-                        placeholder="latest"
-                      />
-                    </div>
                   </div>
 
                   <div className="form-group form-group-inline">

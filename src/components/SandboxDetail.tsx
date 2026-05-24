@@ -193,7 +193,6 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">General</h3>
             <div className="info-grid">
-              <div><span className="info-label">Container ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.id}</span></div>
               <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
               <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
@@ -252,46 +251,47 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
             </div>
           )}
 
-          {fullRecord?.docker_container_id && (
-            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
-              <h3 className="section-title">Docker</h3>
-              <div className="info-grid">
-                <div><span className="info-label">Docker ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{fullRecord.docker_container_id}</span></div>
-              </div>
-              {fullRecord.generated_dockerfile && (
-                <div style={{ marginTop: 8 }}>
-                  <button
-                    className="collapsible-header"
-                    onClick={() => setShowDockerfile(!showDockerfile)}
-                  >
-                    <span className={`collapsible-chevron ${showDockerfile ? "open" : ""}`}>&#9654;</span>
-                    Dockerfile
-                  </button>
-                  {showDockerfile && (
-                    <div style={{ position: "relative" }}>
-                      <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
-                      <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(fullRecord.generated_dockerfile); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
-                    </div>
-                  )}
-                </div>
+          <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+            <h3 className="section-title">Docker</h3>
+            <div className="info-grid">
+              <div><span className="info-label">Container ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.id}</span></div>
+              {fullRecord?.docker_container_id && (
+                <div><span className="info-label">Docker ID (DB)</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{fullRecord.docker_container_id}</span></div>
               )}
+            </div>
+            {fullRecord?.generated_dockerfile && (
               <div style={{ marginTop: 8 }}>
                 <button
                   className="collapsible-header"
-                  onClick={() => setShowCompose(!showCompose)}
+                  onClick={() => setShowDockerfile(!showDockerfile)}
                 >
-                  <span className={`collapsible-chevron ${showCompose ? "open" : ""}`}>&#9654;</span>
-                  Docker Compose
+                  <span className={`collapsible-chevron ${showDockerfile ? "open" : ""}`}>&#9654;</span>
+                  Dockerfile
                 </button>
-                {showCompose && (
+                {showDockerfile && (
                   <div style={{ position: "relative" }}>
-                    <pre className="collapsible-content">{generateCompose()}</pre>
-                    <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generateCompose()); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                    <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
+                    <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(fullRecord.generated_dockerfile); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
                   </div>
                 )}
               </div>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <button
+                className="collapsible-header"
+                onClick={() => setShowCompose(!showCompose)}
+              >
+                <span className={`collapsible-chevron ${showCompose ? "open" : ""}`}>&#9654;</span>
+                Docker Compose
+              </button>
+              {showCompose && (
+                <div style={{ position: "relative" }}>
+                  <pre className="collapsible-content">{generateCompose()}</pre>
+                  <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generateCompose()); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
 
 

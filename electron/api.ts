@@ -11,7 +11,7 @@ import {
   execInSandbox,
   buildGeneratedDockerfile,
 } from "./docker.js"
-import { createSandboxRecord, deleteSandboxByContainerId, getSandboxRecord, listSandboxRecords } from "./database.js"
+import { createSandboxRecord, deleteSandboxByContainerId, findNameConflict, getSandboxRecord, listSandboxRecords } from "./database.js"
 import { getProxy } from "./proxy.js"
 
 export function getErrorMessage(err: unknown) {
@@ -56,6 +56,29 @@ export function registerRoutes(server: IpcServerHandle) {
   server.register("POST", "/api/sandboxes", async (req) => {
     try {
       const config = req.body as Record<string, unknown>
+
+      if (!config?.name || typeof config.name !== "string") {
+        return { status: 400, body: { error: "name is required" } }
+      }
+
+      const name = config.name.trim()
+      if (!name) {
+        return { status: 400, body: { error: "name is required" } }
+      }
+      if (!/^[a-z0-9][a-z0-9_.-]*$/.test(name.toLowerCase())) {
+        return { status: 400, body: { error: "Name must start with a letter or number and contain only letters, numbers, hyphens, underscores, or dots" } }
+      }
+      if (name.length > 64) {
+        return { status: 400, body: { error: "Name must be 64 characters or fewer" } }
+      }
+      if (findNameConflict(name)) {
+        return { status: 409, body: { error: `A sandbox with the name "${name}" already exists. Please use a different name.` } }
+      }
+
+      if (config?.image) {
+        return { status: 400, body: { error: "image is not accepted via API; the image tag is automatically derived from the sandbox name" } }
+      }
+
       if (!config?.projectMount) {
         return { status: 400, body: { error: "projectMount is required" } }
       }
@@ -65,6 +88,9 @@ export function registerRoutes(server: IpcServerHandle) {
       if (config?.customCommands) {
         return { status: 400, body: { error: "customCommands is not accepted via named pipe API; use the Electron UI instead" } }
       }
+
+      config.name = name
+      config.image = `arcypelabox-base:${name.toLowerCase()}`
       config.generatedDockerfile = buildGeneratedDockerfile({
         runtimes: config.runtimes as string[] | undefined,
         tools: config.tools as string[] | undefined,

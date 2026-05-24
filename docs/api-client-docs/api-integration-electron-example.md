@@ -118,7 +118,6 @@ console.log(sandboxes)
 // Crea una sandbox (solo parametri strutturati, niente Dockerfile custom)
 await client.post("/api/sandboxes", {
   name: "prova-da-app-esterna",
-  image: "node:20",
   runtimes: ["node", "python", "go"],
   tools: ["git", "curl", "jq"],
   services: [],
@@ -182,7 +181,7 @@ ipcMain.handle("arcypelabox:remove", (_e, id) => client.delete("/api/sandboxes",
 |--------|------|-------------|----------------|
 | `GET` | `/api/ping` | Verifica se Arcypelabox è raggiungibile | — |
 | `GET` | `/api/sandboxes` | Lista tutte le sandbox | — |
-| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `projectMount`) | `{ name, image, runtimes, tools, services, projectMount, ... }` |
+| `POST` | `/api/sandboxes` | Crea una sandbox (richiede `name` e `projectMount`). | `{ name, runtimes, tools, services, projectMount, ... }` |
 | `GET` | `/api/sandboxes/by-mount` | Filtra sandbox per percorso mount (restituisce `{ id, name, proxyUrl }`) | `{ mountPath }` |
 | `POST` | `/api/sandboxes/start` | Avvia una sandbox | `{ id }` |
 | `POST` | `/api/sandboxes/stop` | Ferma una sandbox | `{ id }` |

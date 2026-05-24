@@ -40,6 +40,10 @@ export class SandboxProxy {
     return `http://127.0.0.1:${this._port}/${sandboxId}`
   }
 
+  getTarget(sandboxId: string): ContainerTarget | null {
+    return this.routes.get(sandboxId) ?? null
+  }
+
   start(): Promise<void> {
     return new Promise((resolve) => {
       this.server.listen(this._port, "127.0.0.1", resolve)

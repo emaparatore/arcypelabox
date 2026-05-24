@@ -54,7 +54,7 @@ import {
 } from "./database.js"
 import { createIpcServer } from "./ipc-server.js"
 import { registerRoutes, getErrorMessage } from "./api.js"
-import { SandboxProxy, setProxy } from "./proxy.js"
+import { SandboxProxy, setProxy, getProxy } from "./proxy.js"
 import { registerExistingSandboxes, startDockerWatcher, stopDockerWatcher } from "./docker.js"
 
 let mainWindow: BrowserWindow | null = null
@@ -253,6 +253,17 @@ app.whenReady().then(async () => {
   ipcMain.handle("sandobox:info", async (_event, id) => {
     try {
       return await getSandboxInfo(id)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
+  ipcMain.handle("sandobox:proxy:target", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      const target = getProxy().getTarget(sandboxId)
+      if (!target) return { error: "Sandbox not registered with proxy" }
+      return { host: target.host, port: target.port }
     } catch (err) {
       return { error: getErrorMessage(err) }
     }

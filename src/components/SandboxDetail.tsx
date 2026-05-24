@@ -22,8 +22,10 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<ConfirmAction>(null)
   const [fullRecord, setFullRecord] = useState<SandboxRecord | null>(null)
+  const [containerPort, setContainerPort] = useState<number | null>(null)
   const [showDockerfile, setShowDockerfile] = useState(false)
   const [showCompose, setShowCompose] = useState(false)
+  const [copyToast, setCopyToast] = useState<{ x: number; y: number } | null>(null)
 
   const fetchLogs = useCallback(async () => {
     const result = await window.sandobox.getSandboxLogs(sandbox.id)
@@ -44,8 +46,19 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
         setFullRecord(rec as SandboxRecord)
       }
     })
+    window.sandobox.getProxyTarget(sid).then((res) => {
+      if (!cancelled && "port" in res) {
+        setContainerPort(res.port)
+      }
+    })
     return () => { cancelled = true }
-  }, [sandbox.sandboxId, sandboxId])
+  }, [sandbox.sandboxId, sandboxId, sandbox.status])
+
+  useEffect(() => {
+    if (!copyToast) return
+    const timer = setTimeout(() => setCopyToast(null), 1500)
+    return () => clearTimeout(timer)
+  }, [copyToast])
 
   const handleStart = async () => {
     setLoading(true)
@@ -171,7 +184,12 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
       </div>
 
       {tab === "info" && (
-        <>
+        <div style={{ position: "relative" }}>
+          {copyToast && (
+            <div style={{ position: "fixed", left: copyToast.x, top: copyToast.y - 28, background: "var(--bg-secondary)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: 4, fontSize: 12, border: "1px solid var(--border-color)", pointerEvents: "none", zIndex: 1000 }}>
+              Copied
+            </div>
+          )}
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">General</h3>
             <div className="info-grid">
@@ -179,7 +197,23 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
               <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
-              <div><span className="info-label">Proxy URL</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>http://localhost:4096/{sandbox.sandboxId}</span></div>
+              <div><span className="info-label">OpenCode SDK Server URL</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }} onClick={(e) => { navigator.clipboard.writeText(`http://localhost:4096/${sandbox.sandboxId}`); setCopyToast({ x: e.clientX, y: e.clientY }) }} title="Copy URL">http://localhost:4096/{sandbox.sandboxId}</span></div>
+              {containerPort && (
+                <div>
+                  <span className="info-label">OpenCode Web</span>
+                  <span className="info-value">
+                    {sandbox.status === "running" ? (
+                      <a href={`http://127.0.0.1:${containerPort}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                        http://127.0.0.1:{containerPort} ↗
+                      </a>
+                    ) : (
+                      <span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11, opacity: 0.5 }}>
+                        http://127.0.0.1:{containerPort}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div><span className="info-label">Created</span><span className="info-value">{new Date(sandbox.createdAt).toLocaleString()}</span></div>
               {fullRecord && <div><span className="info-label">Updated</span><span className="info-value">{new Date(fullRecord.updated_at).toLocaleString()}</span></div>}
             </div>
@@ -276,8 +310,8 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               Use the OpenCode SDK to connect from external apps.
             </div>
           )}
-        </>
-      )}
+          </div>
+        )}
 
       {tab === "logs" && (
         <div className="sandbox-detail-section">

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("sandobox", {
   removeSandbox: (id: string) => ipcRenderer.invoke("sandobox:remove", id),
   getSandboxLogs: (id: string) => ipcRenderer.invoke("sandobox:logs", id),
   getSandboxInfo: (id: string) => ipcRenderer.invoke("sandobox:info", id),
+  getProxyTarget: (sandboxId: string) => ipcRenderer.invoke("sandobox:proxy:target", sandboxId),
   execInSandbox: (id: string, command: string) =>
     ipcRenderer.invoke("sandobox:exec", id, command),
   listPendingPermissions: (sandboxId: string) => ipcRenderer.invoke("sandobox:opencode:permissions", sandboxId),

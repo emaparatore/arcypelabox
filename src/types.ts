@@ -255,6 +255,7 @@ export interface SandboxWindowApi {
   removeSandbox: (id: string) => Promise<{ success: boolean } | { error: string }>
   getSandboxLogs: (id: string) => Promise<ContainerLog[] | { error: string }>
   getSandboxInfo: (id: string) => Promise<SandboxInfo | null | { error: string }>
+  getProxyTarget: (sandboxId: string) => Promise<{ host: string; port: number } | { error: string }>
   execInSandbox: (id: string, command: string) => Promise<string | { error: string }>
   listPendingPermissions: (sandboxId: string) => Promise<PermissionRequestInfo[] | { error: string }>
   replyPermission: (

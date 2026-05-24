@@ -193,9 +193,13 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">General</h3>
             <div className="info-grid">
-              <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
               <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
+              <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
+              
+              
+              
+              <div></div>
               <div><span className="info-label">OpenCode SDK Server URL</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }} onClick={(e) => { navigator.clipboard.writeText(`http://localhost:4096/${sandbox.sandboxId}`); setCopyToast({ x: e.clientX, y: e.clientY }) }} title="Copy URL">http://localhost:4096/{sandbox.sandboxId}</span></div>
               {containerPort && (
                 <div>

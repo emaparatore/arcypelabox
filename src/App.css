@@ -123,10 +123,16 @@
 
 .sandbox-list-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.sandbox-list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sandbox-list-header h2 {
@@ -135,6 +141,26 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
+}
+
+.sandbox-search {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.sandbox-search:focus {
+  border-color: var(--accent);
+}
+
+.sandbox-search::placeholder {
+  color: var(--text-muted);
 }
 
 .sandbox-list {
@@ -163,14 +189,39 @@
 
 .sandbox-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 6px;
+}
+
+.sandbox-card-name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .sandbox-card-name {
   font-weight: 600;
   font-size: 14px;
+}
+
+.sandbox-card-workspace {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sandbox-card-fullpath {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sandbox-card-status {
@@ -195,10 +246,6 @@
   color: var(--warning);
 }
 
-.sandbox-card-detail {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
 
 .sandbox-detail {
       margin: auto;

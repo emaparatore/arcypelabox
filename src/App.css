@@ -1403,6 +1403,22 @@
   color: var(--text-primary);
 }
 
+.dockerfile-copy {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px;
+  display: flex;
+  color: var(--brand-sun);
+  transition: background 0.15s;
+}
+
+.dockerfile-copy:hover {
+  background: var(--bg-tertiary);
+}
+
 .opencode-busy-warning {
   font-size: 11px;
   color: var(--warning);

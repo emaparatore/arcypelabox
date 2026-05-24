@@ -268,7 +268,10 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
                     Dockerfile
                   </button>
                   {showDockerfile && (
-                    <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
+                    <div style={{ position: "relative" }}>
+                      <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
+                      <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(fullRecord.generated_dockerfile); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                    </div>
                   )}
                 </div>
               )}
@@ -281,7 +284,10 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
                   Docker Compose
                 </button>
                 {showCompose && (
-                  <pre className="collapsible-content">{generateCompose()}</pre>
+                  <div style={{ position: "relative" }}>
+                    <pre className="collapsible-content">{generateCompose()}</pre>
+                    <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generateCompose()); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                  </div>
                 )}
               </div>
             </div>

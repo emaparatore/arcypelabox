@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld("sandobox", {
       return () => ipcRenderer.removeListener("sandobox:opencode:state", handler)
     },
   },
+  openPath: (folderPath: string) => ipcRenderer.invoke("sandobox:shell:open-path", folderPath),
   onBuildProgress: (callback: (event: { type: "step" | "log"; text: string }) => void) => {
     const handler = (_event: any, data: { type: "step" | "log"; text: string }) => callback(data)
     ipcRenderer.on("sandobox:build:progress", handler)

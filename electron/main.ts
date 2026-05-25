@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from "electron"
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
 import { exec, spawn } from "child_process"
 import path from "path"
 import { randomUUID } from "node:crypto"
@@ -533,6 +533,11 @@ app.whenReady().then(async () => {
       openTerminal("xterm", ["-e", cmd])
     }
     return { success: true }
+  })
+
+  ipcMain.handle("sandobox:shell:open-path", async (_event, folderPath) => {
+    validateString(folderPath, "folderPath")
+    return shell.openPath(folderPath)
   })
 
   ipcMain.handle("sandobox:db:sandbox:getById", async (_event, id) => {

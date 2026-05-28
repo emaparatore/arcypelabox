@@ -81,7 +81,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [gitUserName, setGitUserName] = useState("")
   const [gitUserEmail, setGitUserEmail] = useState("")
   const [gitAutocrlf, setGitAutocrlf] = useState<"input" | "true" | "false">("input")
-  const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
+  const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
   const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
   const [permissions, setPermissions] = useState<Record<string, string>>({
@@ -223,6 +223,8 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     setBuildStatus("building")
     setError(null)
 
+    const sanitizedProviders = providers.filter((p) => p.id.trim() && p.apiKey.trim())
+
     const config: SandboxConfig = {
       name: trimmedName,
       image: fullImage,
@@ -232,7 +234,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       tools,
       services,
       ...(projectMount.trim() ? { projectMount: projectMount.trim() } : {}),
-      ...(providers.length > 0 ? { providers } : {}),
+      ...(sanitizedProviders.length > 0 ? { providers: sanitizedProviders } : {}),
       ...(customCommands.trim() ? { customCommands: customCommands.trim() } : {}),
       ...(gitConfig ? { gitConfig } : {}),
     }

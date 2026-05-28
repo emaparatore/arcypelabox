@@ -57,9 +57,7 @@ export default function App() {
     const handleResize = () => {
       const compact = window.innerWidth <= COMPACT_SIDEBAR_BREAKPOINT
       setIsCompactSidebarMode(compact)
-      if (compact) {
-        setIsSidebarCollapsed(true)
-      }
+      setIsSidebarCollapsed(compact)
     }
 
     window.addEventListener("resize", handleResize)

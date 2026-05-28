@@ -540,6 +540,28 @@ app.whenReady().then(async () => {
     return shell.openPath(folderPath)
   })
 
+  ipcMain.handle("sandobox:shell:open-terminal", async (_event, folderPath) => {
+    validateString(folderPath, "folderPath")
+    const platform = process.platform
+    if (platform === "win32") {
+      exec(`start cmd.exe /k "cd /d ${folderPath}"`, { shell: "cmd.exe" })
+    } else if (platform === "darwin") {
+      const script = `tell application "Terminal" to do script "cd ${folderPath.replace(/"/g, '\\"')}"`
+      exec(`osascript -e '${script}'`)
+    } else {
+      const openTerminal = (term: string, args: string[]) => {
+        const child = spawn(term, args, { detached: true, stdio: "ignore" })
+        child.on("error", () => {})
+        child.unref()
+      }
+      const cmd = `cd ${folderPath.replace(/"/g, '\\"')} && exec $SHELL`
+      openTerminal("x-terminal-emulator", ["-e", cmd])
+      openTerminal("gnome-terminal", ["--", "sh", "-c", cmd])
+      openTerminal("xterm", ["-e", cmd])
+    }
+    return { success: true }
+  })
+
   ipcMain.handle("sandobox:db:sandbox:getById", async (_event, id) => {
     try {
       validateString(id, "sandboxId")

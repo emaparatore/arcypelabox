@@ -293,6 +293,7 @@ export interface SandboxWindowApi {
     onState: (callback: (sandboxId: string, state: OpenCodeEventState) => void) => () => void
   }
   openPath: (folderPath: string) => Promise<string | null>
+  openInTerminal: (folderPath: string) => Promise<{ success: boolean } | { error: string }>
   onBuildProgress: (callback: (event: { type: "step" | "log"; text: string }) => void) => () => void,
   db: {
     getSandboxById: (id: string) => Promise<SandboxRecord | null | { error: string }>

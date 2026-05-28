@@ -1820,6 +1820,28 @@
   border-bottom-color: var(--accent);
 }
 
+.mount-path {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.mount-path:hover {
+  color: var(--accent-hover);
+}
+
+.mount-icon-btn {
+  color: var(--accent);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  display: inline-flex;
+  vertical-align: middle;
+  transition: background 0.15s ease;
+}
+.mount-icon-btn:hover {
+  background: var(--bg-tertiary);
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

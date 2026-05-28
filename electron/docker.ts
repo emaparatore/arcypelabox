@@ -10,6 +10,11 @@ import { getSandboxRecordFull } from "./database.js"
 
 const docker = new Docker()
 
+const CPU_LIMIT = 2_000_000_000   // 2 CPU cores (nano CPUs)
+const MEMORY_LIMIT = 2 * 1024 * 1024 * 1024    // 2 GB
+const SIDECAR_CPU_LIMIT = 1_000_000_000         // 1 CPU core
+const SIDECAR_MEMORY_LIMIT = 512 * 1024 * 1024  // 512 MB
+
 async function findSymlinks(root: string, maxDepth = 12): Promise<string[]> {
   const results: string[] = []
   const normalize = (p: string) => (process.platform === "win32" ? p.toLowerCase() : p)
@@ -223,11 +228,15 @@ export function startDockerWatcher(): void {
   const SYNC_INTERVAL = 30_000
 
   const sync = async () => {
-    const containers = await docker.listContainers({ all: true })
-    for (const c of containers) {
-      if (c.Labels?.["sandobox.manager"] !== "true") continue
-      if (c.State !== "running") continue
-      await registerContainerWithProxy(c.Id)
+    try {
+      const containers = await docker.listContainers({ all: true })
+      for (const c of containers) {
+        if (c.Labels?.["sandobox.manager"] !== "true") continue
+        if (c.State !== "running") continue
+        await registerContainerWithProxy(c.Id)
+      }
+    } catch (err) {
+      console.error("[docker] Watcher sync failed:", err)
     }
   }
 
@@ -285,7 +294,13 @@ export function stopDockerWatcher(): void {
 }
 
 export async function listSandboxes(): Promise<SandboxInfo[]> {
-  const containers = await docker.listContainers({ all: true })
+  let containers: Docker.ContainerInfo[]
+  try {
+    containers = await docker.listContainers({ all: true })
+  } catch (err) {
+    console.error("[docker] listSandboxes failed:", err)
+    return []
+  }
   return containers
     .filter((c) => c.Labels?.["sandobox.manager"] === "true")
     .map((c) => {
@@ -387,6 +402,8 @@ export async function createSandbox(config: SandboxConfig, onProgress?: (event: 
     },
     HostConfig: {
       CapDrop: ["ALL"],
+      NanoCpus: CPU_LIMIT,
+      Memory: MEMORY_LIMIT,
       PortBindings: {
         "4096/tcp": [{ HostIp: "127.0.0.1" }],
       },
@@ -694,13 +711,23 @@ async function buildImage(tag: string, dockerfile: string, onProgress?: (event: 
 }
 
 function buildOpenCodeConfig(config: SandboxConfig): string {
-  const permissionEntries = Object.entries(config.permissions).map(([key, value]) => {
-    const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
-    return `"${key}": ${JSON.stringify(action)}`
-  })
+  const permission: Record<string, unknown> = JSON.parse(
+    `{${Object.entries(config.permissions)
+      .map(([key, value]) => {
+        const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
+        return `"${key}": ${JSON.stringify(action)}`
+      })
+      .join(",")}}`,
+  )
+  permission.doom_loop = "deny"
 
   const opencodeConfig: Record<string, unknown> = {
-    permission: JSON.parse(`{${permissionEntries.join(",")}}`),
+    permission,
+    agent: {
+      build: {
+        steps: 100,
+      },
+    },
   }
 
   if (config.providers && config.providers.length > 0) {
@@ -759,6 +786,10 @@ async function ensureServiceContainers(containerName: string, config: SandboxCon
           "sandobox.group": group,
           "sandobox.service.name": "postgres",
         },
+        HostConfig: {
+          NanoCpus: SIDECAR_CPU_LIMIT,
+          Memory: SIDECAR_MEMORY_LIMIT,
+        },
         Env: [
           "POSTGRES_USER=sandbox",
           "POSTGRES_PASSWORD=sandbox",
@@ -783,6 +814,10 @@ async function ensureServiceContainers(containerName: string, config: SandboxCon
           "sandobox.service": "true",
           "sandobox.group": group,
           "sandobox.service.name": "redis",
+        },
+        HostConfig: {
+          NanoCpus: SIDECAR_CPU_LIMIT,
+          Memory: SIDECAR_MEMORY_LIMIT,
         },
       })
       await docker.getNetwork(networkName).connect({
@@ -1043,6 +1078,11 @@ export function buildDockerCompose(sandboxId: string): string {
   lines.push(`    container_name: ${name}`)
   lines.push(`    cap_drop:`)
   lines.push(`      - ALL`)
+  lines.push(`    deploy:`)
+  lines.push(`      resources:`)
+  lines.push(`        limits:`)
+  lines.push(`          cpus: "2"`)
+  lines.push(`          memory: 2GB`)
   lines.push(`    ports:`)
   lines.push(`      - "127.0.0.1:4096:4096"`)
 
@@ -1051,13 +1091,25 @@ export function buildDockerCompose(sandboxId: string): string {
     lines.push(`      - ${projectMount}:/workspace`)
   }
 
-  const configObj: Record<string, unknown> = {}
-  if (permissions && Object.keys(permissions).length > 0) {
-    const permEntries = Object.entries(permissions).map(([key, value]) => {
-      const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
-      return `"${key}":"${action}"`
-    })
-    configObj.permission = JSON.parse(`{${permEntries.join(",")}}`)
+  const permission: Record<string, unknown> =
+    permissions && Object.keys(permissions).length > 0
+      ? JSON.parse(
+          `{${Object.entries(permissions)
+            .map(([key, value]) => {
+              const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
+              return `"${key}":"${action}"`
+            })
+            .join(",")}}`,
+        )
+      : {}
+  permission.doom_loop = "deny"
+
+  const configObj: Record<string, unknown> = {
+    agent: {
+      build: {
+        steps: 100,
+      },
+    },
   }
   if (providers && providers.length > 0) {
     configObj.provider = Object.fromEntries(
@@ -1094,6 +1146,11 @@ export function buildDockerCompose(sandboxId: string): string {
     lines.push(`  postgres:`)
     lines.push(`    image: postgres:16-alpine`)
     lines.push(`    container_name: ${name}-postgres`)
+    lines.push(`    deploy:`)
+    lines.push(`      resources:`)
+    lines.push(`        limits:`)
+    lines.push(`          cpus: "1"`)
+    lines.push(`          memory: 512M`)
     lines.push(`    environment:`)
     lines.push(`      POSTGRES_USER: sandbox`)
     lines.push(`      POSTGRES_PASSWORD: sandbox`)
@@ -1109,6 +1166,11 @@ export function buildDockerCompose(sandboxId: string): string {
     lines.push(`  redis:`)
     lines.push(`    image: redis:7-alpine`)
     lines.push(`    container_name: ${name}-redis`)
+    lines.push(`    deploy:`)
+    lines.push(`      resources:`)
+    lines.push(`        limits:`)
+    lines.push(`          cpus: "1"`)
+    lines.push(`          memory: 256M`)
     lines.push(`    networks:`)
     lines.push(`      ${networkName}:`)
     lines.push(`        aliases:`)

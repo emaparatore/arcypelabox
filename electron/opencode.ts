@@ -1,15 +1,37 @@
 import { getProxy } from "./proxy.js"
 
-async function getClient(sandboxId: string) {
-  const { createOpencodeClient } = await import("@opencode-ai/sdk/v2")
-  return createOpencodeClient({
+const QUICK_TIMEOUT = 300_000 // 5 min
+const LONG_TIMEOUT = 1_800_000 // 30 min
+
+function createFetchWithTimeout(timeoutMs: number) {
+  return async function fetchWithTimeout(input: URL | RequestInfo, init?: RequestInit): Promise<Response> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(input, { ...init, signal: controller.signal })
+      return response
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
+let _createClient: ((opts: { baseUrl: string; fetch: typeof fetch }) => any) | null = null
+
+async function getClient(sandboxId: string, timeoutMs: number = LONG_TIMEOUT) {
+  if (!_createClient) {
+    const mod = await import("@opencode-ai/sdk/v2")
+    _createClient = mod.createOpencodeClient
+  }
+  return _createClient({
     baseUrl: getProxy().getUrl(sandboxId),
+    fetch: createFetchWithTimeout(timeoutMs),
   })
 }
 
 export async function checkHealth(sandboxId: string): Promise<boolean> {
   try {
-    const client = await getClient(sandboxId)
+    const client = await getClient(sandboxId, QUICK_TIMEOUT)
     await client.global.health()
     return true
   } catch {
@@ -42,7 +64,7 @@ export async function sessionPromptAsync(sandboxId: string, text: string, sessio
 }
 
 export async function listProviders(sandboxId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result: any = await client.provider.list()
   const data = result.data ?? {}
   const all: any[] = data.all ?? []
@@ -62,7 +84,7 @@ export async function listProviders(sandboxId: string) {
 }
 
 export async function listSessions(sandboxId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const [listResult, statusResult] = await Promise.all([
     client.session.list(),
     client.session.status(),
@@ -79,7 +101,7 @@ export async function listSessions(sandboxId: string) {
 }
 
 export async function createSession(sandboxId: string, params: { title?: string; model?: { providerID: string; id: string; variant?: string } }) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result = await client.session.create({
     title: params.title ?? "Sandbox Chat",
     model: params.model,
@@ -93,17 +115,17 @@ export async function createSession(sandboxId: string, params: { title?: string;
 }
 
 export async function deleteSession(sandboxId: string, sessionId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   await client.session.delete({ sessionID: sessionId })
 }
 
 export async function abortOpenCodeSession(sandboxId: string, sessionId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   await client.session.abort({ sessionID: sessionId })
 }
 
 export async function listPendingPermissions(sandboxId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result = await client.permission.list()
   return (result.data ?? []).map((req: any) => ({
     id: req.id,
@@ -114,13 +136,13 @@ export async function listPendingPermissions(sandboxId: string) {
 }
 
 export async function replyPermission(sandboxId: string, requestId: string, reply: "once" | "always" | "reject") {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   await client.permission.reply({ requestID: requestId, reply })
   return true
 }
 
 export async function listPendingQuestions(sandboxId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result = await client.question.list()
   return (result.data ?? []).map((req: any) => ({
     id: req.id,
@@ -138,13 +160,13 @@ export async function listPendingQuestions(sandboxId: string) {
 }
 
 export async function replyQuestion(sandboxId: string, requestId: string, answers: string[][]) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   await client.question.reply({ requestID: requestId, answers })
   return true
 }
 
 export async function getSessionMessages(sandboxId: string, sessionId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result: any = await client.session.messages({ sessionID: sessionId })
   const msgs = Array.isArray(result.data) ? result.data : []
   return msgs.map((msg: any) => ({
@@ -166,7 +188,7 @@ export async function getSessionMessages(sandboxId: string, sessionId: string) {
 }
 
 export async function getOpenCodeSessionDebug(sandboxId: string, sessionId: string) {
-  const client = await getClient(sandboxId)
+  const client = await getClient(sandboxId, QUICK_TIMEOUT)
   const result: any = await client.session.messages({ sessionID: sessionId })
   const msgs = Array.isArray(result.data) ? result.data : []
   const latest = msgs[msgs.length - 1]

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron"
 
 contextBridge.exposeInMainWorld("sandobox", {
   generateDockerfile: (config: unknown) => ipcRenderer.invoke("sandobox:generate:dockerfile", config),
+  generateCompose: (sandboxId: string) => ipcRenderer.invoke("sandobox:generate:compose", sandboxId),
   checkImage: (tag: string) => ipcRenderer.invoke("sandobox:check:image", tag),
   checkSandboxName: (name: string, excludeId?: string) => ipcRenderer.invoke("sandobox:db:sandbox:name-exists", name, excludeId),
   listSandboxes: () => ipcRenderer.invoke("sandobox:list"),

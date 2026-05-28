@@ -15,6 +15,7 @@ import {
   getSandboxInfo,
   execInSandbox,
   buildGeneratedDockerfile,
+  buildDockerCompose,
   checkImageExists,
 } from "./docker.js"
 import {
@@ -685,6 +686,15 @@ app.whenReady().then(async () => {
 
   ipcMain.handle("sandobox:generate:dockerfile", async (_event, config) => {
     return buildGeneratedDockerfile(config as Parameters<typeof buildGeneratedDockerfile>[0])
+  })
+
+  ipcMain.handle("sandobox:generate:compose", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      return buildDockerCompose(sandboxId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
   })
 
   app.on("before-quit", () => {

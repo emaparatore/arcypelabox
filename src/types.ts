@@ -246,6 +246,7 @@ export interface CreateSandboxResult {
 
 export interface SandboxWindowApi {
   generateDockerfile: (config: { runtimes: string[]; tools: string[]; services: string[]; customCommands?: string; gitConfig?: GitConfig }) => Promise<string>
+  generateCompose: (sandboxId: string) => Promise<string | { error: string }>
   checkImage: (tag: string) => Promise<boolean | { error: string }>
   checkSandboxName: (name: string, excludeId?: string) => Promise<boolean | { error: string }>
   listSandboxes: () => Promise<SandboxInfo[] | { error: string }>

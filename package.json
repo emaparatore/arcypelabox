@@ -2,6 +2,7 @@
   "name": "sandobox-manager",
   "version": "1.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",

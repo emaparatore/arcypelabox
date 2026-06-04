@@ -1,0 +1,193 @@
+# Sandbox Creation Guide
+
+## Overview
+
+Creating a sandbox is a 4-step wizard implemented in `src/components/SandboxCreate.tsx` (891 lines). The wizard is opened by clicking the "New Sandbox" button in the sidebar. It is built with React and manages all selection state locally before submitting the final configuration to the Electron main process for Docker image building and container creation.
+
+---
+
+## Step 0 — Base
+
+The first step captures the foundational configuration:
+
+**Name** (required)
+- Must start with a letter or number
+- Allowed characters: `a-z`, `0-9`, `-`, `_`, `.`
+- Maximum length: 64 characters
+- Must be unique across all sandboxes
+
+**Project Mount** (required)
+- An absolute path on the host machine
+- Mounted as a Docker volume at `/workspace` inside the container
+
+**Base Template**
+- Currently a single option: "OpenCode Minimal"
+- Based on `node:20-bookworm-slim` with Node.js and the OpenCode CLI pre-installed
+
+---
+
+## Step 1 — Technology
+
+Three categories of technology can be selected. Each category has a text search filter to find specific items quickly.
+
+### Runtimes (9 available)
+
+| Runtime | Notes |
+|---------|-------|
+| Node.js | Included by default, cannot be removed |
+| Python | |
+| .NET SDK | |
+| Go | |
+| Java | |
+| Ruby | |
+| PHP | |
+| Rust | |
+| Zig | |
+
+### Tools (16 available)
+
+| Tool | Notes |
+|------|-------|
+| git | Included by default, cannot be removed |
+| curl | |
+| vim | |
+| build-essential | |
+| sqlite | |
+| pnpm | |
+| bun | |
+| nvm | |
+| jq | |
+| GitHub CLI (gh) | |
+| unzip | |
+| tree | |
+| make | |
+| zip | |
+| ripgrep | |
+| CMake | |
+
+### Services (2 available)
+
+| Service | Image | Runs As |
+|---------|-------|---------|
+| Postgres | `postgres:16-alpine` | Separate sidecar container |
+| Redis | `redis:7-alpine` | Separate sidecar container |
+
+Services are not installed inside the sandbox. They run as dedicated sidecar containers on the same Docker network.
+
+---
+
+## Step 2 — Workspace
+
+### Permissions
+
+15 permission keys control what the AI agent is allowed to do. Each can be set to one of three levels:
+
+| Level | Behavior |
+|-------|----------|
+| Allow | Auto-approved, no user prompt |
+| Ask | User is prompted each time |
+| Deny | Blocked, returns an error to the agent |
+
+| Permission | Default |
+|------------|---------|
+| read | allow |
+| edit | allow |
+| write | allow |
+| glob | allow |
+| grep | allow |
+| bash | allow |
+| task | allow |
+| skill | allow |
+| question | allow |
+| todowrite | allow |
+| webfetch | allow |
+| websearch | allow |
+| lsp | allow |
+| external_directory | allow |
+| doom_loop | deny |
+
+### LLM Providers
+
+A dropdown with autocomplete lists 20+ providers (Anthropic, OpenAI, DeepSeek, Google, Groq, Ollama, OpenRouter, and others). API keys are:
+
+- Encrypted using Electron `safeStorage` before being persisted
+- Never stored in Docker environment variables or image layers
+- Injected into the container via a PostStart API call after the container starts
+
+### Git Configuration
+
+Visible only when the `git` tool is selected in Step 1. The user may configure:
+
+- `user.name`
+- `user.email`
+- `core.autocrlf` — options: `input`, `true`, `false`
+
+---
+
+## Step 3 — Review
+
+A summary of the entire configuration:
+
+- Docker image
+- Mount path
+- Selected runtimes
+- Selected tools
+- Selected services
+- LLM providers with key status
+- Permissions
+- Git configuration
+
+### Dockerfile Preview
+
+The generated Dockerfile is shown in a read-only preview.
+
+### Advanced Dockerfile
+
+A collapsible section allows adding custom `RUN` commands. These are appended directly to the generated Dockerfile.
+
+**Warning:** malformed or malicious commands can compromise the Docker build. Users are advised to only add commands they trust.
+
+---
+
+## Build Process
+
+Once the wizard is submitted:
+
+1. A build progress modal appears showing:
+   - Current step description
+   - Real-time Docker build logs streamed from the Docker API
+   - An animated loading icon
+
+2. On success, the UI auto-navigates to the new sandbox's detail view after 2.5 seconds.
+
+3. On failure, the error is displayed in the modal with an option to retry or cancel.
+
+### Edit Mode
+
+When editing an existing sandbox, the wizard is pre-filled with the current values. A warning banner explains that the container will be rebuilt from scratch. The edit operation creates a new Docker image and replaces the existing container.
+
+---
+
+## Dockerfile Generation
+
+The Dockerfile is built programmatically by `buildGeneratedDockerfile()` in `electron/docker.ts`.
+
+Process:
+
+1. Starts from `node:20-bookworm-slim`
+2. Installs the OpenCode CLI
+3. Appends `RUN` commands for each selected runtime (Python, Go, Java, etc.)
+4. Appends `RUN` commands for each selected tool
+5. Appends custom commands from the Advanced section (if any)
+6. Configures git if the git tool is selected
+7. Sets up the container entrypoint to run `opencode serve`
+
+---
+
+## Docker Compose
+
+Generated by `buildDockerCompose()` in `electron/docker.ts`.
+
+**Important:** `buildDockerCompose()` must always be kept synchronized with `createSandbox()`. Both functions produce the same environment — same environment variables, network aliases, `cap_drop` settings, OpenCode serve command, and sidecar configuration. If one is modified, the other must be updated to match.
+
+The docker-compose output is display-only. It is shown in the UI for user reference so they can reproduce the sandbox environment manually outside the application. It is never consumed programmatically.

@@ -4,8 +4,25 @@ Questa guida descrive come configurare GitHub in modo che:
 
 - le PR verso `main` e `dev` eseguano la CI
 - il merge sia consentito solo se la CI passa
-- i push diretti su `main` e `dev` siano bloccati
+- i branch `main` e `dev` siano aggiornati tramite PR
 - gli hotfix mergiati in `main` aprano automaticamente una PR di back-merge verso `dev`
+
+## Limite importante dei ruleset GitHub
+
+Nei ruleset GitHub, `Restrict updates` blocca qualsiasi update del branch, incluso il merge di una PR.
+
+Quindi su un repository personale, se abiliti `Restrict updates` su `main` o `dev` senza bypass adeguati:
+
+- i push diretti vengono bloccati
+- anche il merge delle PR viene bloccato
+
+Per questo motivo, in questa configurazione i branch vengono protetti con:
+
+- `Require a pull request before merging`
+- `Require status checks to pass`
+- `Block force pushes`
+
+ma senza `Restrict updates`.
 
 ## Workflow presenti nel repository
 
@@ -23,10 +40,11 @@ Questa guida descrive come configurare GitHub in modo che:
 3. Creare un ruleset per `main`.
 4. Creare un ruleset per `dev`.
 5. Abilitare l'obbligo di pull request per entrambi.
-6. Abilitare il blocco dei push diretti per entrambi.
-7. Impostare `ci-success` come required status check per entrambi.
-8. Verificare il flusso con una PR di test `feature/* -> dev`.
-9. Verificare il flusso hotfix con una PR di test `hotfix/* -> main`.
+6. Impostare `ci-success` come required status check per entrambi.
+7. Abilitare `Block force pushes` per entrambi.
+8. Non abilitare `Restrict updates`, altrimenti il merge delle PR viene bloccato.
+9. Verificare il flusso con una PR di test `feature/* -> dev`.
+10. Verificare il flusso hotfix con una PR di test `hotfix/* -> main`.
 
 ## Configurazione ruleset per `main`
 
@@ -37,15 +55,15 @@ Questa guida descrive come configurare GitHub in modo che:
 5. In `Enforcement status`, selezionare `Active`.
 6. In `Target branches`, aggiungere `main`.
 7. Abilitare `Restrict deletions`.
-8. Abilitare `Require a pull request before merging`.
-9. Dentro la sezione della pull request, configurare:
-   - `Require approvals`: almeno `1`
+8. Lasciare disabilitato `Restrict updates`.
+9. Abilitare `Require a pull request before merging`.
+10. Dentro la sezione della pull request, configurare:
+   - `Required approvals`: `0` se vuoi poter mergiare da solo le tue PR
    - facoltativo: `Dismiss stale pull request approvals when new commits are pushed`
    - facoltativo: `Require review from code owners`, solo se userai un file `CODEOWNERS`
-10. Abilitare `Require status checks to pass`.
-11. Aggiungere come check richiesto `ci-success`.
-12. Abilitare `Block force pushes`.
-13. Abilitare il blocco dei direct pushes. Se GitHub mostra l'opzione come restrizione bypass/push, assicurati che solo gli admin autorizzati abbiano eccezioni.
+11. Abilitare `Require status checks to pass`.
+12. Aggiungere come check richiesto `ci-success`.
+13. Abilitare `Block force pushes`.
 14. Salvare il ruleset.
 
 ## Configurazione ruleset per `dev`
@@ -57,14 +75,14 @@ Questa guida descrive come configurare GitHub in modo che:
 5. In `Enforcement status`, selezionare `Active`.
 6. In `Target branches`, aggiungere `dev`.
 7. Abilitare `Restrict deletions`.
-8. Abilitare `Require a pull request before merging`.
-9. Dentro la sezione della pull request, configurare:
-   - `Require approvals`: almeno `1`
+8. Lasciare disabilitato `Restrict updates`.
+9. Abilitare `Require a pull request before merging`.
+10. Dentro la sezione della pull request, configurare:
+   - `Required approvals`: `0` se vuoi poter mergiare da solo le tue PR
    - facoltativo: `Dismiss stale pull request approvals when new commits are pushed`
-10. Abilitare `Require status checks to pass`.
-11. Aggiungere come check richiesto `ci-success`.
-12. Abilitare `Block force pushes`.
-13. Abilitare il blocco dei direct pushes.
+11. Abilitare `Require status checks to pass`.
+12. Aggiungere come check richiesto `ci-success`.
+13. Abilitare `Block force pushes`.
 14. Salvare il ruleset.
 
 ## Perche' il check richiesto e' `ci-success`
@@ -79,22 +97,20 @@ Questo evita problemi quando il job reale di verifica viene skippato per path fi
 
 Per questo motivo il required check da configurare su GitHub deve essere solo `ci-success`.
 
-## Flusso operativo previsto
-
-### Feature flow
+## Feature flow
 
 1. Creare un branch `feature/<nome>` partendo da `dev`.
 2. Aprire una PR `feature/<nome> -> dev`.
 3. Attendere l'esecuzione della CI.
 4. Effettuare il merge solo quando `ci-success` e' verde.
 
-### Release flow
+## Release flow
 
 1. Aprire una PR `dev -> main`.
 2. Attendere l'esecuzione della CI.
 3. Effettuare il merge solo quando `ci-success` e' verde.
 
-### Hotfix flow
+## Hotfix flow
 
 1. Creare un branch `hotfix/<nome>` partendo da `main`.
 2. Aprire una PR `hotfix/<nome> -> main`.
@@ -104,17 +120,15 @@ Per questo motivo il required check da configurare su GitHub deve essere solo `c
 
 ## Verifica consigliata dopo la configurazione
 
-1. Provare un push diretto su `dev`.
-   - risultato atteso: push rifiutato
-2. Aprire una PR di test `feature/test-ci -> dev`.
+1. Aprire una PR di test `feature/test-ci -> dev`.
    - risultato atteso: parte il workflow `CI`
    - risultato atteso: compare il check `ci-success`
-3. Tentare il merge prima che i check finiscano.
+2. Tentare il merge prima che i check finiscano.
    - risultato atteso: merge bloccato
-4. Fare merge della PR quando `ci-success` e' verde.
+3. Fare merge della PR quando `ci-success` e' verde.
    - risultato atteso: merge consentito
-5. Aprire una PR di test `hotfix/test-fix -> main`.
-6. Dopo il merge della PR hotfix, verificare che venga aperta una PR `main -> dev`.
+4. Aprire una PR di test `hotfix/test-fix -> main`.
+5. Dopo il merge della PR hotfix, verificare che venga aperta una PR `main -> dev`.
 
 ## Troubleshooting
 
@@ -123,11 +137,10 @@ Per questo motivo il required check da configurare su GitHub deve essere solo `c
 1. Assicurarsi che il workflow `CI` sia gia' stato eseguito almeno una volta sul repository.
 2. Se necessario, aprire una PR di test verso `dev` per far comparire il check nella lista GitHub.
 
-### Il push diretto non e' bloccato
+### Il merge della PR e' bloccato con `Cannot update this protected ref`
 
-1. Verificare che il ruleset sia `Active`.
-2. Verificare che il branch target sia esattamente `main` o `dev`.
-3. Verificare di non avere permessi di bypass attivi sul ruleset.
+1. Verificare che `Restrict updates` sia disabilitato sul branch target.
+2. Se `Restrict updates` e' attivo, GitHub considera anche il merge della PR come un update del branch.
 
 ### La PR di back-merge non viene creata
 

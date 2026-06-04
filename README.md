@@ -179,12 +179,14 @@ arcypelabox/
 |----------|-------------|
 | [User Guide](docs/user-guide.md) | Complete walkthrough of the app interface and features |
 | [Architecture](docs/architecture.md) | Deep dive into system architecture and component relationships |
+| [Contributing Guide](docs/contributing.md) | Branch naming, commit conventions, pull request structure, merge flow |
 | [Sandbox Creation](docs/create-sandbox.md) | How the 4-step wizard works: runtimes, tools, services, permissions |
 | [OpenCode Integration](docs/opencode-integration.md) | How OpenCode runs inside sandboxes: chat, permissions, sessions, providers |
 | [API Reference](docs/api-reference.md) | Named pipe REST API: endpoints, protocol, examples |
 | [Docker & Sidecars](docs/docker-sidecars.md) | Container lifecycle, image building, Postgres/Redis sidecars, docker-compose |
 | [Security Model](docs/security.md) | Mount validation, port security, encryption, container hardening |
 | [Development Guide](docs/development.md) | Setup, code conventions, adding features, building |
+| [GitHub CI Setup](docs/github-ci-setup.md) | CI workflows, rulesets, branch protection, hotfix back-merge |
 | [Reverse Proxy](docs/reverse-proxy.md) | HTTP proxy on port 4096: path-based routing, SSE, debug endpoint |
 
 ---

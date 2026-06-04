@@ -26,6 +26,8 @@ The search filter matches by name, image, status, mount path, or sandbox ID. The
 
 ## 2. Sandbox Management
 
+See [Sandbox Creation Guide](create-sandbox.md) for a detailed walkthrough of the 4-step creation wizard, technology selection, workspace configuration, and Dockerfile generation.
+
 ### Operations
 
 | Operation | Description |

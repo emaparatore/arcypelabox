@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto"
 import { createIpcServer } from "../../../electron/ipc-server.js"
 import { createIpcClient } from "../../../electron/ipc-client.js"
 import { registerRoutes } from "../../../electron/api.js"
+import * as docker from "../../../electron/docker.js"
+import * as database from "../../../electron/database.js"
 
 vi.mock("../../../electron/docker.js", () => ({
   listSandboxes: vi.fn(),
@@ -121,5 +123,59 @@ describe("API routes", () => {
     const { status, body } = await client.get(`/api/sandboxes/${randomUUID()}/status`)
     expect(status).toBe(500)
     expect(body).toHaveProperty("error")
+  })
+
+  it("POST /api/sandboxes returns 409 on name conflict", async () => {
+    vi.mocked(database.findNameConflict).mockReturnValueOnce(true)
+
+    const { status, body } = await client.post("/api/sandboxes", {
+      name: "existing-box",
+      projectMount: "/tmp/test",
+    })
+
+    expect(status).toBe(409)
+    expect(body).toEqual({
+      error: 'A sandbox with the name "existing-box" already exists. Please use a different name.',
+    })
+  })
+
+  it("GET /api/sandboxes/:id/info returns 404 when sandbox info is missing", async () => {
+    vi.mocked(database.getSandboxRecord).mockReturnValueOnce({ docker_container_id: "container-1" } as any)
+    vi.mocked(docker.getSandboxInfo).mockResolvedValueOnce(null)
+
+    const { status, body } = await client.get("/api/sandboxes/sandbox-1/info")
+    expect(status).toBe(404)
+    expect(body).toEqual({ error: "Sandbox not found" })
+  })
+
+  it("GET /api/sandboxes/by-mount maps proxyUrl for matching records", async () => {
+    vi.mocked(database.listSandboxRecords).mockReturnValueOnce([
+      { id: "sandbox-1", name: "Box One", project_mount: "/tmp/project" } as any,
+      { id: "sandbox-2", name: "Box Two", project_mount: "/tmp/other" } as any,
+    ])
+
+    const { status, body } = await client.get("/api/sandboxes/by-mount", { mountPath: "/tmp/project" })
+    expect(status).toBe(200)
+    expect(body).toEqual([
+      {
+        id: "sandbox-1",
+        name: "Box One",
+        proxyUrl: "http://localhost:4096/test",
+      },
+    ])
+  })
+
+  it("POST /api/sandboxes/exec forwards the resolved container id and command", async () => {
+    vi.mocked(database.getSandboxRecord).mockReturnValueOnce({ docker_container_id: "container-1" } as any)
+    vi.mocked(docker.execInSandbox).mockResolvedValueOnce("command output")
+
+    const { status, body } = await client.post("/api/sandboxes/exec", {
+      id: "sandbox-1",
+      command: "pwd",
+    })
+
+    expect(status).toBe(200)
+    expect(body).toBe("command output")
+    expect(docker.execInSandbox).toHaveBeenCalledWith("container-1", "pwd")
   })
 })

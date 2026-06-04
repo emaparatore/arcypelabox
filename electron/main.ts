@@ -78,7 +78,7 @@ function sendToRenderer(channel: string, ...args: unknown[]) {
   }
 }
 
-async function tryRecoverSandboxRecord(id: string): Promise<Record<string, unknown> | null> {
+export async function tryRecoverSandboxRecord(id: string): Promise<Record<string, unknown> | null> {
   const sandboxes = await listSandboxes()
   const match = sandboxes.find((s) => s.sandboxId === id || s.id === id)
   if (!match) return null

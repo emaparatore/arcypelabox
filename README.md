@@ -82,6 +82,11 @@ The app window opens at 1280x820. In development mode, the renderer is served fr
 | `npm run dev` | Vite renderer only on `http://localhost:5173` |
 | `npm run dev:electron` | Electron TypeScript watcher only |
 | `npm run typecheck` | TypeScript type checking (renderer + Electron) |
+| `npm test` | Run the full Vitest suite |
+| `npm run test:unit` | Run unit tests under `tests/unit/` |
+| `npm run test:integration` | Run integration tests under `tests/integration/` |
+| `npm run test:critical-flows` | Run a focused regression pack for high-risk sandbox flows |
+| `npm run test:watch` | Start Vitest in watch mode |
 | `npm run build` | Production build (`dist/` + `dist-electron/`) |
 | `npm run electron:build` | Package as a distributable Electron app (`release/`) |
 
@@ -200,13 +205,30 @@ arcypelabox/
 
 ## Verification
 
-The fastest way to verify your changes:
+The fastest meaningful verification is:
 
 ```bash
 npm run typecheck
 ```
 
-This type-checks both the renderer (`tsconfig.json`) and Electron (`tsconfig.node.json`) configurations. There are no test or lint scripts at the root level.
+This checks both the renderer (`tsconfig.json`) and Electron (`tsconfig.node.json`) TypeScript configurations.
+
+For test coverage, the project uses Vitest with three main entry points:
+
+| Command | Scope |
+|---------|-------|
+| `npm test` | Entire test suite |
+| `npm run test:unit` | Unit tests for Electron and renderer modules |
+| `npm run test:integration` | Integration tests for IPC, Docker contracts, and renderer flows |
+| `npm run test:critical-flows` | Curated regression suite for the most failure-prone flows |
+
+Recommended verification before merging non-trivial changes:
+
+```bash
+npm run typecheck
+npm run test:unit
+npm run test:integration
+```
 
 ---
 

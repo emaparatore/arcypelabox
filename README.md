@@ -62,7 +62,7 @@ All sandbox operations require Docker to be running locally.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/arcypelabox.git
+git clone https://github.com/emaparatore/arcypelabox.git
 cd arcypelabox
 
 # Install dependencies

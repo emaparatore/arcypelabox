@@ -65,3 +65,7 @@
 - Follow [docs/contributing.md](docs/contributing.md) for branch naming, commit conventions, pull request structure, and merge flow.
 - When asked to create a commit, propose the commit message first and wait for user confirmation before running `git commit`.
 - When creating a pull request, use `gh pr create` and include `Summary`, `Key decisions`, and `How to test` in the PR body.
+
+## Language
+
+- All code, comments, commit messages, and documentation must be written in English.

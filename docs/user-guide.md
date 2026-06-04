@@ -2,6 +2,8 @@
 
 ## 1. Interface Overview
 
+![Sandbox detail view — Info tab](../imgs/screenshots/sandbox-info.png)
+
 The application window is divided into three main areas:
 
 **Header** — Displays the Arcypelabox logo. Clicking the logo navigates to the home view.
@@ -46,6 +48,8 @@ Start, stop, and remove actions operate on the entire sandbox group: the main co
 ---
 
 ## 3. OpenCode Chat
+
+![OpenCode AI chat panel](../imgs/screenshots/opencode-panel.png)
 
 The chat panel provides a terminal-like interface to the OpenCode AI agent running inside the sandbox.
 

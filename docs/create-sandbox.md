@@ -6,7 +6,9 @@ Creating a sandbox is a 4-step wizard implemented in `src/components/SandboxCrea
 
 ---
 
-## Step 0 — Base
+## Step 1 — Base
+
+![Step 0 — Base configuration](../imgs/screenshots/wizard-step-1.png)
 
 The first step captures the foundational configuration:
 
@@ -26,7 +28,9 @@ The first step captures the foundational configuration:
 
 ---
 
-## Step 1 — Technology
+## Step 2 — Technology
+
+![Step 1 — Technology selection](../imgs/screenshots/wizard-step-2.png)
 
 Three categories of technology can be selected. Each category has a text search filter to find specific items quickly.
 
@@ -76,7 +80,9 @@ Services are not installed inside the sandbox. They run as dedicated sidecar con
 
 ---
 
-## Step 2 — Workspace
+## Step 3 — Workspace
+
+![Step 2 — Workspace configuration](../imgs/screenshots/wizard-step-3.png)
 
 ### Permissions
 
@@ -124,7 +130,9 @@ Visible only when the `git` tool is selected in Step 1. The user may configure:
 
 ---
 
-## Step 3 — Review
+## Step 4 — Review
+
+![Step 3 — Review and confirm](../imgs/screenshots/wizard-step-4.png)
 
 A summary of the entire configuration:
 
@@ -150,6 +158,8 @@ A collapsible section allows adding custom `RUN` commands. These are appended di
 ---
 
 ## Build Process
+
+![Build progress modal](../imgs/screenshots/loading.png)
 
 Once the wizard is submitted:
 

@@ -15,6 +15,8 @@ Arcypelabox uses the **Dockerode** library to manage the full container lifecycl
 
 ### Image Building
 
+![Docker build progress modal](../imgs/screenshots/loading.png)
+
 When a sandbox is created or edited:
 
 1. The renderer sends the configuration to the Electron main process via IPC

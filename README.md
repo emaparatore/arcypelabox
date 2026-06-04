@@ -24,6 +24,15 @@ Arcypelabox is a cross-platform Electron application that lets you create, confi
 
 ---
 
+## Screenshots
+
+| Creation Wizard | AI Chat Panel | Sandbox Info |
+|:---:|:---:|:---:|
+| ![Wizard Step 1](imgs/screenshots/wizard-step-1.png) | ![OpenCode Panel](imgs/screenshots/opencode-panel.png) | ![Sandbox Info](imgs/screenshots/sandbox-info.png) |
+| ![Wizard Step 2](imgs/screenshots/wizard-step-2.png) | ![Wizard Step 3](imgs/screenshots/wizard-step-3.png) | ![Wizard Step 4](imgs/screenshots/wizard-step-4.png) |
+
+---
+
 ## Quick Start
 
 ### Prerequisites

@@ -13,20 +13,20 @@ The two processes communicate exclusively through Electron's `contextBridge` mec
 
 ```
 +------------------------------------------------------------------+
-|                  Electron Main Process                            |
-|  +------------------------------------------------------------+  |
-|  | IPC Handlers (main.ts)                                      |  |
-|  |  sandbox:create, sandbox:start, sandbox:stop,               |  |
-|  |  sandbox:remove, sandbox:logs, sandbox:info,                |  |
-|  |  sandbox:exec, sandbox:opencode:* (15+ handlers)            |  |
-|  |  sandbox:db:*, sandbox:shell:*, sandbox:generate            |  |
-|  +------------------------------------------------------------+  |
-|         |              |              |                           |
-|  +------v------+ +-----v------+ +----v----------+               |
-|  | docker.ts   | | opencode.ts| | proxy.ts      |               |
-|  | (Dockerode  | | (@opencode | | (HTTP Proxy   |               |
-|  |  API)       | |  SDK)      | |  on port 4096)|               |
-|  +-------------+ +------------+ +---------------+               |
+|                  Electron Main Process                           |
+|  +-------------------------------------------------------------+ |
+|  | IPC Handlers (main.ts)                                      | |
+|  |  sandbox:create, sandbox:start, sandbox:stop,               | |
+|  |  sandbox:remove, sandbox:logs, sandbox:info,                | |
+|  |  sandbox:exec, sandbox:opencode:* (15+ handlers)            | |
+|  |  sandbox:db:*, sandbox:shell:*, sandbox:generate            | |
+|  +-------------------------------------------------------------+ |
+|         |              |              |                          |
+|  +------v------+ +-----v------+ +----v----------+                |
+|  | docker.ts   | | opencode.ts| | proxy.ts      |                |
+|  | (Dockerode  | | (@opencode | | (HTTP Proxy   |                |
+|  |  API)       | |  SDK)      | |  on port 4096)|                |
+|  +-------------+ +------------+ +---------------+                |
 |  +-------------+ +------------+ +------------------+             |
 |  | database.ts | | api.ts     | | ipc-server.ts    |             |
 |  | (SQLite via | | (REST      | | (Named Pipe      |             |
@@ -36,7 +36,7 @@ The two processes communicate exclusively through Electron's `contextBridge` mec
          | contextBridge (preload.ts)
          v
 +------------------------------------------------------------------+
-|                  Renderer Process                                 |
+|                  Renderer Process                                |
 |  +-------------+ +--------------+ +------------------+           |
 |  | App.tsx     | | SandboxCreate| | SandboxDetail    |           |
 |  | (Router)    | | .tsx (Wizard)| | .tsx (Info/Logs/ |           |

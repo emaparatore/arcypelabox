@@ -1,5 +1,9 @@
 # Arcypelabox
 
+<div align="center">
+  <img src="imgs/arcypelabox-name-blu.png" width="320" style="border-radius: 12px;" alt="Arcypelabox">
+</div>
+
 **Isolated Docker sandboxes for AI coding agents — managed from a desktop app and accessible via APIs.**
 
 Arcypelabox is a cross-platform Electron application that lets you create, configure, and manage secure Docker sandboxes, each running an [OpenCode](https://opencode.ai) AI server. You can think of it as a control center for disposable, reproducible development environments where AI agents work autonomously on your projects.
@@ -63,23 +67,23 @@ The app window opens at 1280x820. In development mode, the renderer is served fr
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Electron Main Process                  │
-│  ┌──────────┐  ┌──────────┐  ┌─────────┐  ┌─────────┐  │
-│  │ docker.ts │  │opencode. │  │proxy.ts │  │ api.ts  │  │
-│  │ (Docker) │  │ ts (SDK) │  │ (HTTP   │  │ (Named  │  │
-│  │          │  │          │  │  Proxy) │  │  Pipe)  │  │
-│  └──────────┘  └──────────┘  └─────────┘  └─────────┘  │
-│        │              │             │            │       │
-│        ▼              ▼             ▼            ▼       │
-│  ┌───────────────────────────────────────────────────┐   │
-│  │              IPC Handlers (main.ts)               │   │
-│  └──────────────────────┬────────────────────────────┘   │
-│                         │ contextBridge                  │
-│  ┌──────────────────────▼────────────────────────────┐   │
-│  │           Renderer (React + Vite)                  │   │
-│  │  SandboxCreate · SandboxDetail · SandboxList      │   │
-│  │  OpenCodePanel    ·    BuildProgressModal          │   │
-│  └───────────────────────────────────────────────────┘   │
+│                   Electron Main Process                 │
+│  ┌──────────┐  ┌──────────┐  ┌─────────┐  ┌─────────┐   │
+│  │ docker.ts│  │opencode. │  │proxy.ts │  │ api.ts  │   │
+│  │ (Docker) │  │ ts (SDK) │  │ (HTTP   │  │ (Named  │   │
+│  │          │  │          │  │  Proxy) │  │  Pipe)  │   │
+│  └──────────┘  └──────────┘  └─────────┘  └─────────┘   │
+│        │              │             │            │      │
+│        ▼              ▼             ▼            ▼      │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │              IPC Handlers (main.ts)               │  │
+│  └──────────────────────┬────────────────────────────┘  │
+│                         │ contextBridge                 │
+│  ┌──────────────────────▼────────────────────────────┐  │
+│  │           Renderer (React + Vite)                 │  │
+│  │  SandboxCreate · SandboxDetail · SandboxList      │  │
+│  │  OpenCodePanel    ·    BuildProgressModal         │  │
+│  └───────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
          │                                        │
          ▼                                        ▼
@@ -94,13 +98,13 @@ The app window opens at 1280x820. In development mode, the renderer is served fr
    │  Sandbox Container (sandbox-xxx)    │
    │  ┌───────────────────────────────┐  │
    │  │  OpenCode Server              │  │
-   │  │  + AI Agents + Tools + SDK   │  │
+   │  │  + AI Agents + Tools + SDK    │  │
    │  └───────────────────────────────┘  │
-   │        │                            │
-   │  ┌─────┴─────┐  ┌─────┴─────┐      │
-   │  │  Postgres │  │   Redis   │      │
-   │  │ (sidecar) │  │ (sidecar) │      │
-   │  └───────────┘  └───────────┘      │
+   │        │              |             │
+   │  ┌─────┴─────┐  ┌─────┴─────┐       │
+   │  │  Postgres │  │   Redis   │       │
+   │  │ (sidecar) │  │ (sidecar) │       │
+   │  └───────────┘  └───────────┘       │
    └─────────────────────────────────────┘
 ```
 

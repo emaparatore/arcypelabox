@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { SandboxInfo, SandboxRecord } from "./types"
 import { SandboxList } from "./components/SandboxList"
 import { SandboxCreate } from "./components/SandboxCreate"
@@ -16,6 +16,7 @@ export default function App() {
   const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isCompactSidebarMode, setIsCompactSidebarMode] = useState(() => window.innerWidth <= COMPACT_SIDEBAR_BREAKPOINT)
+  const userCollapsedRef = useRef(false)
   const [view, setView] = useState<View>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +60,8 @@ export default function App() {
       setIsCompactSidebarMode(compact)
       if (compact) {
         setIsSidebarCollapsed(true)
+      } else if (!userCollapsedRef.current) {
+        setIsSidebarCollapsed(false)
       }
     }
 
@@ -118,7 +121,11 @@ export default function App() {
             <button
               className="btn btn-sm icon-btn"
               type="button"
-              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+              onClick={() => setIsSidebarCollapsed((prev) => {
+                const next = !prev
+                userCollapsedRef.current = next
+                return next
+              })}
               title={isSidebarCollapsed ? "Expand sandboxes" : "Collapse sandboxes"}
               aria-label={isSidebarCollapsed ? "Expand sandboxes" : "Collapse sandboxes"}
             >

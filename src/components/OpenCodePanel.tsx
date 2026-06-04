@@ -5,10 +5,9 @@ import { OpenCodeCLIButton } from "./OpenCodeCLIButton"
 interface Props {
   sandboxId: string
   containerId: string
-  port: number
 }
 
-export function OpenCodePanel({ sandboxId, port }: Props) {
+export function OpenCodePanel({ sandboxId }: Props) {
   const [input, setInput] = useState("")
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string[]>>({})
@@ -43,7 +42,7 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
     replyPermission,
     refreshSessionDebug,
     refreshAll,
-  } = useOpenCode(port)
+  } = useOpenCode(sandboxId)
 
   const selectedSession = sessions.find((s) => s.id === selectedSessionId) ?? null
 
@@ -173,7 +172,7 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
   return (
     <div className="opencode-panel">
       <div className="opencode-panel-header">
-        <span>OpenCode Chat - Port {port}</span>
+        <span>OpenCode Chat</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span
             className={`status-dot ${connected ? "connected" : "disconnected"}`}
@@ -539,7 +538,7 @@ export function OpenCodePanel({ sandboxId, port }: Props) {
               </label>
             </div>
             <div className="sessions-model-right">
-              <OpenCodeCLIButton port={port} sessionId={selectedSessionId ?? undefined} className="btn-sm" />
+              <OpenCodeCLIButton sandboxId={sandboxId} sessionId={selectedSessionId ?? undefined} className="btn-sm" />
             </div>
           </div>
         </div>

@@ -22,8 +22,11 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<ConfirmAction>(null)
   const [fullRecord, setFullRecord] = useState<SandboxRecord | null>(null)
+  const [containerPort, setContainerPort] = useState<number | null>(null)
   const [showDockerfile, setShowDockerfile] = useState(false)
   const [showCompose, setShowCompose] = useState(false)
+  const [composeContent, setComposeContent] = useState("")
+  const [copyToast, setCopyToast] = useState<{ x: number; y: number } | null>(null)
 
   const fetchLogs = useCallback(async () => {
     const result = await window.sandobox.getSandboxLogs(sandbox.id)
@@ -44,8 +47,30 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
         setFullRecord(rec as SandboxRecord)
       }
     })
+    window.sandobox.getProxyTarget(sid).then((res) => {
+      if (!cancelled && "port" in res) {
+        setContainerPort(res.port)
+      }
+    })
     return () => { cancelled = true }
-  }, [sandbox.sandboxId, sandboxId])
+  }, [sandbox.sandboxId, sandboxId, sandbox.status])
+
+  useEffect(() => {
+    let cancelled = false
+    const sid = sandbox.sandboxId || sandboxId
+    window.sandobox.generateCompose(sid).then((res) => {
+      if (!cancelled && typeof res === "string") {
+        setComposeContent(res)
+      }
+    })
+    return () => { cancelled = true }
+  }, [sandbox.sandboxId, sandboxId, sandbox.status])
+
+  useEffect(() => {
+    if (!copyToast) return
+    const timer = setTimeout(() => setCopyToast(null), 1500)
+    return () => clearTimeout(timer)
+  }, [copyToast])
 
   const handleStart = async () => {
     setLoading(true)
@@ -90,39 +115,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
   }
 
   function generateCompose(): string {
-    if (!fullRecord) return ""
-    const lines: string[] = []
-    lines.push("services:")
-    lines.push(`  ${fullRecord.name || "sandbox"}:`)
-    lines.push(`    image: ${fullRecord.image_tag}`)
-    lines.push(`    container_name: ${fullRecord.name || "sandbox"}`)
-    lines.push(`    ports:`)
-    lines.push(`      - "${fullRecord.opencode_port}:${fullRecord.opencode_port}"`)
-    if (fullRecord.project_mount) {
-      lines.push(`    volumes:`)
-      lines.push(`      - ${fullRecord.project_mount}:/workspace`)
-    }
-    lines.push(`    environment:`)
-    lines.push(`      - OPENCODE_PORT=${fullRecord.opencode_port}`)
-    if (fullRecord.services.includes("postgres")) {
-      lines.push("")
-      lines.push(`  postgres:`)
-      lines.push(`    image: postgres:16-alpine`)
-      lines.push(`    environment:`)
-      lines.push(`      POSTGRES_USER: sandbox`)
-      lines.push(`      POSTGRES_PASSWORD: sandbox`)
-      lines.push(`      POSTGRES_DB: sandbox`)
-      lines.push(`    ports:`)
-      lines.push(`      - "5432:5432"`)
-    }
-    if (fullRecord.services.includes("redis")) {
-      lines.push("")
-      lines.push(`  redis:`)
-      lines.push(`    image: redis:7-alpine`)
-      lines.push(`    ports:`)
-      lines.push(`      - "6379:6379"`)
-    }
-    return lines.join("\n")
+    return composeContent
   }
 
   const isRunning = sandbox.status === "running"
@@ -142,7 +135,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 14,8 3,14"/></svg>
             </button>
           )}
-          {isRunning && <OpenCodeCLIButton port={sandbox.opencodePort} />}
+          {isRunning && <OpenCodeCLIButton sandboxId={sandbox.sandboxId} />}
           <button className="btn icon-btn" onClick={onRefresh} title="Refresh">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8a6 6 0 0 1-11.3 3.2"/><path d="M2 8a6 6 0 0 1 11.3-3.2"/><path d="M14 2v3.5a.5.5 0 0 1-.5.5H10"/><path d="M2 14v-3.5a.5.5 0 0 1 .5-.5H6"/></svg>
           </button>
@@ -171,14 +164,39 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
       </div>
 
       {tab === "info" && (
-        <>
+        <div style={{ position: "relative" }}>
+          {copyToast && (
+            <div style={{ position: "fixed", left: copyToast.x, top: copyToast.y - 28, background: "var(--bg-secondary)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: 4, fontSize: 12, border: "1px solid var(--border-color)", pointerEvents: "none", zIndex: 1000 }}>
+              Copied
+            </div>
+          )}
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">General</h3>
             <div className="info-grid">
-              <div><span className="info-label">Container ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.id}</span></div>
-              <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
               <div><span className="info-label">Image</span><span className="info-value">{sandbox.image}</span></div>
               <div><span className="info-label">Status</span><span className="info-value">{sandbox.status}</span></div>
+              <div><span className="info-label">Sandbox ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.sandboxId}</span></div>
+              
+              
+              
+              <div></div>
+              <div><span className="info-label">OpenCode SDK Server URL</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }} onClick={(e) => { navigator.clipboard.writeText(`http://localhost:4096/${sandbox.sandboxId}`); setCopyToast({ x: e.clientX, y: e.clientY }) }} title="Copy URL">http://localhost:4096/{sandbox.sandboxId}</span></div>
+              {containerPort && (
+                <div>
+                  <span className="info-label">OpenCode Web</span>
+                  <span className="info-value">
+                    {sandbox.status === "running" ? (
+                      <a href={`http://127.0.0.1:${containerPort}`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                        http://127.0.0.1:{containerPort} ↗
+                      </a>
+                    ) : (
+                      <span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11, opacity: 0.5 }}>
+                        http://127.0.0.1:{containerPort}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div><span className="info-label">Created</span><span className="info-value">{new Date(sandbox.createdAt).toLocaleString()}</span></div>
               {fullRecord && <div><span className="info-label">Updated</span><span className="info-value">{new Date(fullRecord.updated_at).toLocaleString()}</span></div>}
             </div>
@@ -187,8 +205,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
           <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
             <h3 className="section-title">Workspace</h3>
             <div className="info-grid">
-              <div><span className="info-label">OpenCode Port</span><span className="info-value">{sandbox.opencodePort}</span></div>
-              <div><span className="info-label">Mount</span><span className="info-value">{sandbox.projectMount || "None"}</span></div>
+              <div><span className="info-label">Mount</span><span className="info-value" style={{ display: "inline-flex", alignItems: "flex-end" }}>{sandbox.projectMount ? <span className="mount-path">{sandbox.projectMount}</span> : "None"}{sandbox.projectMount && <><span className="mount-icon-btn" style={{ marginLeft: 6 }} onClick={() => window.sandobox.openPath(sandbox.projectMount!)} title="Open folder"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5a2 2 0 0 1 2-2h3.5L9 5h5a1 1 0 0 1 1 1v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5z"/><path d="M7 9l3-3"/><path d="M10 6H7v3"/></svg></span><span className="mount-icon-btn" style={{ marginLeft: 6 }} onClick={() => window.sandobox.openInTerminal(sandbox.projectMount!)} title="Open in terminal"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></span></>}</span></div>
               {fullRecord?.git_config && Object.keys(fullRecord.git_config).length > 0 && (
                 <div style={{ gridColumn: "span 2" }}><span className="info-label">Git Config</span><span className="info-value">{Object.entries(fullRecord.git_config).map(([k, v]) => `${k}=${v}`).join(", ")}</span></div>
               )}
@@ -218,40 +235,47 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
             </div>
           )}
 
-          {fullRecord?.docker_container_id && (
-            <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
-              <h3 className="section-title">Docker</h3>
-              <div className="info-grid">
-                <div><span className="info-label">Docker ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{fullRecord.docker_container_id}</span></div>
-              </div>
-              {fullRecord.generated_dockerfile && (
-                <div style={{ marginTop: 8 }}>
-                  <button
-                    className="collapsible-header"
-                    onClick={() => setShowDockerfile(!showDockerfile)}
-                  >
-                    <span className={`collapsible-chevron ${showDockerfile ? "open" : ""}`}>&#9654;</span>
-                    Dockerfile
-                  </button>
-                  {showDockerfile && (
-                    <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
-                  )}
-                </div>
+          <div className="sandbox-detail-section" style={{ marginBottom: 10 }}>
+            <h3 className="section-title">Docker</h3>
+            <div className="info-grid">
+              <div><span className="info-label">Container ID</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{sandbox.id}</span></div>
+              {fullRecord?.docker_container_id && (
+                <div><span className="info-label">Docker ID (DB)</span><span className="info-value" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{fullRecord.docker_container_id}</span></div>
               )}
+            </div>
+            {fullRecord?.generated_dockerfile && (
               <div style={{ marginTop: 8 }}>
                 <button
                   className="collapsible-header"
-                  onClick={() => setShowCompose(!showCompose)}
+                  onClick={() => setShowDockerfile(!showDockerfile)}
                 >
-                  <span className={`collapsible-chevron ${showCompose ? "open" : ""}`}>&#9654;</span>
-                  Docker Compose
+                  <span className={`collapsible-chevron ${showDockerfile ? "open" : ""}`}>&#9654;</span>
+                  Dockerfile
                 </button>
-                {showCompose && (
-                  <pre className="collapsible-content">{generateCompose()}</pre>
+                {showDockerfile && (
+                  <div style={{ position: "relative" }}>
+                    <pre className="collapsible-content">{fullRecord.generated_dockerfile}</pre>
+                    <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(fullRecord.generated_dockerfile); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                  </div>
                 )}
               </div>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <button
+                className="collapsible-header"
+                onClick={() => setShowCompose(!showCompose)}
+              >
+                <span className={`collapsible-chevron ${showCompose ? "open" : ""}`}>&#9654;</span>
+                Docker Compose
+              </button>
+              {showCompose && (
+                <div style={{ position: "relative" }}>
+                  <pre className="collapsible-content">{generateCompose()}</pre>
+                  <span className="dockerfile-copy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-sun)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(generateCompose()); setCopyToast({ x: e.clientX, y: e.clientY }) }}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
 
 
@@ -272,12 +296,12 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
               }}
             >
               Sandbox is running. OpenCode server available at{" "}
-              <code>http://localhost:{sandbox.opencodePort}</code>.
+              <code>http://localhost:4096/{sandbox.sandboxId}</code>.
               Use the OpenCode SDK to connect from external apps.
             </div>
           )}
-        </>
-      )}
+          </div>
+        )}
 
       {tab === "logs" && (
         <div className="sandbox-detail-section">
@@ -303,7 +327,7 @@ export function SandboxDetail({ sandbox, sandboxId, onRefresh, onDeleted, onEdit
       )}
 
       {tab === "opencode" && isRunning && (
-        <OpenCodePanel sandboxId={sandboxId} containerId={sandbox.id} port={sandbox.opencodePort} />
+        <OpenCodePanel sandboxId={sandboxId} containerId={sandbox.id} />
       )}
 
       {tab === "opencode" && !isRunning && (

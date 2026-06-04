@@ -5,8 +5,15 @@ import { readdir, lstat, readlink, writeFile, mkdtemp, rm } from "node:fs/promis
 import { realpathSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import path from "node:path"
+import { getProxy } from "./proxy.js"
+import { getSandboxRecordFull } from "./database.js"
 
 const docker = new Docker()
+
+const CPU_LIMIT = 2_000_000_000   // 2 CPU cores (nano CPUs)
+const MEMORY_LIMIT = 2 * 1024 * 1024 * 1024    // 2 GB
+const SIDECAR_CPU_LIMIT = 1_000_000_000         // 1 CPU core
+const SIDECAR_MEMORY_LIMIT = 512 * 1024 * 1024  // 512 MB
 
 async function findSymlinks(root: string, maxDepth = 12): Promise<string[]> {
   const results: string[] = []
@@ -106,7 +113,6 @@ export interface SandboxConfig {
   sandboxId?: string
   name: string
   image: string
-  opencodePort: number
   generatedDockerfile: string
   projectMount?: string
   permissions: Record<string, string>
@@ -122,10 +128,10 @@ export interface SandboxInfo {
   sandboxId: string
   name: string
   image: string
-  opencodePort: number
   status: string
   projectMount?: string
   createdAt: string
+  proxyUrl: string
 }
 
 export interface ContainerLog {
@@ -133,20 +139,183 @@ export interface ContainerLog {
   message: string
 }
 
-export async function listSandboxes(): Promise<SandboxInfo[]> {
+export async function registerExistingSandboxes(): Promise<void> {
+  const proxy = getProxy()
   const containers = await docker.listContainers({ all: true })
+  let registered = 0
+  for (const c of containers) {
+    if (c.Labels?.["sandobox.manager"] !== "true") continue
+    const sandboxId = c.Labels?.["sandobox.id"]
+    if (!sandboxId) continue
+    try {
+      const container = docker.getContainer(c.Id)
+      const info = await container.inspect()
+      const ports = info.NetworkSettings?.Ports
+
+      let hostPort: number | null = null
+
+      const entry = ports ? Object.entries(ports).find(
+        ([, bindings]) => bindings && bindings.length > 0 && bindings[0]?.HostPort
+      ) : null
+      if (entry) {
+        hostPort = parseInt(entry[1][0].HostPort, 10)
+      }
+
+      if (!hostPort) {
+        const labelPort = parseInt(c.Labels?.["sandobox.host.port"] ?? "", 10)
+        if (labelPort) hostPort = labelPort
+      }
+
+      if (hostPort) {
+        proxy.register(sandboxId, { host: "127.0.0.1", port: hostPort })
+        registered++
+      }
+    } catch (err) {
+      console.error(`[docker] Failed to register existing sandbox ${sandboxId}:`, err)
+    }
+  }
+  console.log(`[docker] Registered ${registered} existing sandboxes with proxy`)
+}
+
+async function getContainerHostPort(containerId: string): Promise<number | null> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const ports = info.NetworkSettings?.Ports
+    const entry = ports ? Object.entries(ports).find(
+      ([, bindings]) => bindings && bindings.length > 0 && bindings[0]?.HostPort
+    ) : null
+    if (entry) return parseInt(entry[1][0].HostPort, 10)
+    const labelPort = parseInt(info.Config.Labels?.["sandobox.host.port"] ?? "", 10)
+    if (labelPort) return labelPort
+  } catch { }
+  return null
+}
+
+async function registerContainerWithProxy(containerId: string): Promise<boolean> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"]
+    if (!sandboxId) return false
+    const hostPort = await getContainerHostPort(containerId)
+    if (!hostPort) return false
+    getProxy().register(sandboxId, { host: "127.0.0.1", port: hostPort })
+    spawn("docker", ["container", "update", "--label-add", `sandobox.host.port=${hostPort}`, containerId], {
+      windowsHide: true,
+      stdio: "ignore",
+    })
+    console.log(`[docker] Auto-registered sandbox ${sandboxId} → 127.0.0.1:${hostPort}`)
+    return true
+  } catch { return false }
+}
+
+async function unregisterContainerFromProxy(containerId: string): Promise<void> {
+  try {
+    const container = docker.getContainer(containerId)
+    const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"]
+    if (sandboxId) {
+      getProxy().unregister(sandboxId)
+      console.log(`[docker] Auto-unregistered sandbox ${sandboxId}`)
+    }
+  } catch { }
+}
+
+let watcherCleanup: (() => void) | null = null
+
+export function startDockerWatcher(): void {
+  const SYNC_INTERVAL = 30_000
+
+  const sync = async () => {
+    try {
+      const containers = await docker.listContainers({ all: true })
+      for (const c of containers) {
+        if (c.Labels?.["sandobox.manager"] !== "true") continue
+        if (c.State !== "running") continue
+        await registerContainerWithProxy(c.Id)
+      }
+    } catch (err) {
+      console.error("[docker] Watcher sync failed:", err)
+    }
+  }
+
+  const syncTimer = setInterval(sync, SYNC_INTERVAL)
+
+  let reconnectTimer: NodeJS.Timeout | null = null
+
+  const watch = async () => {
+    try {
+      const stream = await docker.getEvents({
+        filters: JSON.stringify({ label: ["sandobox.manager=true"] }),
+      })
+
+      stream.on("data", (chunk: Buffer) => {
+        try {
+          const event = JSON.parse(chunk.toString())
+          if (event.Type !== "container") return
+          const containerId = event.Actor?.ID
+          if (!containerId) return
+          if (event.Action === "start" || event.Action === "unpause") {
+            registerContainerWithProxy(containerId)
+          } else if (event.Action === "destroy") {
+            const sandboxId = event.Actor?.Attributes?.["sandobox.id"]
+            if (sandboxId) {
+              getProxy().unregister(sandboxId)
+              console.log(`[docker] Sandbox destroyed, unregistered: ${sandboxId}`)
+            }
+          }
+        } catch { }
+      })
+
+      stream.on("end", () => {
+        reconnectTimer = setTimeout(watch, 5000)
+      })
+
+      stream.on("error", () => {
+        reconnectTimer = setTimeout(watch, 5000)
+      })
+    } catch {
+      reconnectTimer = setTimeout(watch, 5000)
+    }
+  }
+
+  watch()
+
+  watcherCleanup = () => {
+    clearInterval(syncTimer)
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+  }
+}
+
+export function stopDockerWatcher(): void {
+  watcherCleanup?.()
+  watcherCleanup = null
+}
+
+export async function listSandboxes(): Promise<SandboxInfo[]> {
+  let containers: Docker.ContainerInfo[]
+  try {
+    containers = await docker.listContainers({ all: true })
+  } catch (err) {
+    console.error("[docker] listSandboxes failed:", err)
+    return []
+  }
   return containers
     .filter((c) => c.Labels?.["sandobox.manager"] === "true")
-    .map((c) => ({
-      id: c.Id,
-      sandboxId: c.Labels?.["sandobox.id"] ?? c.Id,
-      name: (c.Names?.[0] ?? "").replace(/^\//, ""),
-      image: c.Image,
-      opencodePort: parseInt(c.Labels?.["sandobox.opencode.port"] ?? "0"),
-      status: c.State ?? "unknown",
-      projectMount: c.Labels?.["sandobox.project.mount"],
-      createdAt: c.Created?.toString() ?? "",
-    }))
+    .map((c) => {
+      const sandboxId = c.Labels?.["sandobox.id"] ?? c.Id
+      return {
+        id: c.Id,
+        sandboxId,
+        name: (c.Names?.[0] ?? "").replace(/^\//, ""),
+        image: c.Image,
+        status: c.State ?? "unknown",
+        projectMount: c.Labels?.["sandobox.project.mount"],
+        createdAt: c.Created ? new Date(c.Created * 1000).toISOString() : "",
+        proxyUrl: getProxy().getUrl(sandboxId),
+      }
+    })
 }
 
 function sanitizeError(text: string): string {
@@ -154,12 +323,12 @@ function sanitizeError(text: string): string {
 }
 
 async function injectApiKey(
-  port: number,
+  sandboxId: string,
   providerId: string,
   apiKey: string,
   maxAttempts = 15,
 ): Promise<void> {
-  const baseUrl = `http://127.0.0.1:${port}`
+  const baseUrl = getProxy().getUrl(sandboxId)
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -215,25 +384,28 @@ export async function createSandbox(config: SandboxConfig, onProgress?: (event: 
   onProgress?.({ type: "step", text: "Launching sidecar service containers (Postgres, Redis…)…" })
   await ensureServiceContainers(containerName, config, group, networkName)
 
-  onProgress?.({ type: "step", text: "Creating sandbox container with port mapping and environment…" })
+  const sandboxId = config.sandboxId!
+
+  onProgress?.({ type: "step", text: "Creating sandbox container…" })
   const container = await docker.createContainer({
     name: containerName,
     Image: image,
     Labels: {
       "sandobox.manager": "true",
-      "sandobox.id": config.sandboxId ?? "",
+      "sandobox.id": sandboxId,
       "sandobox.group": group,
-      "sandobox.opencode.port": config.opencodePort.toString(),
       "sandobox.project.mount": config.projectMount ?? "",
       "sandobox.services": config.services.join(","),
     },
     ExposedPorts: {
-      [`${config.opencodePort}/tcp`]: {},
+      "4096/tcp": {},
     },
     HostConfig: {
       CapDrop: ["ALL"],
+      NanoCpus: CPU_LIMIT,
+      Memory: MEMORY_LIMIT,
       PortBindings: {
-        [`${config.opencodePort}/tcp`]: [{ HostPort: config.opencodePort.toString(), HostIp: "127.0.0.1" }],
+        "4096/tcp": [{ HostIp: "127.0.0.1" }],
       },
       ...(config.projectMount
         ? {
@@ -258,7 +430,7 @@ export async function createSandbox(config: SandboxConfig, onProgress?: (event: 
     Cmd: [
       "sh",
       "-c",
-      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port ${config.opencodePort} --hostname 0.0.0.0`,
+      `mkdir -p /root/.config/opencode && printf '%s' "$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port 4096 --hostname 0.0.0.0`,
     ],
   })
 
@@ -273,10 +445,29 @@ export async function createSandbox(config: SandboxConfig, onProgress?: (event: 
   onProgress?.({ type: "step", text: "Starting container and waiting for OpenCode to boot…" })
   await container.start()
 
+  onProgress?.({ type: "step", text: "Registering sandbox with proxy…" })
+  const info = await container.inspect()
+  const portBindings = info.NetworkSettings?.Ports?.["4096/tcp"]
+  if (!portBindings || portBindings.length === 0) {
+    console.error(`[docker] Port bindings for 4096/tcp not found:`, JSON.stringify(info.NetworkSettings?.Ports))
+    throw new Error("Failed to get assigned host port for sandbox container")
+  }
+  const hostPort = parseInt(portBindings[0].HostPort, 10)
+  if (!hostPort) {
+    console.error(`[docker] Invalid HostPort:`, JSON.stringify(portBindings))
+    throw new Error("Failed to get assigned host port for sandbox container")
+  }
+  console.log(`[docker] Registering sandbox ${sandboxId} → 127.0.0.1:${hostPort}`)
+  getProxy().register(sandboxId, { host: "127.0.0.1", port: hostPort })
+  spawn("docker", ["container", "update", "--label-add", `sandobox.host.port=${hostPort}`, container.id], {
+    windowsHide: true,
+    stdio: "ignore",
+  })
+
   if (config.providers) {
     onProgress?.({ type: "step", text: "Injecting provider API keys into OpenCode…" })
     for (const p of config.providers) {
-      injectApiKey(config.opencodePort, p.id, p.apiKey).catch((err) =>
+      injectApiKey(sandboxId, p.id, p.apiKey).catch((err) =>
         console.error(`[docker] injectApiKey for ${p.id} failed:`, err),
       )
     }
@@ -289,7 +480,24 @@ export async function startSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
   const info = await container.inspect()
   const group = info.Config.Labels?.["sandobox.group"]
+  const sandboxId = info.Config.Labels?.["sandobox.id"]
   await startGroupContainers(group ?? id)
+  if (sandboxId) {
+    const freshInfo = await container.inspect()
+    const ports = freshInfo.NetworkSettings?.Ports
+    const entry = ports ? Object.entries(ports).find(
+      ([, bindings]) => bindings && bindings.length > 0 && bindings[0]?.HostPort
+    ) : null
+    if (entry) {
+      const hostPort = parseInt(entry[1][0].HostPort, 10)
+      getProxy().register(sandboxId, { host: "127.0.0.1", port: hostPort })
+      spawn("docker", ["container", "update", "--label-add", `sandobox.host.port=${hostPort}`, id], {
+        windowsHide: true,
+        stdio: "ignore",
+      })
+      console.log(`[docker] Re-registered sandbox ${sandboxId} → 127.0.0.1:${hostPort}`)
+    }
+  }
 }
 
 export async function stopSandbox(id: string): Promise<void> {
@@ -300,6 +508,7 @@ export async function stopSandbox(id: string): Promise<void> {
 }
 
 export async function removeSandboxBySandboxId(sandboxId: string): Promise<void> {
+  getProxy().unregister(sandboxId)
   const containers = await docker.listContainers({ all: true })
   const matches = containers.filter((c) => c.Labels?.["sandobox.id"] === sandboxId)
   if (matches.length === 0) return
@@ -356,6 +565,8 @@ export async function updateSandbox(sandboxId: string, config: SandboxConfig, on
 export async function removeSandbox(id: string): Promise<void> {
   const container = docker.getContainer(id)
   const info = await container.inspect()
+  const sandboxId = info.Config.Labels?.["sandobox.id"]
+  if (sandboxId) getProxy().unregister(sandboxId)
   const imageTag = info.Config.Image
   const group = info.Config.Labels?.["sandobox.group"] ?? id
   const networkName = `${group}-net`
@@ -395,15 +606,16 @@ export async function getSandboxInfo(id: string): Promise<SandboxInfo | null> {
   try {
     const container = docker.getContainer(id)
     const info = await container.inspect()
+    const sandboxId = info.Config.Labels?.["sandobox.id"] ?? info.Id
     return {
       id: info.Id,
-      sandboxId: info.Config.Labels?.["sandobox.id"] ?? info.Id,
+      sandboxId,
       name: info.Name.replace(/^\//, ""),
       image: info.Config.Image,
-      opencodePort: parseInt(info.Config.Labels?.["sandobox.opencode.port"] ?? "0"),
       status: info.State.Status,
       projectMount: info.Config.Labels?.["sandobox.project.mount"],
       createdAt: info.Created,
+      proxyUrl: getProxy().getUrl(sandboxId),
     }
   } catch {
     return null
@@ -499,13 +711,23 @@ async function buildImage(tag: string, dockerfile: string, onProgress?: (event: 
 }
 
 function buildOpenCodeConfig(config: SandboxConfig): string {
-  const permissionEntries = Object.entries(config.permissions).map(([key, value]) => {
-    const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
-    return `"${key}": ${JSON.stringify(action)}`
-  })
+  const permission: Record<string, unknown> = JSON.parse(
+    `{${Object.entries(config.permissions)
+      .map(([key, value]) => {
+        const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
+        return `"${key}": ${JSON.stringify(action)}`
+      })
+      .join(",")}}`,
+  )
+  permission.doom_loop = "deny"
 
   const opencodeConfig: Record<string, unknown> = {
-    permission: JSON.parse(`{${permissionEntries.join(",")}}`),
+    permission,
+    agent: {
+      build: {
+        steps: 100,
+      },
+    },
   }
 
   if (config.providers && config.providers.length > 0) {
@@ -564,6 +786,10 @@ async function ensureServiceContainers(containerName: string, config: SandboxCon
           "sandobox.group": group,
           "sandobox.service.name": "postgres",
         },
+        HostConfig: {
+          NanoCpus: SIDECAR_CPU_LIMIT,
+          Memory: SIDECAR_MEMORY_LIMIT,
+        },
         Env: [
           "POSTGRES_USER=sandbox",
           "POSTGRES_PASSWORD=sandbox",
@@ -588,6 +814,10 @@ async function ensureServiceContainers(containerName: string, config: SandboxCon
           "sandobox.service": "true",
           "sandobox.group": group,
           "sandobox.service.name": "redis",
+        },
+        HostConfig: {
+          NanoCpus: SIDECAR_CPU_LIMIT,
+          Memory: SIDECAR_MEMORY_LIMIT,
         },
       })
       await docker.getNetwork(networkName).connect({
@@ -811,6 +1041,146 @@ export function buildGeneratedDockerfile(config: { runtimes?: string[]; tools?: 
     "",
     'CMD ["sh", "-c", "opencode --help && sleep infinity"]',
   )
+
+  return lines.join("\n")
+}
+
+// display-only: generates a docker-compose.yml that a user could run manually
+// to reproduce the sandbox. It is never consumed by Docker programmatically
+// — the real container creation uses createSandbox() above.
+export function buildDockerCompose(sandboxId: string): string {
+  const record = getSandboxRecordFull(sandboxId)
+  if (!record) return ""
+
+  const name = (record.name as string) || "sandbox"
+  const imageTag = record.image_tag as string
+  const projectMount = record.project_mount as string | null
+  const permissions = record.permissions as Record<string, string>
+  const providers = record.providers as Array<{ id: string; apiKey: string }> | null
+  const services = record.services as string[]
+  const networkName = `${name}-net`
+
+  const lines: string[] = []
+  lines.push("# Generated by Sandobox Manager")
+  lines.push(`# 1. Save the Dockerfile content above as "Dockerfile"`)
+  lines.push(`# 2. Build the image: docker build -t ${imageTag} .`)
+  lines.push("# 3. Run: docker compose up -d")
+  lines.push("#")
+  lines.push("# To inject provider API keys after the container is running:")
+  lines.push("#   curl -X PUT http://127.0.0.1:4096/auth/<provider-id> \\")
+  lines.push('#     -H "Content-Type: application/json" \\')
+  lines.push("#     -d '{\"type\":\"api\",\"key\":\"<your-api-key>\"}'")
+  lines.push("")
+
+  lines.push("services:")
+  lines.push(`  ${name}:`)
+  lines.push(`    image: ${imageTag}`)
+  lines.push(`    container_name: ${name}`)
+  lines.push(`    cap_drop:`)
+  lines.push(`      - ALL`)
+  lines.push(`    deploy:`)
+  lines.push(`      resources:`)
+  lines.push(`        limits:`)
+  lines.push(`          cpus: "2"`)
+  lines.push(`          memory: 2GB`)
+  lines.push(`    ports:`)
+  lines.push(`      - "127.0.0.1:4096:4096"`)
+
+  if (projectMount) {
+    lines.push(`    volumes:`)
+    lines.push(`      - ${projectMount}:/workspace`)
+  }
+
+  const permission: Record<string, unknown> =
+    permissions && Object.keys(permissions).length > 0
+      ? JSON.parse(
+          `{${Object.entries(permissions)
+            .map(([key, value]) => {
+              const action = value === "allow" ? "allow" : value === "deny" ? "deny" : "ask"
+              return `"${key}":"${action}"`
+            })
+            .join(",")}}`,
+        )
+      : {}
+  permission.doom_loop = "deny"
+
+  const configObj: Record<string, unknown> = {
+    agent: {
+      build: {
+        steps: 100,
+      },
+    },
+  }
+  if (providers && providers.length > 0) {
+    configObj.provider = Object.fromEntries(
+      providers.map((p) => [p.id, { options: {} }]),
+    )
+  }
+
+  lines.push(`    environment:`)
+  lines.push(`      OPENCODE_CONFIG: '${JSON.stringify(configObj)}'`)
+  lines.push(`      SANDBOX_WORKSPACE: /workspace`)
+  if (services.includes("postgres")) {
+    lines.push(`      POSTGRES_HOST: postgres`)
+    lines.push(`      POSTGRES_PORT: "5432"`)
+    lines.push(`      POSTGRES_USER: sandbox`)
+    lines.push(`      POSTGRES_PASSWORD: sandbox`)
+    lines.push(`      POSTGRES_DB: sandbox`)
+  }
+  if (services.includes("redis")) {
+    lines.push(`      REDIS_HOST: redis`)
+    lines.push(`      REDIS_PORT: "6379"`)
+  }
+
+  lines.push(`    command:`)
+  lines.push(`      - sh`)
+  lines.push(`      - -c`)
+  lines.push(`      - mkdir -p /root/.config/opencode && printf '%s' "$$OPENCODE_CONFIG" > /root/.config/opencode/opencode.json && unset OPENCODE_CONFIG && opencode serve --port 4096 --hostname 0.0.0.0`)
+  lines.push(`    networks:`)
+  lines.push(`      ${networkName}:`)
+  lines.push(`        aliases:`)
+  lines.push(`          - sandbox`)
+
+  if (services.includes("postgres")) {
+    lines.push("")
+    lines.push(`  postgres:`)
+    lines.push(`    image: postgres:16-alpine`)
+    lines.push(`    container_name: ${name}-postgres`)
+    lines.push(`    deploy:`)
+    lines.push(`      resources:`)
+    lines.push(`        limits:`)
+    lines.push(`          cpus: "1"`)
+    lines.push(`          memory: 512M`)
+    lines.push(`    environment:`)
+    lines.push(`      POSTGRES_USER: sandbox`)
+    lines.push(`      POSTGRES_PASSWORD: sandbox`)
+    lines.push(`      POSTGRES_DB: sandbox`)
+    lines.push(`    networks:`)
+    lines.push(`      ${networkName}:`)
+    lines.push(`        aliases:`)
+    lines.push(`          - postgres`)
+  }
+
+  if (services.includes("redis")) {
+    lines.push("")
+    lines.push(`  redis:`)
+    lines.push(`    image: redis:7-alpine`)
+    lines.push(`    container_name: ${name}-redis`)
+    lines.push(`    deploy:`)
+    lines.push(`      resources:`)
+    lines.push(`        limits:`)
+    lines.push(`          cpus: "1"`)
+    lines.push(`          memory: 256M`)
+    lines.push(`    networks:`)
+    lines.push(`      ${networkName}:`)
+    lines.push(`        aliases:`)
+    lines.push(`          - redis`)
+  }
+
+  lines.push("")
+  lines.push("networks:")
+  lines.push(`  ${networkName}:`)
+  lines.push(`    driver: bridge`)
 
   return lines.join("\n")
 }

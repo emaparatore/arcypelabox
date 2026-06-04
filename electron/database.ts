@@ -47,6 +47,15 @@ function migrateSchema(): void {
     `)
     console.log("[db] Migrated schema: added git_config column")
   }
+
+  const hasOpenCodePort = db.prepare(
+    "SELECT count(*) as cnt FROM pragma_table_info('sandboxes') WHERE name = 'opencode_port'",
+  ).get() as { cnt: number } | undefined
+
+  if (hasOpenCodePort && hasOpenCodePort.cnt > 0) {
+    db.exec(`ALTER TABLE sandboxes DROP COLUMN opencode_port;`)
+    console.log("[db] Migrated schema: dropped opencode_port column")
+  }
 }
 
 function createTables(): void {
@@ -55,7 +64,6 @@ function createTables(): void {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       image_tag TEXT NOT NULL,
-      opencode_port INTEGER NOT NULL,
       project_mount TEXT,
       runtimes TEXT NOT NULL DEFAULT '[]',
       tools TEXT NOT NULL DEFAULT '[]',
@@ -116,15 +124,14 @@ export function createSandboxRecord(config: SandboxConfig, dockerContainerId: st
     : null
 
   db.prepare(`
-    INSERT INTO sandboxes (id, name, image_tag, opencode_port, project_mount,
+    INSERT INTO sandboxes (id, name, image_tag, project_mount,
       runtimes, tools, services, providers,
       permissions, generated_dockerfile, git_config, docker_container_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     config.name,
     config.image,
-    config.opencodePort,
     config.projectMount ?? null,
     JSON.stringify(config.runtimes),
     JSON.stringify(config.tools),
@@ -193,7 +200,7 @@ export function updateSandboxRecord(
 
   db.prepare(`
     UPDATE sandboxes SET
-      name = ?, image_tag = ?, opencode_port = ?, project_mount = ?,
+      name = ?, image_tag = ?, project_mount = ?,
       runtimes = ?, tools = ?, services = ?, providers = ?,
       permissions = ?, generated_dockerfile = ?, git_config = ?,
       docker_container_id = ?, updated_at = ?
@@ -201,7 +208,6 @@ export function updateSandboxRecord(
   `).run(
     config.name,
     config.image,
-    config.opencodePort,
     config.projectMount ?? null,
     JSON.stringify(config.runtimes),
     JSON.stringify(config.tools),
@@ -268,6 +274,15 @@ export function addChatMessage(
 
 export function clearChatMessages(sandboxId: string): void {
   db.prepare("DELETE FROM chat_messages WHERE sandbox_id = ?").run(sandboxId)
+}
+
+export function findNameConflict(name: string, excludeId?: string): boolean {
+  if (excludeId) {
+    const row = db.prepare("SELECT id FROM sandboxes WHERE name = ? AND id != ?").get(name, excludeId)
+    return !!row
+  }
+  const row = db.prepare("SELECT id FROM sandboxes WHERE name = ?").get(name)
+  return !!row
 }
 
 export function getSetting(key: string): string | null {

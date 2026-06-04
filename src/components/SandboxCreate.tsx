@@ -73,8 +73,7 @@ const IMAGE_NAME = "arcypelabox-base"
 export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [step, setStep] = useState<Step>(0)
   const [name, setName] = useState("")
-  const [imageTag, setImageTag] = useState("latest")
-  const [opencodePort, setOpencodePort] = useState(4096)
+
   const [projectMount, setProjectMount] = useState("")
   const [runtimes, setRuntimes] = useState<SandboxRuntime[]>(["node"])
   const [tools, setTools] = useState<SandboxTool[]>(["git"])
@@ -82,7 +81,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
   const [gitUserName, setGitUserName] = useState("")
   const [gitUserEmail, setGitUserEmail] = useState("")
   const [gitAutocrlf, setGitAutocrlf] = useState<"input" | "true" | "false">("input")
-  const [providers, setProviders] = useState<ProviderConfig[]>([{ id: "", apiKey: "" }])
+  const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [openProviderIndex, setOpenProviderIndex] = useState<number | null>(null)
   const [highlightedProviderOption, setHighlightedProviderOption] = useState(0)
   const [permissions, setPermissions] = useState<Record<string, string>>({
@@ -120,9 +119,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     if (!editRecord) return
     setShowWarning(true)
     setName(editRecord.name)
-    const colonIdx = (editRecord.image_tag ?? "").lastIndexOf(":")
-    setImageTag(colonIdx >= 0 ? editRecord.image_tag.slice(colonIdx + 1) : editRecord.image_tag || "latest")
-    setOpencodePort(editRecord.opencode_port)
     setProjectMount(editRecord.project_mount ?? "")
     setRuntimes(editRecord.runtimes)
     setTools(editRecord.tools)
@@ -171,11 +167,10 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
     }
   }, [buildStatus, buildResult, onCreated])
 
-  const fullImage = `${IMAGE_NAME}:${imageTag}`
+  const fullImage = name.trim() ? `${IMAGE_NAME}:${name.trim().toLowerCase()}` : IMAGE_NAME
   const configPreview = useMemo(
     () => ({
       image: fullImage,
-      opencodePort,
       projectMount: projectMount || null,
       runtimes,
       tools,
@@ -188,7 +183,7 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
         .filter(([, v]) => v === "allow")
         .map(([k]) => k),
     }),
-    [fullImage, opencodePort, projectMount, providers, runtimes, services, tools, gitConfig, permissions]
+    [fullImage, projectMount, providers, runtimes, services, tools, gitConfig, permissions]
   )
 
   const handleSubmit = async () => {
@@ -208,49 +203,38 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
       return
     }
 
-    if (!Number.isInteger(opencodePort) || opencodePort < 1024 || opencodePort > 65535) {
-      setError("OpenCode port must be an integer between 1024 and 65535")
-      return
-    }
-
-    const trimmedTag = imageTag.trim()
-    if (!trimmedTag) {
-      setError("Image tag is required")
-      return
-    }
-
     if (!projectMount.trim()) {
       setError("Project path to mount is required")
       return
     }
 
-    const fullImage = `${IMAGE_NAME}:${trimmedTag}`
     try {
-      const exists = await window.sandobox.checkImage(fullImage)
-      if (typeof exists === "object" && "error" in exists) {
-        // check itself failed — continue, docker build will surface the real issue
-      } else if (exists) {
-        setError(`An image with tag "${trimmedTag}" already exists in Docker. Please use a different tag.`)
+      const nameExists = await window.sandobox.checkSandboxName(trimmedName, editRecord?.id)
+      if (nameExists) {
+        setError(`A sandbox with the name "${trimmedName}" already exists. Please use a different name.`)
         return
       }
     } catch {
       // fall through
     }
 
+    const fullImage = `${IMAGE_NAME}:${trimmedName.toLowerCase()}`
+
     setBuildStatus("building")
     setError(null)
+
+    const sanitizedProviders = providers.filter((p) => p.id.trim() && p.apiKey.trim())
 
     const config: SandboxConfig = {
       name: trimmedName,
       image: fullImage,
-      opencodePort,
       generatedDockerfile,
       permissions,
       runtimes,
       tools,
       services,
       ...(projectMount.trim() ? { projectMount: projectMount.trim() } : {}),
-      ...(providers.length > 0 ? { providers } : {}),
+      ...(sanitizedProviders.length > 0 ? { providers: sanitizedProviders } : {}),
       ...(customCommands.trim() ? { customCommands: customCommands.trim() } : {}),
       ...(gitConfig ? { gitConfig } : {}),
     }
@@ -370,29 +354,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                   <div className="form-group form-group-inline">
                     <label>Sandbox Name</label>
                     <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-sandbox" />
-                  </div>
-
-                  <div className="form-group form-group-inline">
-                    <label>Image Tag</label>
-                    <div className="image-tag-input">
-                      <span className="image-tag-prefix">{IMAGE_NAME}:</span>
-                      <input
-                        value={imageTag}
-                        onChange={(e) => setImageTag(e.target.value)}
-                        placeholder="latest"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group form-group-inline">
-                    <label>OpenCode Port</label>
-                    <input
-                      type="number"
-                      min={1024}
-                      max={65535}
-                      value={opencodePort}
-                      onChange={(e) => setOpencodePort(parseInt(e.target.value, 10) || 4096)}
-                    />
                   </div>
 
                   <div className="form-group form-group-inline">
@@ -540,10 +501,6 @@ export function SandboxCreate({ onCreated, onCancel, editRecord }: Props) {
                     <div className="plan-row">
                       <span className="plan-label">Image</span>
                       <span>{configPreview.image}</span>
-                    </div>
-                    <div className="plan-row" style={{ alignItems: "center" }}>
-                      <span className="plan-label">Port</span>
-                      <span>{configPreview.opencodePort}</span>
                     </div>
                     <div className="plan-row" style={{ alignItems: "center" }}>
                       <span className="plan-label">Mount</span>

@@ -73,10 +73,10 @@ GET /api/sandboxes
     "sandboxId": "99168509-...",
     "name": "my-sandbox",
     "image": "node:20",
-    "opencodePort": 4096,
     "status": "running",
     "projectMount": "C:\\progetti\\mio-progetto",
-    "createdAt": "1700000000"
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "proxyUrl": "http://127.0.0.1:4096/99168509-..."
   }
 ]}
 ```
@@ -98,10 +98,10 @@ GET /api/sandboxes/:id/info
   "sandboxId": "99168509-...",
   "name": "my-sandbox",
   "image": "node:20",
-  "opencodePort": 4096,
   "status": "running",
-  "projectMount": "C:\\progetti\\mio-progetto",
-  "createdAt": "1700000000"
+    "projectMount": "C:\\progetti\\mio-progetto",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "proxyUrl": "http://127.0.0.1:4096/99168509-..."
 }}
 ```
 
@@ -121,21 +121,6 @@ GET /api/sandboxes/:id/status
 ```
 
 I valori possibili di `status` sono quelli di Docker: `running`, `exited`, `paused`, `created`, `restarting`, `removing`, `dead`.
-
----
-
-### Porta OpenCode
-
-```
-GET /api/sandboxes/:id/opencode-port
-```
-
-**Richiesta:** body non richiesto. `:id` è il sandbox UUID.
-
-**Risposta:**
-```json
-{"status":200,"body":{"opencodePort":4096}}
-```
 
 ---
 
@@ -189,8 +174,6 @@ POST /api/sandboxes
 ```json
 {"id":"<uuid>","method":"POST","path":"/api/sandboxes","body":{
   "name": "my-sandbox",
-  "image": "node:20",
-  "opencodePort": 4096,
   "projectMount": "C:\\progetti\\mio-progetto",
   "runtimes": ["node","python"],
   "tools": ["git","curl"],
@@ -205,9 +188,8 @@ POST /api/sandboxes
 
 | Campo | Tipo | Obbligatorio | Descrizione |
 |---|---|---|---|
-| `name` | string | sì | Nome della sandbox |
-| `image` | string | sì | Tag immagine Docker base |
-| `opencodePort` | number | sì | Porta OpenCode |
+| `name` | string | sì | Nome della sandbox. Deve iniziare con lettera/numero e contenere solo `a-z`, `0-9`, `-`, `_`, `.`. Max 64 caratteri. Deve essere univoco. |
+
 | `projectMount` | string | **sì** | Path assoluto del progetto da montare in `/workspace` |
 | `runtimes` | string[] | no | Runtime da installare (`node`, `python`, `go`, `java`, `ruby`, `php`, `rust`, `dotnet`, `zig`) |
 | `tools` | string[] | no | Tool da installare (`git`, `curl`, `vim`, `jq`, `gh`, `pnpm`, `bun`, ...) |
@@ -217,6 +199,7 @@ POST /api/sandboxes
 | `gitConfig` | object | no | Config git (`{userName, userEmail, autocrlf}`) |
 
 > `generatedDockerfile` e `customCommands` **non sono accettati** via API per ragioni di sicurezza. Il Dockerfile viene generato automaticamente da `runtimes`, `tools` e `services`.
+> Il nome viene validato con la stessa regex dell'interfaccia utente: `^[a-z0-9][a-z0-9_.-]*$`. Se il nome esiste già, la API risponde con `409 Conflict`.
 
 **Risposta:**
 ```json
@@ -293,7 +276,7 @@ GET /api/sandboxes/by-mount
 **Risposta:**
 ```json
 {"status":200,"body":[
-  {"id":"99168509-...","name":"my-sandbox"}
+  {"id":"99168509-...","name":"my-sandbox","proxyUrl":"http://127.0.0.1:4096/99168509-..."}
 ]}
 ```
 
@@ -310,8 +293,9 @@ Tutti gli errori restituiscono un body con campo `error`:
 | Status | Quando |
 |---|---|
 | `400` | Body richiesta invalido o campo obbligatorio mancante |
-| `404` | Sandbox o endpoint non trovato |
-| `500` | Errore interno (es. Docker Engine non disponibile) |
+| `409` | Nome sandbox già esistente (solo su `POST /api/sandboxes`) |
+| `404` | Endpoint non trovato |
+| `500` | Sandbox non trovata o errore interno (es. Docker Engine non disponibile) |
 
 ## Esempi
 
@@ -362,20 +346,21 @@ def request(method, path, body=None):
 resp = request("GET", "/api/ping")
 print(resp)  # {"status": 200, "body": {"pong": true}}
 
-# Ottieni stato e porta
+# Ottieni stato
 resp = request("GET", "/api/sandboxes/{id}/status")
 print(resp["body"]["status"])
 
-resp = request("GET", "/api/sandboxes/{id}/opencode-port")
-port = resp["body"]["opencodePort"]
+# Ottieni info sandbox (include proxyUrl)
+resp = request("GET", "/api/sandboxes/{id}/info")
+proxyUrl = resp["body"]["proxyUrl"]
 ```
 
-Poi usa `http://localhost:{port}` per parlare direttamente con OpenCode.
+Poi usa `proxyUrl` (es. `http://127.0.0.1:4096/{sandboxId}`) per parlare con OpenCode tramite il reverse proxy integrato.
 
 ---
 
 ## Flusso tipico per un'app esterna
 
-1. **Trova la sandbox** → `GET /api/sandboxes/by-mount`
-2. **Leggi la porta** → `GET /api/sandboxes/:id/opencode-port`
-3. **Connettiti a OpenCode** → `http://localhost:<port>` con l'SDK OpenCode o HTTP diretto
+1. **Trova la sandbox** → `GET /api/sandboxes/by-mount` restituisce un array di `{ id, name, proxyUrl }` (una sandbox per progetto, ma possono essercene più d'una). Prendi l'entry che ti interessa.
+2. **Verifica che sia running** → `GET /api/sandboxes/:id/status` restituisce `{ status }`. Se non è `"running"`, puoi usare `POST /api/sandboxes/start`.
+3. **Connettiti a OpenCode** → usa `proxyUrl` (es. `http://127.0.0.1:4096/<sandboxId>`) come base URL per raggiungere l'API HTTP del server OpenCode in esecuzione dentro la sandbox. Puoi usare l'SDK ufficiale di OpenCode oppure chiamare direttamente le sue API REST — entrambi passano attraverso il proxy che inoltra alla sandbox.

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from "electron"
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
 import { exec, spawn } from "child_process"
 import path from "path"
 import { randomUUID } from "node:crypto"
@@ -15,6 +15,7 @@ import {
   getSandboxInfo,
   execInSandbox,
   buildGeneratedDockerfile,
+  buildDockerCompose,
   checkImageExists,
 } from "./docker.js"
 import {
@@ -51,29 +52,24 @@ import {
   clearChatMessages,
   getSetting,
   setSetting,
+  findNameConflict,
 } from "./database.js"
 import { createIpcServer } from "./ipc-server.js"
 import { registerRoutes, getErrorMessage } from "./api.js"
+import { SandboxProxy, setProxy, getProxy } from "./proxy.js"
+import { registerExistingSandboxes, startDockerWatcher, stopDockerWatcher } from "./docker.js"
 
 let mainWindow: BrowserWindow | null = null
 
 const ipcServer = createIpcServer("paratoolz-arcypelabox")
 
-const opencodeSubscriptions = new Map<number, AbortController>()
+const opencodeSubscriptions = new Map<string, AbortController>()
 
 function validateString(value: unknown, name: string): value is string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`Invalid ${name}: expected non-empty string`)
   }
   return true
-}
-
-function validatePort(value: unknown): number {
-  const port = typeof value === "string" ? parseInt(value, 10) : value
-  if (!Number.isInteger(port) || (port as number) < 1024 || (port as number) > 65535) {
-    throw new Error("Port must be an integer between 1024 and 65535")
-  }
-  return port as number
 }
 
 function sendToRenderer(channel: string, ...args: unknown[]) {
@@ -94,7 +90,6 @@ async function tryRecoverSandboxRecord(id: string): Promise<Record<string, unkno
   const config: SandboxConfig = {
     name: info.name,
     image: info.image,
-    opencodePort: info.opencodePort || 4096,
     projectMount: info.projectMount,
     permissions: {
       read: "allow", edit: "allow", write: "allow",
@@ -153,9 +148,16 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   initDatabase()
   Menu.setApplicationMenu(null)
+
+  const proxy = new SandboxProxy(4096)
+  await proxy.start()
+  setProxy(proxy)
+  await registerExistingSandboxes()
+  startDockerWatcher()
+
   createWindow()
 
   ipcMain.handle("sandobox:list", async () => {
@@ -258,6 +260,17 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle("sandobox:proxy:target", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      const target = getProxy().getTarget(sandboxId)
+      if (!target) return { error: "Sandbox not registered with proxy" }
+      return { host: target.host, port: target.port }
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
   ipcMain.handle("sandobox:exec", async (_event, id, command) => {
     try {
       return await execInSandbox(id, command)
@@ -266,130 +279,145 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle("sandobox:opencode:health", async (_event, port) => {
-    return await checkHealth(validatePort(port))
+  ipcMain.handle("sandobox:opencode:health", async (_event, sandboxId) => {
+    validateString(sandboxId, "sandboxId")
+    return await checkHealth(sandboxId)
   })
 
-  ipcMain.handle("sandobox:opencode:prompt", async (_event, port, sessionId, text) => {
+  ipcMain.handle("sandobox:opencode:prompt", async (_event, sandboxId, sessionId, text) => {
     try {
-      return await sendPrompt(validatePort(port), text, sessionId)
+      validateString(sandboxId, "sandboxId")
+      return await sendPrompt(sandboxId, text, sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:prompt-async", async (_event, port, sessionId, text) => {
+  ipcMain.handle("sandobox:opencode:prompt-async", async (_event, sandboxId, sessionId, text) => {
     try {
-      return await sessionPromptAsync(validatePort(port), text, sessionId)
+      validateString(sandboxId, "sandboxId")
+      return await sessionPromptAsync(sandboxId, text, sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:providers", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:providers", async (_event, sandboxId) => {
     try {
-      return await listProviders(validatePort(port))
+      validateString(sandboxId, "sandboxId")
+      return await listProviders(sandboxId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:permissions", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:permissions", async (_event, sandboxId) => {
     try {
-      return await listPendingPermissions(validatePort(port))
+      validateString(sandboxId, "sandboxId")
+      return await listPendingPermissions(sandboxId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:permission:reply", async (_event, port, requestId, reply) => {
+  ipcMain.handle("sandobox:opencode:permission:reply", async (_event, sandboxId, requestId, reply) => {
     try {
-      return await replyPermission(validatePort(port), requestId, reply)
+      validateString(sandboxId, "sandboxId")
+      return await replyPermission(sandboxId, requestId, reply)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:questions", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:questions", async (_event, sandboxId) => {
     try {
-      return await listPendingQuestions(validatePort(port))
+      validateString(sandboxId, "sandboxId")
+      return await listPendingQuestions(sandboxId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:question:reply", async (_event, port, requestId, answers) => {
+  ipcMain.handle("sandobox:opencode:question:reply", async (_event, sandboxId, requestId, answers) => {
     try {
-      return await replyQuestion(validatePort(port), requestId, answers)
+      validateString(sandboxId, "sandboxId")
+      return await replyQuestion(sandboxId, requestId, answers)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:sessions", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:sessions", async (_event, sandboxId) => {
     try {
-      return await listSessions(validatePort(port))
+      validateString(sandboxId, "sandboxId")
+      return await listSessions(sandboxId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:create", async (_event, port, params) => {
+  ipcMain.handle("sandobox:opencode:session:create", async (_event, sandboxId, params) => {
     try {
-      return await createSession(validatePort(port), params ?? {})
+      validateString(sandboxId, "sandboxId")
+      return await createSession(sandboxId, params ?? {})
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:delete", async (_event, port, sessionId) => {
+  ipcMain.handle("sandobox:opencode:session:delete", async (_event, sandboxId, sessionId) => {
     try {
-      await deleteSession(validatePort(port), sessionId)
+      validateString(sandboxId, "sandboxId")
+      await deleteSession(sandboxId, sessionId)
       return { success: true }
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:abort", async (_event, port, sessionId) => {
+  ipcMain.handle("sandobox:opencode:session:abort", async (_event, sandboxId, sessionId) => {
     try {
-      return await abortOpenCodeSession(validatePort(port), sessionId)
+      validateString(sandboxId, "sandboxId")
+      return await abortOpenCodeSession(sandboxId, sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:debug", async (_event, port, sessionId) => {
+  ipcMain.handle("sandobox:opencode:session:debug", async (_event, sandboxId, sessionId) => {
     try {
-      return await getOpenCodeSessionDebug(validatePort(port), sessionId)
+      validateString(sandboxId, "sandboxId")
+      return await getOpenCodeSessionDebug(sandboxId, sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:messages", async (_event, port, sessionId) => {
+  ipcMain.handle("sandobox:opencode:session:messages", async (_event, sandboxId, sessionId) => {
     try {
-      return await getSessionMessages(validatePort(port), sessionId)
+      validateString(sandboxId, "sandboxId")
+      return await getSessionMessages(sandboxId, sessionId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:session:get-available", async (_event, port) => {
+  ipcMain.handle("sandobox:opencode:session:get-available", async (_event, sandboxId) => {
     try {
-      return await getAvailableSessionId(validatePort(port))
+      validateString(sandboxId, "sandboxId")
+      return await getAvailableSessionId(sandboxId)
     } catch (err) {
       return { error: getErrorMessage(err) }
     }
   })
 
-  ipcMain.handle("sandobox:opencode:events:subscribe", async (_event, port) => {
-    const p = validatePort(port)
+  ipcMain.handle("sandobox:opencode:events:subscribe", async (_event, sandboxId) => {
+    validateString(sandboxId, "sandboxId")
 
-    const existing = opencodeSubscriptions.get(p)
+    const existing = opencodeSubscriptions.get(sandboxId)
     if (existing) {
       existing.abort()
-      opencodeSubscriptions.delete(p)
+      opencodeSubscriptions.delete(sandboxId)
     }
 
     try {
@@ -405,10 +433,10 @@ app.whenReady().then(() => {
         dirtyFlags = 0
         if (!flags) return
         const updates: Record<string, unknown> = {}
-        if (flags & DIRTY_SESSIONS) updates.sessions = await listSessions(p)
-        if (flags & DIRTY_PERMISSIONS) updates.permissions = await listPendingPermissions(p)
-        if (flags & DIRTY_QUESTIONS) updates.questions = await listPendingQuestions(p)
-        sendToRenderer("sandobox:opencode:state", p, updates)
+        if (flags & DIRTY_SESSIONS) updates.sessions = await listSessions(sandboxId)
+        if (flags & DIRTY_PERMISSIONS) updates.permissions = await listPendingPermissions(sandboxId)
+        if (flags & DIRTY_QUESTIONS) updates.questions = await listPendingQuestions(sandboxId)
+        sendToRenderer("sandobox:opencode:state", sandboxId, updates)
       }
 
       const markDirty = (flag: number) => {
@@ -418,10 +446,20 @@ app.whenReady().then(() => {
         }
       }
 
+      const reloadFullState = async () => {
+        const [sessions, permissions, questions, providers] = await Promise.all([
+          listSessions(sandboxId),
+          listPendingPermissions(sandboxId),
+          listPendingQuestions(sandboxId),
+          listProviders(sandboxId),
+        ])
+        sendToRenderer("sandobox:opencode:state", sandboxId, { sessions, permissions, questions, providers })
+      }
+
       const abortController = await subscribeToEvents(
-        p,
+        sandboxId,
         (event: any) => {
-          sendToRenderer("sandobox:opencode:event", p, event)
+          sendToRenderer("sandobox:opencode:event", sandboxId, event)
           const type: string = event?.type ?? ""
           if (type.startsWith("session.") || type === "session.created" || type === "session.deleted") {
             markDirty(DIRTY_SESSIONS)
@@ -434,18 +472,22 @@ app.whenReady().then(() => {
           }
         },
         (error) => {
-          console.error(`[SSE] Error on port ${p}:`, error)
+          console.error(`[SSE] Error on sandbox ${sandboxId}:`, error)
+        },
+        () => {
+          console.log(`[SSE] Reconnected to sandbox ${sandboxId}, reloading state`)
+          reloadFullState()
         }
       )
-      opencodeSubscriptions.set(p, abortController)
+      opencodeSubscriptions.set(sandboxId, abortController)
 
       const [sessions, permissions, questions, providers] = await Promise.all([
-        listSessions(p),
-        listPendingPermissions(p),
-        listPendingQuestions(p),
-        listProviders(p),
+        listSessions(sandboxId),
+        listPendingPermissions(sandboxId),
+        listPendingQuestions(sandboxId),
+        listProviders(sandboxId),
       ])
-      sendToRenderer("sandobox:opencode:state", p, { sessions, permissions, questions, providers })
+      sendToRenderer("sandobox:opencode:state", sandboxId, { sessions, permissions, questions, providers })
 
       return { success: true }
     } catch (err) {
@@ -453,23 +495,24 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle("sandobox:opencode:events:unsubscribe", async (_event, port) => {
-    const p = validatePort(port)
-    const existing = opencodeSubscriptions.get(p)
+  ipcMain.handle("sandobox:opencode:events:unsubscribe", async (_event, sandboxId) => {
+    validateString(sandboxId, "sandboxId")
+    const existing = opencodeSubscriptions.get(sandboxId)
     if (existing) {
       existing.abort()
-      opencodeSubscriptions.delete(p)
+      opencodeSubscriptions.delete(sandboxId)
     }
     return { success: true }
   })
 
-  ipcMain.handle("sandobox:opencode:shell", async (_event, port, command) => {
-    return await runShell(validatePort(port), command)
+  ipcMain.handle("sandobox:opencode:shell", async (_event, sandboxId, command) => {
+    validateString(sandboxId, "sandboxId")
+    return await runShell(sandboxId, command)
   })
 
-  ipcMain.handle("sandobox:opencode:open-cli", async (_event, port, sessionId) => {
-    const p = validatePort(port)
-    let cmd = `opencode attach http://localhost:${p}`
+  ipcMain.handle("sandobox:opencode:open-cli", async (_event, sandboxId, sessionId) => {
+    validateString(sandboxId, "sandboxId")
+    let cmd = `opencode attach http://localhost:4096/${sandboxId}`
     if (typeof sessionId === "string" && sessionId.length > 0) {
       cmd += ` --session ${sessionId}`
     }
@@ -486,6 +529,33 @@ app.whenReady().then(() => {
         child.on("error", () => {})
         child.unref()
       }
+      openTerminal("x-terminal-emulator", ["-e", cmd])
+      openTerminal("gnome-terminal", ["--", "sh", "-c", cmd])
+      openTerminal("xterm", ["-e", cmd])
+    }
+    return { success: true }
+  })
+
+  ipcMain.handle("sandobox:shell:open-path", async (_event, folderPath) => {
+    validateString(folderPath, "folderPath")
+    return shell.openPath(folderPath)
+  })
+
+  ipcMain.handle("sandobox:shell:open-terminal", async (_event, folderPath) => {
+    validateString(folderPath, "folderPath")
+    const platform = process.platform
+    if (platform === "win32") {
+      exec(`start cmd.exe /k "cd /d ${folderPath}"`, { shell: "cmd.exe" })
+    } else if (platform === "darwin") {
+      const script = `tell application "Terminal" to do script "cd ${folderPath.replace(/"/g, '\\"')}"`
+      exec(`osascript -e '${script}'`)
+    } else {
+      const openTerminal = (term: string, args: string[]) => {
+        const child = spawn(term, args, { detached: true, stdio: "ignore" })
+        child.on("error", () => {})
+        child.unref()
+      }
+      const cmd = `cd ${folderPath.replace(/"/g, '\\"')} && exec $SHELL`
       openTerminal("x-terminal-emulator", ["-e", cmd])
       openTerminal("gnome-terminal", ["--", "sh", "-c", cmd])
       openTerminal("xterm", ["-e", cmd])
@@ -578,6 +648,14 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle("sandobox:db:sandbox:name-exists", async (_event, name, excludeId) => {
+    try {
+      return findNameConflict(name, excludeId || undefined)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
   ipcMain.handle("sandobox:db:settings:get", async (_event, key) => {
     try {
       validateString(key, "key")
@@ -610,11 +688,22 @@ app.whenReady().then(() => {
     return buildGeneratedDockerfile(config as Parameters<typeof buildGeneratedDockerfile>[0])
   })
 
+  ipcMain.handle("sandobox:generate:compose", async (_event, sandboxId) => {
+    try {
+      validateString(sandboxId, "sandboxId")
+      return buildDockerCompose(sandboxId)
+    } catch (err) {
+      return { error: getErrorMessage(err) }
+    }
+  })
+
   app.on("before-quit", () => {
     for (const abortController of opencodeSubscriptions.values()) {
       abortController.abort()
     }
     opencodeSubscriptions.clear()
+    stopDockerWatcher()
+    proxy.stop()
     ipcServer.stop()
   })
 

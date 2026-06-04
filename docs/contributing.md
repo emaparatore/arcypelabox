@@ -93,7 +93,7 @@ The PR description should be understandable to a reviewer with no prior context.
 
 Use this structure:
 
-- Summary: what changed and why in 1 to 3 bullet points
+- Summary: what changed across the entire branch and why in 1 to 3 bullet points (cover all commits, not just the latest)
 - Key decisions: important design or implementation choices, if any
 - How to test: commands or manual steps to verify the change
 

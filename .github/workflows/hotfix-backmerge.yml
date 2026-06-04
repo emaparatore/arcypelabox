@@ -1,0 +1,54 @@
+name: Hotfix Back-Merge
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  backmerge:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'hotfix/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create back-merge pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const base = 'dev'
+            const head = `${owner}:main`
+
+            const existing = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: 'open',
+              base,
+              head,
+            })
+
+            if (existing.length > 0) {
+              core.info(`Back-merge PR already open: ${existing[0].html_url}`)
+              return
+            }
+
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              base,
+              head: 'main',
+              title: `Back-merge main into dev after hotfix #${context.payload.pull_request.number}`,
+              body: [
+                'Automatic back-merge PR created after merging a hotfix into `main`.',
+                '',
+                `Source hotfix PR: #${context.payload.pull_request.number}`,
+              ].join('\n'),
+            })
+
+            core.info(`Created back-merge PR: ${pr.data.html_url}`)

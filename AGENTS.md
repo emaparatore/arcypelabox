@@ -44,6 +44,8 @@
 ## Documentation
 
 - Read [docs/development.md](docs/development.md) for setup, conventions, and feature-level development guidance.
+- Read [docs/contributing.md](docs/contributing.md) for branch naming, commit conventions, pull request structure, and merge flow.
+- Read [docs/github-ci-setup.md](docs/github-ci-setup.md) for GitHub CI/CD configuration and branch protection.
 - Read [docs/architecture.md](docs/architecture.md) for process boundaries, key modules, and data flows.
 - Read [docs/create-sandbox.md](docs/create-sandbox.md) for the 4-step wizard and sandbox configuration model.
 - Read [docs/docker-sidecars.md](docs/docker-sidecars.md) for container lifecycle, sidecars, group operations, and compose parity.
@@ -57,3 +59,9 @@
 - The create flow currently requires a project mount path in the UI before it will submit.
 - The renderer polls OpenCode state frequently (`1.5s`) for permissions, questions, sessions, and busy-session debug info; changes here can add a lot of IPC/network traffic quickly.
 - Docker Desktop / Docker Engine must be running for sandbox actions. The app already maps the common Windows named-pipe failure to a friendlier error in `electron/main.ts`.
+
+## Git Workflow
+
+- Follow [docs/contributing.md](docs/contributing.md) for branch naming, commit conventions, pull request structure, and merge flow.
+- When asked to create a commit, propose the commit message first and wait for user confirmation before running `git commit`.
+- When creating a pull request, use `gh pr create` and include `Summary`, `Key decisions`, and `How to test` in the PR body.

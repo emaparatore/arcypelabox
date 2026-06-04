@@ -1,150 +1,150 @@
 # GitHub CI Setup
 
-Questa guida descrive come configurare GitHub in modo che:
+This guide describes how to configure GitHub so that:
 
-- le PR verso `main` e `dev` eseguano la CI
-- il merge sia consentito solo se la CI passa
-- i branch `main` e `dev` siano aggiornati tramite PR
-- gli hotfix mergiati in `main` aprano automaticamente una PR di back-merge verso `dev`
+- PRs targeting `main` and `dev` run CI
+- merge is allowed only if CI passes
+- `main` and `dev` branches are kept up-to-date via PRs
+- hotfixes merged into `main` automatically open a back-merge PR to `dev`
 
-## Limite importante dei ruleset GitHub
+## Important GitHub ruleset limitation
 
-Nei ruleset GitHub, `Restrict updates` blocca qualsiasi update del branch, incluso il merge di una PR.
+In GitHub rulesets, `Restrict updates` blocks any branch update, including PR merges.
 
-Quindi su un repository personale, se abiliti `Restrict updates` su `main` o `dev` senza bypass adeguati:
+So on a personal repository, if you enable `Restrict updates` on `main` or `dev` without proper bypass:
 
-- i push diretti vengono bloccati
-- anche il merge delle PR viene bloccato
+- direct pushes are blocked
+- PR merges are also blocked
 
-Per questo motivo, in questa configurazione i branch vengono protetti con:
+For this reason, branches are protected in this configuration with:
 
 - `Require a pull request before merging`
 - `Require status checks to pass`
 - `Block force pushes`
 
-ma senza `Restrict updates`.
+but without `Restrict updates`.
 
-## Workflow presenti nel repository
+## Workflows in this repository
 
 - `.github/workflows/ci.yml`
-  - trigger su `pull_request` verso `main` e `dev`
-  - trigger su `push` verso `main` e `dev`
-  - check finale richiesto: `ci-success`
+  - triggered on `pull_request` to `main` and `dev`
+  - triggered on `push` to `main` and `dev`
+  - final required check: `ci-success`
 - `.github/workflows/hotfix-backmerge.yml`
-  - quando una PR `hotfix/* -> main` viene mergiata, apre una PR `main -> dev`
+  - when a `hotfix/* -> main` PR is merged, it opens a `main -> dev` PR
 
-## Checklist rapida
+## Quick checklist
 
-1. Verificare che i workflow siano presenti nel branch predefinito del repository.
-2. Aprire `Settings -> Rules -> Rulesets` nel repository GitHub.
-3. Creare un ruleset per `main`.
-4. Creare un ruleset per `dev`.
-5. Abilitare l'obbligo di pull request per entrambi.
-6. Impostare `ci-success` come required status check per entrambi.
-7. Abilitare `Block force pushes` per entrambi.
-8. Non abilitare `Restrict updates`, altrimenti il merge delle PR viene bloccato.
-9. Verificare il flusso con una PR di test `feature/* -> dev`.
-10. Verificare il flusso hotfix con una PR di test `hotfix/* -> main`.
+1. Verify that the workflows exist in the repository's default branch.
+2. Open `Settings -> Rules -> Rulesets` in the GitHub repository.
+3. Create a ruleset for `main`.
+4. Create a ruleset for `dev`.
+5. Enable pull request requirement for both.
+6. Set `ci-success` as the required status check for both.
+7. Enable `Block force pushes` for both.
+8. Do not enable `Restrict updates`, otherwise PR merges are blocked.
+9. Verify the flow with a test PR `feature/* -> dev`.
+10. Verify the hotfix flow with a test PR `hotfix/* -> main`.
 
-## Configurazione ruleset per `main`
+## Ruleset configuration for `main`
 
-1. Aprire `Settings -> Rules -> Rulesets`.
-2. Cliccare `New ruleset`.
-3. Scegliere `New branch ruleset`.
-4. Nome consigliato: `Protect main`.
-5. In `Enforcement status`, selezionare `Active`.
-6. In `Target branches`, aggiungere `main`.
-7. Abilitare `Restrict deletions`.
-8. Lasciare disabilitato `Restrict updates`.
-9. Abilitare `Require a pull request before merging`.
-10. Dentro la sezione della pull request, configurare:
-   - `Required approvals`: `0` se vuoi poter mergiare da solo le tue PR
-   - facoltativo: `Dismiss stale pull request approvals when new commits are pushed`
-   - facoltativo: `Require review from code owners`, solo se userai un file `CODEOWNERS`
-11. Abilitare `Require status checks to pass`.
-12. Aggiungere come check richiesto `ci-success`.
-13. Abilitare `Block force pushes`.
-14. Salvare il ruleset.
+1. Open `Settings -> Rules -> Rulesets`.
+2. Click `New ruleset`.
+3. Choose `New branch ruleset`.
+4. Recommended name: `Protect main`.
+5. Under `Enforcement status`, select `Active`.
+6. Under `Target branches`, add `main`.
+7. Enable `Restrict deletions`.
+8. Leave `Restrict updates` disabled.
+9. Enable `Require a pull request before merging`.
+10. Inside the pull request section, configure:
+    - `Required approvals`: `0` if you want to be able to merge your own PRs
+    - optional: `Dismiss stale pull request approvals when new commits are pushed`
+    - optional: `Require review from code owners`, only if you will use a `CODEOWNERS` file
+11. Enable `Require status checks to pass`.
+12. Add `ci-success` as a required check.
+13. Enable `Block force pushes`.
+14. Save the ruleset.
 
-## Configurazione ruleset per `dev`
+## Ruleset configuration for `dev`
 
-1. Aprire `Settings -> Rules -> Rulesets`.
-2. Cliccare `New ruleset`.
-3. Scegliere `New branch ruleset`.
-4. Nome consigliato: `Protect dev`.
-5. In `Enforcement status`, selezionare `Active`.
-6. In `Target branches`, aggiungere `dev`.
-7. Abilitare `Restrict deletions`.
-8. Lasciare disabilitato `Restrict updates`.
-9. Abilitare `Require a pull request before merging`.
-10. Dentro la sezione della pull request, configurare:
-   - `Required approvals`: `0` se vuoi poter mergiare da solo le tue PR
-   - facoltativo: `Dismiss stale pull request approvals when new commits are pushed`
-11. Abilitare `Require status checks to pass`.
-12. Aggiungere come check richiesto `ci-success`.
-13. Abilitare `Block force pushes`.
-14. Salvare il ruleset.
+1. Open `Settings -> Rules -> Rulesets`.
+2. Click `New ruleset`.
+3. Choose `New branch ruleset`.
+4. Recommended name: `Protect dev`.
+5. Under `Enforcement status`, select `Active`.
+6. Under `Target branches`, add `dev`.
+7. Enable `Restrict deletions`.
+8. Leave `Restrict updates` disabled.
+9. Enable `Require a pull request before merging`.
+10. Inside the pull request section, configure:
+    - `Required approvals`: `0` if you want to be able to merge your own PRs
+    - optional: `Dismiss stale pull request approvals when new commits are pushed`
+11. Enable `Require status checks to pass`.
+12. Add `ci-success` as a required check.
+13. Enable `Block force pushes`.
+14. Save the ruleset.
 
-## Perche' il check richiesto e' `ci-success`
+## Why the required check is `ci-success`
 
-Il workflow `ci.yml` usa un job finale chiamato `ci-success` come gate unico.
+The `ci.yml` workflow uses a final job called `ci-success` as a single gate.
 
-Questo evita problemi quando il job reale di verifica viene skippato per path filtering. In quel caso:
+This avoids issues when the actual verification job is skipped due to path filtering. In that case:
 
-- `verify` puo' risultare `skipped`
-- `ci-success` passa comunque
-- la PR non resta bloccata da check mancanti o non riportati
+- `verify` may result in `skipped`
+- `ci-success` still passes
+- the PR is not blocked by missing or unreported checks
 
-Per questo motivo il required check da configurare su GitHub deve essere solo `ci-success`.
+For this reason, the only required check to configure on GitHub should be `ci-success`.
 
 ## Feature flow
 
-1. Creare un branch `feature/<nome>` partendo da `dev`.
-2. Aprire una PR `feature/<nome> -> dev`.
-3. Attendere l'esecuzione della CI.
-4. Effettuare il merge solo quando `ci-success` e' verde.
+1. Create a branch `feature/<name>` from `dev`.
+2. Open a PR `feature/<name> -> dev`.
+3. Wait for CI to run.
+4. Merge only when `ci-success` is green.
 
 ## Release flow
 
-1. Aprire una PR `dev -> main`.
-2. Attendere l'esecuzione della CI.
-3. Effettuare il merge solo quando `ci-success` e' verde.
+1. Open a PR `dev -> main`.
+2. Wait for CI to run.
+3. Merge only when `ci-success` is green.
 
 ## Hotfix flow
 
-1. Creare un branch `hotfix/<nome>` partendo da `main`.
-2. Aprire una PR `hotfix/<nome> -> main`.
-3. Attendere l'esecuzione della CI.
-4. Effettuare il merge solo quando `ci-success` e' verde.
-5. Dopo il merge, GitHub Actions crea automaticamente una PR `main -> dev`.
+1. Create a branch `hotfix/<name>` from `main`.
+2. Open a PR `hotfix/<name> -> main`.
+3. Wait for CI to run.
+4. Merge only when `ci-success` is green.
+5. After the merge, GitHub Actions automatically creates a `main -> dev` PR.
 
-## Verifica consigliata dopo la configurazione
+## Recommended verification after configuration
 
-1. Aprire una PR di test `feature/test-ci -> dev`.
-   - risultato atteso: parte il workflow `CI`
-   - risultato atteso: compare il check `ci-success`
-2. Tentare il merge prima che i check finiscano.
-   - risultato atteso: merge bloccato
-3. Fare merge della PR quando `ci-success` e' verde.
-   - risultato atteso: merge consentito
-4. Aprire una PR di test `hotfix/test-fix -> main`.
-5. Dopo il merge della PR hotfix, verificare che venga aperta una PR `main -> dev`.
+1. Open a test PR `feature/test-ci -> dev`.
+   - expected result: the `CI` workflow runs
+   - expected result: the `ci-success` check appears
+2. Try to merge before checks finish.
+   - expected result: merge is blocked
+3. Merge the PR when `ci-success` is green.
+   - expected result: merge is allowed
+4. Open a test PR `hotfix/test-fix -> main`.
+5. After the hotfix PR is merged, verify that a `main -> dev` PR is created.
 
 ## Troubleshooting
 
-### Il check `ci-success` non compare tra i required checks
+### The `ci-success` check does not appear among the required checks
 
-1. Assicurarsi che il workflow `CI` sia gia' stato eseguito almeno una volta sul repository.
-2. Se necessario, aprire una PR di test verso `dev` per far comparire il check nella lista GitHub.
+1. Make sure the `CI` workflow has run at least once on the repository.
+2. If needed, open a test PR to `dev` to make the check appear in the GitHub list.
 
-### Il merge della PR e' bloccato con `Cannot update this protected ref`
+### PR merge is blocked with `Cannot update this protected ref`
 
-1. Verificare che `Restrict updates` sia disabilitato sul branch target.
-2. Se `Restrict updates` e' attivo, GitHub considera anche il merge della PR come un update del branch.
+1. Verify that `Restrict updates` is disabled on the target branch.
+2. If `Restrict updates` is active, GitHub considers a PR merge as a branch update.
 
-### La PR di back-merge non viene creata
+### The back-merge PR is not created
 
-1. Verificare che la PR mergiata avesse come branch sorgente un nome `hotfix/*`.
-2. Verificare che il merge target fosse `main`.
-3. Verificare nella tab `Actions` l'esecuzione del workflow `Hotfix Back-Merge`.
-4. Verificare che non esista gia' una PR aperta `main -> dev`.
+1. Verify that the merged PR's source branch was named `hotfix/*`.
+2. Verify that the merge target was `main`.
+3. Check the `Actions` tab for the `Hotfix Back-Merge` workflow execution.
+4. Verify that there is not already an open `main -> dev` PR.

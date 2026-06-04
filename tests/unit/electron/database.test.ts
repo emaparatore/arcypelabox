@@ -251,8 +251,11 @@ vi.mock("better-sqlite3", () => {
         },
 
         all: (...args: any[]) => {
-          if (q === "SELECT * FROM sandboxes ORDER BY created_at DESC") {
-            return [...store.sandboxes].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+          if (q.startsWith("SELECT * FROM sandboxes ORDER BY created_at DESC")) {
+            return [...store.sandboxes].sort((a, b) => {
+              const cmp = String(b.created_at).localeCompare(String(a.created_at))
+              return cmp !== 0 ? cmp : store.sandboxes.indexOf(b) - store.sandboxes.indexOf(a)
+            })
           }
 
           if (q === "SELECT * FROM chat_messages WHERE sandbox_id = ? ORDER BY timestamp ASC") {

@@ -176,7 +176,7 @@ function parseRecord(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 export function listSandboxRecords(): Record<string, unknown>[] {
-  const rows = db.prepare("SELECT * FROM sandboxes ORDER BY created_at DESC").all() as Record<string, unknown>[]
+  const rows = db.prepare("SELECT * FROM sandboxes ORDER BY created_at DESC, rowid DESC").all() as Record<string, unknown>[]
   return rows.map(parseRecord)
 }
 

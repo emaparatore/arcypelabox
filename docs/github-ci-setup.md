@@ -5,7 +5,7 @@ This guide describes how to configure GitHub so that:
 - PRs targeting `main` and `dev` run CI
 - merge is allowed only if CI passes
 - `main` and `dev` branches are kept up-to-date via PRs
-- hotfixes merged into `main` automatically open a back-merge PR to `dev`
+- pushes to `main` automatically open a back-merge PR to `dev` when `main` is ahead of `dev`
 
 ## Important GitHub ruleset limitation
 
@@ -31,7 +31,7 @@ but without `Restrict updates`.
   - triggered on `push` to `main` and `dev`
   - final required check: `ci-success`
 - `.github/workflows/hotfix-backmerge.yml`
-  - when a `hotfix/* -> main` PR is merged, it opens a `main -> dev` PR
+  - on each push to `main`, it opens a `main -> dev` PR when a back-merge is needed
 
 ## Quick checklist
 
@@ -42,9 +42,22 @@ but without `Restrict updates`.
 5. Enable pull request requirement for both.
 6. Set `ci-success` as the required status check for both.
 7. Enable `Block force pushes` for both.
-8. Do not enable `Restrict updates`, otherwise PR merges are blocked.
-9. Verify the flow with a test PR `feature/* -> dev`.
-10. Verify the hotfix flow with a test PR `hotfix/* -> main`.
+8. In `Settings -> Actions -> General -> Workflow permissions`, enable `Allow GitHub Actions to create and approve pull requests`.
+9. Do not enable `Restrict updates`, otherwise PR merges are blocked.
+10. Verify the flow with a test PR `feature/* -> dev`.
+11. Verify the back-merge flow with a test PR merged into `main`.
+
+## Actions permissions
+
+The back-merge workflow creates a PR from `main` to `dev` using `GITHUB_TOKEN`.
+
+To allow this, open `Settings -> Actions -> General -> Workflow permissions` and enable:
+
+- `Allow GitHub Actions to create and approve pull requests`
+
+If this setting is disabled, the workflow runs but fails with:
+
+- `GitHub Actions is not permitted to create or approve pull requests.`
 
 ## Ruleset configuration for `main`
 
@@ -116,7 +129,13 @@ For this reason, the only required check to configure on GitHub should be `ci-su
 2. Open a PR `hotfix/<name> -> main`.
 3. Wait for CI to run.
 4. Merge only when `ci-success` is green.
-5. After the merge, GitHub Actions automatically creates a `main -> dev` PR.
+5. After the merge, GitHub Actions automatically creates a `main -> dev` PR if `main` is ahead of `dev`.
+
+## Back-merge flow
+
+1. Merge any PR into `main`.
+2. GitHub Actions runs the back-merge workflow on the resulting push to `main`.
+3. If `main` contains commits that are not yet in `dev`, the workflow creates a `main -> dev` PR.
 
 ## Recommended verification after configuration
 
@@ -127,8 +146,8 @@ For this reason, the only required check to configure on GitHub should be `ci-su
    - expected result: merge is blocked
 3. Merge the PR when `ci-success` is green.
    - expected result: merge is allowed
-4. Open a test PR `hotfix/test-fix -> main`.
-5. After the hotfix PR is merged, verify that a `main -> dev` PR is created.
+4. Open and merge a test PR into `main`.
+5. Verify that a `main -> dev` PR is created when `main` is ahead of `dev`.
 
 ## Troubleshooting
 
@@ -144,7 +163,8 @@ For this reason, the only required check to configure on GitHub should be `ci-su
 
 ### The back-merge PR is not created
 
-1. Verify that the merged PR's source branch was named `hotfix/*`.
-2. Verify that the merge target was `main`.
-3. Check the `Actions` tab for the `Hotfix Back-Merge` workflow execution.
+1. Verify that the change was merged into `main` and produced a push on `main`.
+2. Check the `Actions` tab for the `Back-Merge main to dev` workflow execution.
+3. Verify that `main` is actually ahead of `dev`.
 4. Verify that there is not already an open `main -> dev` PR.
+5. Verify that `Settings -> Actions -> General -> Workflow permissions -> Allow GitHub Actions to create and approve pull requests` is enabled.

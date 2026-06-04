@@ -22,14 +22,14 @@ export interface HandlerResult {
 
 export type RequestHandler = (req: IpcRequest) => HandlerResult | Promise<HandlerResult>
 
-function getPipePath(name: string): string {
+export function getPipePath(name: string): string {
   if (os.platform() === "win32") {
     return `//./pipe/${name}`
   }
   return `/tmp/${name}.sock`
 }
 
-function pathToRegex(pattern: string): { regex: RegExp; paramNames: string[] } {
+export function pathToRegex(pattern: string): { regex: RegExp; paramNames: string[] } {
   const paramNames: string[] = []
   const regexStr = pattern.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, name) => {
     paramNames.push(name)
@@ -93,19 +93,29 @@ export function createIpcServer(serviceName: string) {
         return
       }
 
-      Promise.resolve(handler(request))
-        .then((result) => {
-          const resp: IpcResponse = { id: request.id, status: result.status ?? 200, body: result.body }
-          socket.write(JSON.stringify(resp) + "\n")
-        })
-        .catch((err: unknown) => {
-          const resp: IpcResponse = {
-            id: request.id,
-            status: 500,
-            body: { error: err instanceof Error ? err.message : String(err) },
-          }
-          socket.write(JSON.stringify(resp) + "\n")
-        })
+      try {
+        const result = handler(request)
+        Promise.resolve(result)
+          .then((resolved) => {
+            const resp: IpcResponse = { id: request.id, status: resolved.status ?? 200, body: resolved.body }
+            socket.write(JSON.stringify(resp) + "\n")
+          })
+          .catch((err: unknown) => {
+            const resp: IpcResponse = {
+              id: request.id,
+              status: 500,
+              body: { error: err instanceof Error ? err.message : String(err) },
+            }
+            socket.write(JSON.stringify(resp) + "\n")
+          })
+      } catch (err: unknown) {
+        const resp: IpcResponse = {
+          id: request.id,
+          status: 500,
+          body: { error: err instanceof Error ? err.message : String(err) },
+        }
+        socket.write(JSON.stringify(resp) + "\n")
+      }
     }
 
     socket.on("data", (chunk) => {

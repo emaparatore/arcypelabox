@@ -318,7 +318,7 @@ export async function listSandboxes(): Promise<SandboxInfo[]> {
     })
 }
 
-function sanitizeError(text: string): string {
+export function sanitizeError(text: string): string {
   return text.replace(/(sk-|api[_-]?key["']?\s*:\s*["']?)[a-zA-Z0-9_-]+/gi, "$1***")
 }
 
@@ -640,7 +640,7 @@ export async function execInSandbox(id: string, command: string): Promise<string
   })
 }
 
-function describeBuildStep(line: string): string | null {
+export function describeBuildStep(line: string): string | null {
   const trimmed = line.replace(/^#\d+\s+/, "")
   if (/load metadata for docker\.io\/library/.test(trimmed)) return "Downloading base Docker image metadata…"
   if (/\[auth\]/.test(trimmed)) return "Authenticating with Docker registry…"
@@ -710,7 +710,7 @@ async function buildImage(tag: string, dockerfile: string, onProgress?: (event: 
   }
 }
 
-function buildOpenCodeConfig(config: SandboxConfig): string {
+export function buildOpenCodeConfig(config: SandboxConfig): string {
   const permission: Record<string, unknown> = JSON.parse(
     `{${Object.entries(config.permissions)
       .map(([key, value]) => {
@@ -741,7 +741,7 @@ function buildOpenCodeConfig(config: SandboxConfig): string {
   return JSON.stringify(opencodeConfig)
 }
 
-function sanitizeContainerName(name: string): string {
+export function sanitizeContainerName(name: string): string {
   const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
   if (!normalized) {
     throw new Error("Container name must contain at least one alphanumeric character")
@@ -752,7 +752,7 @@ function sanitizeContainerName(name: string): string {
   return normalized
 }
 
-function createGroupName(name: string) {
+export function createGroupName(name: string) {
   const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
   return `sandobox-${normalized || randomUUID().slice(0, 8)}`
 }
@@ -854,7 +854,7 @@ async function stopGroupContainers(group: string) {
   }
 }
 
-function parseDockerLogs(raw: string): ContainerLog[] {
+export function parseDockerLogs(raw: string): ContainerLog[] {
   const lines = raw.split("\n").filter(Boolean)
   return lines.map((line) => {
     const spaceIdx = line.indexOf(" ")

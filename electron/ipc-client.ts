@@ -2,7 +2,7 @@ import net from "net"
 import { randomUUID } from "node:crypto"
 import os from "os"
 
-function getPipePath(name: string): string {
+export function getPipePath(name: string): string {
   if (os.platform() === "win32") {
     return `//./pipe/${name}`
   }

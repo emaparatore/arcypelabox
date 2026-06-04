@@ -112,6 +112,4 @@ Validated names are used to generate the Docker image tag: `arcypelabox-base:{na
 
 1. Keep Docker Desktop updated to the latest version.
 2. Review custom Dockerfile commands carefully before building an image.
-3. Use `ask` mode for sensitive permissions (`bash`, `write`, `webfetch`).
-4. Do not share the named pipe socket path with untrusted applications.
-5. Regularly clean up unused sandbox images to reduce the attack surface.
+3. Do not share the named pipe socket path with untrusted applications.

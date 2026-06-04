@@ -141,9 +141,9 @@ SQLite storage via `better-sqlite3` at `%APPDATA%/sandbox-manager/sandbox.db`. T
 ## Data Flow
 
 ```
-+----------+     IPC      +-----------+    HTTP     +--------------+
-| Renderer |<----------->| Main      |<---------->| Sandbox      |
-| (React)  | contextBridge| Process   |  Proxy:4096| Container    |
++----------+     IPC      +-----------+    HTTP    +--------------+
+| Renderer |<------------>|Main       |<---------->| Sandbox      |
+| (React)  | contextBridge| Process   | Proxy:4096 | Container    |
 |          |              |           |            | (OpenCode    |
 |          |              |           |            |  Server)     |
 +----------+              +-----------+            +--------------+

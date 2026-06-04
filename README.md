@@ -24,12 +24,27 @@ Arcypelabox is a cross-platform Electron application that lets you create, confi
 
 ---
 
-## Screenshots
+## Quick Preview
 
-| Creation Wizard | AI Chat Panel | Sandbox Info |
-|:---:|:---:|:---:|
-| ![Wizard Step 1](imgs/screenshots/wizard-step-1.png) | ![OpenCode Panel](imgs/screenshots/opencode-panel.png) | ![Sandbox Info](imgs/screenshots/sandbox-info.png) |
-| ![Wizard Step 2](imgs/screenshots/wizard-step-2.png) | ![Wizard Step 3](imgs/screenshots/wizard-step-3.png) | ![Wizard Step 4](imgs/screenshots/wizard-step-4.png) |
+### Create Your Sandbox
+
+A 4-step wizard to configure your sandbox environment.
+
+| Step 1 — Base | Step 2 — Technology |
+|:---:|:---:|
+| ![Wizard Step 1 — Name, mount path, base template](imgs/screenshots/wizard-step-1.png) | ![Wizard Step 2 — Runtimes, tools, services](imgs/screenshots/wizard-step-2.png) |
+
+| Step 3 — Workspace | Step 4 — Review |
+|:---:|:---:|
+| ![Wizard Step 3 — Permissions, LLM providers, git config](imgs/screenshots/wizard-step-3.png) | ![Wizard Step 4 — Summary, Dockerfile preview, custom commands](imgs/screenshots/wizard-step-4.png) |
+
+### Manage Your Sandbox
+
+Monitor container status, view logs, and interact with the AI agent.
+
+| Sandbox Info | AI Chat Panel |
+|:---:|:---:|
+| ![Sandbox detail — Info tab](imgs/screenshots/sandbox-info.png) | ![OpenCode AI chat and session panel](imgs/screenshots/opencode-panel.png) |
 
 ---
 
